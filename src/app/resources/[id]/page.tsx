@@ -2,6 +2,7 @@ import { Navbar } from "@/components/Navbar"
 import { prisma } from "@/lib/prisma"
 import { notFound } from "next/navigation"
 import Link from "next/link"
+import Image from "next/image"
 import { 
   MapPin, 
   Clock, 
@@ -64,13 +65,24 @@ export default async function ResourcePage({ params }: Props) {
       <Navbar />
 
       {/* Hero */}
-      <div 
-        className="relative h-64 md:h-80"
-        style={{ 
-          background: `linear-gradient(135deg, ${resource.category?.color || '#3b82f6'}ee, ${resource.category?.color || '#3b82f6'}88)`
-        }}
-      >
-        <div className="absolute inset-0 bg-gradient-to-t from-black/30 to-transparent" />
+      <div className="relative h-64 md:h-80">
+        {resource.image ? (
+          <Image
+            src={resource.image}
+            alt={resource.name}
+            fill
+            className="object-cover"
+            priority
+          />
+        ) : (
+          <div 
+            className="absolute inset-0"
+            style={{ 
+              background: `linear-gradient(135deg, ${resource.category?.color || '#3b82f6'}ee, ${resource.category?.color || '#3b82f6'}88)`
+            }}
+          />
+        )}
+        <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-black/20" />
         <div className="absolute inset-0 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col justify-end pb-8">
           <Link 
             href="/resources" 

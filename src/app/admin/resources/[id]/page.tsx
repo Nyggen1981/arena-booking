@@ -1,17 +1,21 @@
 "use client"
 
 import { useSession } from "next-auth/react"
-import { useEffect, useState, use } from "react"
+import { useEffect, useState, use, useRef } from "react"
 import { useRouter } from "next/navigation"
 import { Navbar } from "@/components/Navbar"
 import Link from "next/link"
+import Image from "next/image"
 import { 
   ArrowLeft,
   Plus,
   Trash2,
   Loader2,
   Save,
-  Building2
+  Building2,
+  Upload,
+  X,
+  ImageIcon
 } from "lucide-react"
 
 interface Category {
@@ -36,6 +40,7 @@ export default function EditResourcePage({ params }: Props) {
   const { id } = use(params)
   const { data: session, status } = useSession()
   const router = useRouter()
+  const fileInputRef = useRef<HTMLInputElement>(null)
   
   const [isLoading, setIsLoading] = useState(true)
   const [isSubmitting, setIsSubmitting] = useState(false)
@@ -47,6 +52,7 @@ export default function EditResourcePage({ params }: Props) {
   const [description, setDescription] = useState("")
   const [location, setLocation] = useState("")
   const [categoryId, setCategoryId] = useState("")
+  const [image, setImage] = useState<string | null>(null)
   const [minBookingMinutes, setMinBookingMinutes] = useState("60")
   const [maxBookingMinutes, setMaxBookingMinutes] = useState("240")
   const [requiresApproval, setRequiresApproval] = useState(true)
@@ -72,6 +78,7 @@ export default function EditResourcePage({ params }: Props) {
       setDescription(resource.description || "")
       setLocation(resource.location || "")
       setCategoryId(resource.categoryId || "")
+      setImage(resource.image || null)
       setMinBookingMinutes(String(resource.minBookingMinutes || 60))
       setMaxBookingMinutes(String(resource.maxBookingMinutes || 240))
       setRequiresApproval(resource.requiresApproval ?? true)
@@ -89,6 +96,35 @@ export default function EditResourcePage({ params }: Props) {
       setIsLoading(false)
     })
   }, [id])
+
+  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+
+    if (file.size > 1024 * 1024) {
+      setError("Bildet er for stort. Maks 1MB.")
+      return
+    }
+
+    if (!file.type.startsWith("image/")) {
+      setError("Filen må være et bilde")
+      return
+    }
+
+    const reader = new FileReader()
+    reader.onloadend = () => {
+      setImage(reader.result as string)
+      setError("")
+    }
+    reader.readAsDataURL(file)
+  }
+
+  const removeImage = () => {
+    setImage(null)
+    if (fileInputRef.current) {
+      fileInputRef.current.value = ""
+    }
+  }
 
   const addPart = () => {
     setParts([...parts, { name: "", description: "", capacity: "", isNew: true }])
@@ -117,6 +153,7 @@ export default function EditResourcePage({ params }: Props) {
           name,
           description,
           location,
+          image,
           categoryId: categoryId || null,
           minBookingMinutes: parseInt(minBookingMinutes),
           maxBookingMinutes: parseInt(maxBookingMinutes),
@@ -240,6 +277,62 @@ export default function EditResourcePage({ params }: Props) {
                     ))}
                   </select>
                 </div>
+              </div>
+
+              {/* Image upload */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <ImageIcon className="w-4 h-4 inline mr-1" />
+                  Bilde av fasilitet
+                </label>
+                
+                {image ? (
+                  <div className="flex items-start gap-4">
+                    <div className="relative w-40 h-24 rounded-xl overflow-hidden bg-gray-100">
+                      <Image
+                        src={image}
+                        alt="Fasilitetsbilde"
+                        fill
+                        className="object-cover"
+                      />
+                    </div>
+                    <div className="flex flex-col gap-2">
+                      <button
+                        type="button"
+                        onClick={() => fileInputRef.current?.click()}
+                        className="btn btn-secondary text-sm py-2"
+                      >
+                        <Upload className="w-4 h-4" />
+                        Bytt bilde
+                      </button>
+                      <button
+                        type="button"
+                        onClick={removeImage}
+                        className="text-red-600 hover:text-red-700 text-sm flex items-center gap-1"
+                      >
+                        <X className="w-4 h-4" />
+                        Fjern bilde
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <div 
+                    onClick={() => fileInputRef.current?.click()}
+                    className="w-full p-6 border-2 border-dashed border-gray-300 rounded-xl hover:border-blue-400 hover:bg-blue-50 transition-colors cursor-pointer text-center"
+                  >
+                    <Upload className="w-8 h-8 text-gray-400 mx-auto mb-2" />
+                    <p className="text-sm text-gray-600">Klikk for å laste opp bilde</p>
+                    <p className="text-xs text-gray-400 mt-1">PNG eller JPG (maks 1MB)</p>
+                  </div>
+                )}
+                
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/*"
+                  onChange={handleImageUpload}
+                  className="hidden"
+                />
               </div>
             </div>
 

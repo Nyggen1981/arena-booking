@@ -97,6 +97,7 @@ export async function PUT(
       name: body.name,
       description: body.description,
       location: body.location,
+      image: body.image,
       categoryId: body.categoryId,
       minBookingMinutes: body.minBookingMinutes,
       maxBookingMinutes: body.maxBookingMinutes,

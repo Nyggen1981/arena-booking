@@ -1,6 +1,7 @@
 import { Navbar } from "@/components/Navbar"
 import { prisma } from "@/lib/prisma"
 import Link from "next/link"
+import Image from "next/image"
 import { MapPin, Clock, ArrowRight, Filter } from "lucide-react"
 
 async function getResources() {
@@ -104,13 +105,23 @@ export default async function ResourcesPage() {
                   href={`/resources/${resource.id}`}
                   className="card overflow-hidden group hover:shadow-lg transition-all"
                 >
-                  <div 
-                    className="h-40 relative"
-                    style={{ 
-                      background: `linear-gradient(135deg, ${resource.category?.color || '#3b82f6'}ee, ${resource.category?.color || '#3b82f6'}88)`
-                    }}
-                  >
-                    <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent" />
+                  <div className="h-40 relative">
+                    {resource.image ? (
+                      <Image
+                        src={resource.image}
+                        alt={resource.name}
+                        fill
+                        className="object-cover"
+                      />
+                    ) : (
+                      <div 
+                        className="absolute inset-0"
+                        style={{ 
+                          background: `linear-gradient(135deg, ${resource.category?.color || '#3b82f6'}ee, ${resource.category?.color || '#3b82f6'}88)`
+                        }}
+                      />
+                    )}
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-black/10" />
                     <div className="absolute bottom-4 left-4 right-4">
                       <h3 className="text-xl font-bold text-white">{resource.name}</h3>
                       {resource.location && (
