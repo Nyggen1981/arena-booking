@@ -1,7 +1,7 @@
 "use client"
 
 import { useSession } from "next-auth/react"
-import { useEffect, useState } from "react"
+import { useEffect, useState, useRef } from "react"
 import { useRouter } from "next/navigation"
 import { Navbar } from "@/components/Navbar"
 import Link from "next/link"
@@ -12,8 +12,12 @@ import {
   Settings,
   Palette,
   Building,
-  CheckCircle2
+  CheckCircle2,
+  Upload,
+  Image as ImageIcon,
+  X
 } from "lucide-react"
+import Image from "next/image"
 
 interface Organization {
   id: string
@@ -37,8 +41,10 @@ export default function AdminSettingsPage() {
   // Form state
   const [name, setName] = useState("")
   const [slug, setSlug] = useState("")
+  const [logo, setLogo] = useState<string | null>(null)
   const [primaryColor, setPrimaryColor] = useState("#2563eb")
   const [secondaryColor, setSecondaryColor] = useState("#1e40af")
+  const fileInputRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
     if (status === "unauthenticated") {
@@ -56,6 +62,7 @@ export default function AdminSettingsPage() {
           setOrg(data)
           setName(data.name || "")
           setSlug(data.slug || "")
+          setLogo(data.logo || null)
           setPrimaryColor(data.primaryColor || "#2563eb")
           setSecondaryColor(data.secondaryColor || "#1e40af")
           setIsLoading(false)
@@ -63,6 +70,36 @@ export default function AdminSettingsPage() {
         .catch(() => setIsLoading(false))
     }
   }, [session])
+
+  const handleLogoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+
+    // Check file size (max 500KB for base64 storage)
+    if (file.size > 500 * 1024) {
+      setError("Logoen er for stor. Maks 500KB.")
+      return
+    }
+
+    // Check file type
+    if (!file.type.startsWith("image/")) {
+      setError("Filen må være et bilde (PNG, JPG, SVG)")
+      return
+    }
+
+    const reader = new FileReader()
+    reader.onloadend = () => {
+      setLogo(reader.result as string)
+    }
+    reader.readAsDataURL(file)
+  }
+
+  const removeLogo = () => {
+    setLogo(null)
+    if (fileInputRef.current) {
+      fileInputRef.current.value = ""
+    }
+  }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -77,6 +114,7 @@ export default function AdminSettingsPage() {
         body: JSON.stringify({
           name,
           slug,
+          logo,
           primaryColor,
           secondaryColor
         })
@@ -182,6 +220,63 @@ export default function AdminSettingsPage() {
                   Brukes i URL-er. Kun små bokstaver, tall og bindestrek.
                 </p>
               </div>
+
+              {/* Logo upload */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <ImageIcon className="w-4 h-4 inline mr-1" />
+                  Klubblogo
+                </label>
+                
+                {logo ? (
+                  <div className="flex items-start gap-4">
+                    <div className="relative w-24 h-24 rounded-xl border border-gray-200 overflow-hidden bg-white flex items-center justify-center">
+                      <Image
+                        src={logo}
+                        alt="Klubblogo"
+                        width={96}
+                        height={96}
+                        className="object-contain"
+                      />
+                    </div>
+                    <div className="flex flex-col gap-2">
+                      <button
+                        type="button"
+                        onClick={() => fileInputRef.current?.click()}
+                        className="btn btn-secondary text-sm py-2"
+                      >
+                        <Upload className="w-4 h-4" />
+                        Bytt logo
+                      </button>
+                      <button
+                        type="button"
+                        onClick={removeLogo}
+                        className="text-red-600 hover:text-red-700 text-sm flex items-center gap-1"
+                      >
+                        <X className="w-4 h-4" />
+                        Fjern logo
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <div 
+                    onClick={() => fileInputRef.current?.click()}
+                    className="w-full p-6 border-2 border-dashed border-gray-300 rounded-xl hover:border-blue-400 hover:bg-blue-50 transition-colors cursor-pointer text-center"
+                  >
+                    <Upload className="w-8 h-8 text-gray-400 mx-auto mb-2" />
+                    <p className="text-sm text-gray-600">Klikk for å laste opp logo</p>
+                    <p className="text-xs text-gray-400 mt-1">PNG, JPG eller SVG (maks 500KB)</p>
+                  </div>
+                )}
+                
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/*"
+                  onChange={handleLogoUpload}
+                  className="hidden"
+                />
+              </div>
             </div>
 
             {/* Colors */}
@@ -237,7 +332,12 @@ export default function AdminSettingsPage() {
               {/* Color preview */}
               <div className="p-4 bg-gray-50 rounded-xl">
                 <p className="text-sm text-gray-500 mb-3">Forhåndsvisning:</p>
-                <div className="flex items-center gap-3">
+                <div className="flex items-center gap-4">
+                  {logo && (
+                    <div className="w-12 h-12 rounded-lg overflow-hidden bg-white border border-gray-200 flex items-center justify-center">
+                      <Image src={logo} alt="Logo" width={48} height={48} className="object-contain" />
+                    </div>
+                  )}
                   <div 
                     className="w-20 h-10 rounded-lg"
                     style={{ background: `linear-gradient(135deg, ${primaryColor}, ${secondaryColor})` }}
