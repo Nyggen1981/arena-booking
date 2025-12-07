@@ -52,6 +52,7 @@ export default function EditResourcePage({ params }: Props) {
   const [description, setDescription] = useState("")
   const [location, setLocation] = useState("")
   const [categoryId, setCategoryId] = useState("")
+  const [color, setColor] = useState("")
   const [image, setImage] = useState<string | null>(null)
   const [minBookingMinutes, setMinBookingMinutes] = useState("60")
   const [maxBookingMinutes, setMaxBookingMinutes] = useState("240")
@@ -79,6 +80,7 @@ export default function EditResourcePage({ params }: Props) {
       setDescription(resource.description || "")
       setLocation(resource.location || "")
       setCategoryId(resource.categoryId || "")
+      setColor(resource.color || "")
       setImage(resource.image || null)
       setMinBookingMinutes(String(resource.minBookingMinutes || 60))
       setMaxBookingMinutes(String(resource.maxBookingMinutes || 240))
@@ -156,6 +158,7 @@ export default function EditResourcePage({ params }: Props) {
           description,
           location,
           image,
+          color: color || null,
           categoryId: categoryId || null,
           minBookingMinutes: parseInt(minBookingMinutes),
           maxBookingMinutes: parseInt(maxBookingMinutes),
@@ -279,6 +282,40 @@ export default function EditResourcePage({ params }: Props) {
                     ))}
                   </select>
                 </div>
+              </div>
+
+              {/* Custom color */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Egen farge for kalender (valgfritt)
+                </label>
+                <div className="flex items-center gap-3">
+                  <input
+                    type="color"
+                    value={color || "#3b82f6"}
+                    onChange={(e) => setColor(e.target.value)}
+                    className="w-12 h-10 rounded-lg border border-gray-300 cursor-pointer"
+                  />
+                  <input
+                    type="text"
+                    value={color}
+                    onChange={(e) => setColor(e.target.value)}
+                    className="input max-w-[150px]"
+                    placeholder="#3b82f6"
+                  />
+                  {color && (
+                    <button
+                      type="button"
+                      onClick={() => setColor("")}
+                      className="text-sm text-gray-500 hover:text-gray-700"
+                    >
+                      Bruk kategorifarge
+                    </button>
+                  )}
+                </div>
+                <p className="text-xs text-gray-500 mt-1">
+                  Brukes for å skille fasiliteter i hovedkalenderen. Uten egen farge brukes kategorifargen.
+                </p>
               </div>
 
               {/* Image upload */}

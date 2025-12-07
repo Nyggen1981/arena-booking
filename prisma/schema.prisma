@@ -63,6 +63,7 @@ model Resource {
   description String?
   location    String?
   image       String?
+  color       String?  // Custom color for this facility
   isActive    Boolean @default(true)
 
   // Booking settings

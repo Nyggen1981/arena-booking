@@ -9,7 +9,15 @@ async function getResources() {
   return prisma.resource.findMany({
     where: { isActive: true },
     include: { category: true },
-    orderBy: { name: "asc" }
+    orderBy: { name: "asc" },
+    select: {
+      id: true,
+      name: true,
+      color: true,
+      category: {
+        select: { color: true }
+      }
+    }
   })
 }
 
@@ -49,7 +57,7 @@ export default async function CalendarPage() {
           resources={resources.map(r => ({
             id: r.id,
             name: r.name,
-            color: r.category?.color || '#3b82f6'
+            color: r.color || r.category?.color || '#3b82f6'
           }))}
           bookings={bookings.map(b => ({
             id: b.id,
