@@ -183,7 +183,17 @@ export function CalendarView({ resources, bookings }: Props) {
                   {hour.toString().padStart(2, "0")}:00
                 </div>
                 {weekDays.map((day) => {
+                  // Get bookings that overlap with this hour
                   const dayBookings = getBookingsForDay(day).filter(b => {
+                    const start = parseISO(b.startTime)
+                    const end = parseISO(b.endTime)
+                    const startHour = start.getHours()
+                    const endHour = end.getHours() + (end.getMinutes() > 0 ? 1 : 0)
+                    return hour >= startHour && hour < endHour
+                  })
+                  
+                  // Only render bookings that START in this hour (to avoid duplicates)
+                  const bookingsStartingThisHour = dayBookings.filter(b => {
                     const start = parseISO(b.startTime)
                     return start.getHours() === hour
                   })
@@ -195,7 +205,7 @@ export function CalendarView({ resources, bookings }: Props) {
                         isToday(day) ? 'bg-blue-50/30' : ''
                       }`}
                     >
-                      {dayBookings.map((booking) => {
+                      {bookingsStartingThisHour.map((booking) => {
                         const start = parseISO(booking.startTime)
                         const end = parseISO(booking.endTime)
                         const duration = (end.getTime() - start.getTime()) / (1000 * 60 * 60)
@@ -207,13 +217,13 @@ export function CalendarView({ resources, bookings }: Props) {
                             className={`absolute left-1 right-1 rounded-md px-2 py-1 text-xs text-white overflow-hidden cursor-pointer transition-transform hover:scale-[1.02] hover:z-10`}
                             style={{
                               top: `${top}%`,
-                              height: `${duration * 100}%`,
+                              height: `${Math.max(duration * 100, 100)}%`,
                               minHeight: '40px',
                               backgroundColor: booking.status === "approved" 
                                 ? getResourceColor(booking.resourceId)
                                 : '#f59e0b'
                             }}
-                            title={`${booking.title} - ${booking.resourceName}${booking.resourcePartName ? ` (${booking.resourcePartName})` : ''}`}
+                            title={`${format(start, "HH:mm")}-${format(end, "HH:mm")} ${booking.title} - ${booking.resourceName}${booking.resourcePartName ? ` (${booking.resourcePartName})` : ''}`}
                           >
                             <p className="font-medium truncate">{booking.title}</p>
                             <p className="opacity-80 truncate text-[10px]">{booking.resourceName}</p>

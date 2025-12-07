@@ -2,6 +2,9 @@ import { Navbar } from "@/components/Navbar"
 import { prisma } from "@/lib/prisma"
 import { CalendarView } from "@/components/CalendarView"
 
+// Disable caching to always show fresh data
+export const dynamic = 'force-dynamic'
+
 async function getResources() {
   return prisma.resource.findMany({
     where: { isActive: true },
