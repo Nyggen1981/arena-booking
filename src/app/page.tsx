@@ -48,11 +48,20 @@ async function getUpcomingBookings() {
   })
 }
 
+async function getUserCount(organizationId: string | undefined) {
+  if (!organizationId) return 0
+  return prisma.user.count({
+    where: { organizationId }
+  })
+}
+
 export default async function HomePage() {
-  const [organization, resources, upcomingBookings] = await Promise.all([
-    getOrganization(),
+  const organization = await getOrganization()
+  
+  const [resources, upcomingBookings, userCount] = await Promise.all([
     getResources(),
-    getUpcomingBookings()
+    getUpcomingBookings(),
+    getUserCount(organization?.id)
   ])
   
   const primaryColor = organization?.primaryColor || "#2563eb"
@@ -117,7 +126,7 @@ export default async function HomePage() {
               const today = new Date()
               return b.startTime.toDateString() === today.toDateString()
             }).length },
-            { icon: Users, label: "Aktive brukere", value: "50+" },
+            { icon: Users, label: "Brukere", value: userCount },
             { icon: CheckCircle2, label: "Bookinger totalt", value: resources.reduce((sum, r) => sum + r._count.bookings, 0) }
           ].map((stat, i) => (
             <div key={i} className="card p-6 text-center">
