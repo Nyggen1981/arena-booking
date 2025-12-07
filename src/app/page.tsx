@@ -94,25 +94,9 @@ export default async function HomePage() {
             </div>
 
             {/* Subtitle */}
-            <p className="text-xl text-white/90 max-w-2xl mx-auto mb-10">
+            <p className="text-xl text-white/90 max-w-2xl mx-auto">
               Se ledige tider, book treningsøkter og hold oversikt over alle klubbens fasiliteter på ett sted.
             </p>
-            
-            {/* CTA Buttons */}
-            <div className="flex flex-col sm:flex-row gap-4 justify-center">
-              <Link 
-                href="/resources" 
-                className="btn bg-white hover:bg-white/90 px-8 py-4 text-lg font-semibold shadow-lg"
-                style={{ color: primaryColor }}
-              >
-                Se fasiliteter
-                <ArrowRight className="w-5 h-5" />
-              </Link>
-              <Link href="/calendar" className="btn btn-secondary border-white/30 text-white hover:bg-white/10 px-8 py-4 text-lg">
-                <Calendar className="w-5 h-5" />
-                Åpne kalender
-              </Link>
-            </div>
           </div>
         </div>
 
