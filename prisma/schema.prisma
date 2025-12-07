@@ -69,7 +69,7 @@ model Resource {
   minBookingMinutes  Int     @default(60)
   maxBookingMinutes  Int     @default(240)
   requiresApproval   Boolean @default(true)
-  advanceBookingDays Int     @default(30)
+  advanceBookingDays Int?    @default(30)
 
   // Opening hours (stored as JSON string)
   openingHours String?

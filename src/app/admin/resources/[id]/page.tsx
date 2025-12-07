@@ -56,6 +56,7 @@ export default function EditResourcePage({ params }: Props) {
   const [minBookingMinutes, setMinBookingMinutes] = useState("60")
   const [maxBookingMinutes, setMaxBookingMinutes] = useState("240")
   const [requiresApproval, setRequiresApproval] = useState(true)
+  const [limitAdvanceBooking, setLimitAdvanceBooking] = useState(true)
   const [advanceBookingDays, setAdvanceBookingDays] = useState("30")
   const [parts, setParts] = useState<Part[]>([])
 
@@ -82,6 +83,7 @@ export default function EditResourcePage({ params }: Props) {
       setMinBookingMinutes(String(resource.minBookingMinutes || 60))
       setMaxBookingMinutes(String(resource.maxBookingMinutes || 240))
       setRequiresApproval(resource.requiresApproval ?? true)
+      setLimitAdvanceBooking(resource.advanceBookingDays !== null)
       setAdvanceBookingDays(String(resource.advanceBookingDays || 30))
       setParts(resource.parts?.map((p: { id: string; name: string; description?: string; capacity?: number }) => ({
         id: p.id,
@@ -158,7 +160,7 @@ export default function EditResourcePage({ params }: Props) {
           minBookingMinutes: parseInt(minBookingMinutes),
           maxBookingMinutes: parseInt(maxBookingMinutes),
           requiresApproval,
-          advanceBookingDays: parseInt(advanceBookingDays),
+          advanceBookingDays: limitAdvanceBooking ? parseInt(advanceBookingDays) : null,
           parts: parts.filter(p => p.name.trim()).map(p => ({
             id: p.id,
             name: p.name,
@@ -369,17 +371,34 @@ export default function EditResourcePage({ params }: Props) {
                 </div>
               </div>
 
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Forhåndsbestilling (dager frem)
-                </label>
-                <input
-                  type="number"
-                  value={advanceBookingDays}
-                  onChange={(e) => setAdvanceBookingDays(e.target.value)}
-                  className="input max-w-[200px]"
-                  min="1"
-                />
+              <div className="space-y-3">
+                <div className="flex items-center gap-3">
+                  <input
+                    type="checkbox"
+                    id="limitAdvanceBooking"
+                    checked={limitAdvanceBooking}
+                    onChange={(e) => setLimitAdvanceBooking(e.target.checked)}
+                    className="w-5 h-5 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                  />
+                  <label htmlFor="limitAdvanceBooking" className="text-sm font-medium text-gray-700">
+                    Begrens hvor langt frem i tid man kan booke
+                  </label>
+                </div>
+                
+                {limitAdvanceBooking && (
+                  <div className="ml-8">
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Maks antall dager frem
+                    </label>
+                    <input
+                      type="number"
+                      value={advanceBookingDays}
+                      onChange={(e) => setAdvanceBookingDays(e.target.value)}
+                      className="input max-w-[200px]"
+                      min="1"
+                    />
+                  </div>
+                )}
               </div>
 
               <div className="flex items-center gap-3">
