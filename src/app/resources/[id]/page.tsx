@@ -180,7 +180,10 @@ export default async function ResourcePage({ params }: Props) {
                   <div>
                     <p className="text-sm font-medium text-gray-900">Forhåndsbestilling</p>
                     <p className="text-sm text-gray-500">
-                      Inntil {resource.advanceBookingDays} dager frem
+                      {resource.advanceBookingDays 
+                        ? `Inntil ${resource.advanceBookingDays} dager frem`
+                        : "Ubegrenset antall dager"
+                      }
                     </p>
                   </div>
                 </div>
