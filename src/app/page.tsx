@@ -12,6 +12,9 @@ import {
   Building2
 } from "lucide-react"
 
+// Disable caching to always show fresh data
+export const dynamic = 'force-dynamic'
+
 async function getOrganization() {
   return prisma.organization.findFirst()
 }
@@ -162,13 +165,31 @@ export default async function HomePage() {
               href={`/resources/${resource.id}`}
               className="card card-interactive overflow-hidden group"
             >
-              <div 
-                className="h-32 relative"
-                style={{ 
-                  background: `linear-gradient(135deg, ${resource.category?.color || '#3b82f6'}dd, ${resource.category?.color || '#3b82f6'}99)`
-                }}
-              >
-                <div className="absolute inset-0 bg-black/10" />
+              <div className="h-32 relative">
+                {resource.image ? (
+                  <>
+                    <Image
+                      src={resource.image}
+                      alt={resource.name}
+                      fill
+                      className="object-cover opacity-40 group-hover:opacity-50 transition-opacity"
+                    />
+                    <div 
+                      className="absolute inset-0"
+                      style={{ 
+                        background: `linear-gradient(135deg, ${resource.category?.color || '#3b82f6'}cc, ${resource.category?.color || '#3b82f6'}88)`
+                      }}
+                    />
+                  </>
+                ) : (
+                  <div 
+                    className="absolute inset-0"
+                    style={{ 
+                      background: `linear-gradient(135deg, ${resource.category?.color || '#3b82f6'}dd, ${resource.category?.color || '#3b82f6'}99)`
+                    }}
+                  />
+                )}
+                <div className="absolute inset-0 bg-gradient-to-t from-black/40 to-transparent" />
                 <div className="absolute bottom-4 left-4">
                   <span className="px-3 py-1 rounded-full bg-white/20 backdrop-blur-sm text-white text-sm font-medium">
                     {resource.category?.name || "Fasilitet"}
