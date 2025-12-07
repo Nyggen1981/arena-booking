@@ -100,39 +100,72 @@ export async function POST(request: Request) {
     }
 
     // Check for conflicts on all dates
-    for (const { start: bookingStart, end: bookingEnd } of bookingDates) {
-      const conflictingBookings = await prisma.booking.findMany({
-        where: {
-          resourceId,
-          resourcePartId: resourcePartId || null,
-          status: { in: ["approved", "pending"] },
-          OR: [
-            {
-              AND: [
-                { startTime: { lte: bookingStart } },
-                { endTime: { gt: bookingStart } }
-              ]
-            },
-            {
-              AND: [
-                { startTime: { lt: bookingEnd } },
-                { endTime: { gte: bookingEnd } }
-              ]
-            },
-            {
-              AND: [
-                { startTime: { gte: bookingStart } },
-                { endTime: { lte: bookingEnd } }
-              ]
-            }
+    // Conflict logic:
+    // 1. If booking whole facility (resourcePartId = null): conflicts with any part booking
+    // 2. If booking a part: conflicts with whole facility booking OR same part booking
+    
+    const timeOverlapCondition = (bookingStart: Date, bookingEnd: Date) => ({
+      OR: [
+        {
+          AND: [
+            { startTime: { lte: bookingStart } },
+            { endTime: { gt: bookingStart } }
+          ]
+        },
+        {
+          AND: [
+            { startTime: { lt: bookingEnd } },
+            { endTime: { gte: bookingEnd } }
+          ]
+        },
+        {
+          AND: [
+            { startTime: { gte: bookingStart } },
+            { endTime: { lte: bookingEnd } }
           ]
         }
-      })
+      ]
+    })
+
+    for (const { start: bookingStart, end: bookingEnd } of bookingDates) {
+      let conflictingBookings
+      
+      if (!resourcePartId) {
+        // Booking whole facility - check if ANY booking exists (whole or parts)
+        conflictingBookings = await prisma.booking.findMany({
+          where: {
+            resourceId,
+            status: { in: ["approved", "pending"] },
+            ...timeOverlapCondition(bookingStart, bookingEnd)
+          },
+          include: { resourcePart: true }
+        })
+      } else {
+        // Booking a specific part - check for:
+        // 1. Whole facility bookings (resourcePartId = null)
+        // 2. Same part bookings
+        conflictingBookings = await prisma.booking.findMany({
+          where: {
+            resourceId,
+            status: { in: ["approved", "pending"] },
+            OR: [
+              { resourcePartId: null }, // Whole facility is booked
+              { resourcePartId: resourcePartId } // Same part is booked
+            ],
+            ...timeOverlapCondition(bookingStart, bookingEnd)
+          },
+          include: { resourcePart: true }
+        })
+      }
 
       if (conflictingBookings.length > 0) {
         const conflictDate = bookingStart.toLocaleDateString("nb-NO")
+        const conflict = conflictingBookings[0]
+        const conflictInfo = conflict.resourcePart 
+          ? `"${conflict.resourcePart.name}"` 
+          : "hele fasiliteten"
         return NextResponse.json(
-          { error: `Det finnes allerede en booking ${conflictDate} i dette tidsrommet` },
+          { error: `Konflikt ${conflictDate}: ${conflictInfo} er allerede booket i dette tidsrommet` },
           { status: 409 }
         )
       }
