@@ -155,7 +155,7 @@ export function PartsHierarchyEditor({ parts, onPartsChange }: Props) {
           }`}
         >
           {/* Header row */}
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 group">
             {/* Expand/collapse button */}
             <button
               type="button"
@@ -197,12 +197,12 @@ export function PartsHierarchyEditor({ parts, onPartsChange }: Props) {
               </span>
             )}
 
-            {/* Action buttons */}
-            <div className="flex items-center gap-1">
+            {/* Action buttons - show on hover */}
+            <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
               <button
                 type="button"
                 onClick={() => addPart(id)}
-                className="p-1.5 rounded bg-blue-50 hover:bg-blue-100 text-blue-600 transition-colors"
+                className="p-1.5 rounded hover:bg-blue-100 text-blue-600"
                 title="Legg til underdel"
               >
                 <Plus className="w-4 h-4" />
@@ -210,7 +210,7 @@ export function PartsHierarchyEditor({ parts, onPartsChange }: Props) {
               <button
                 type="button"
                 onClick={() => deletePart(id)}
-                className="p-1.5 rounded hover:bg-red-100 text-red-500 opacity-50 hover:opacity-100 transition-opacity"
+                className="p-1.5 rounded hover:bg-red-100 text-red-500"
                 title="Slett"
               >
                 <Trash2 className="w-4 h-4" />
@@ -218,25 +218,23 @@ export function PartsHierarchyEditor({ parts, onPartsChange }: Props) {
             </div>
           </div>
 
-          {/* Details row - always visible when name exists */}
-          {part.name && (
-            <div className="grid grid-cols-2 gap-2 mt-2 ml-7">
-              <input
-                type="text"
-                value={part.description}
-                onChange={(e) => updatePart(id, "description", e.target.value)}
-                placeholder="Beskrivelse (valgfri)"
-                className="px-2 py-1.5 text-sm border border-gray-200 rounded bg-gray-50 focus:bg-white focus:border-blue-300"
-              />
-              <input
-                type="number"
-                value={part.capacity}
-                onChange={(e) => updatePart(id, "capacity", e.target.value)}
-                placeholder="Kapasitet"
-                className="px-2 py-1.5 text-sm border border-gray-200 rounded bg-gray-50 focus:bg-white focus:border-blue-300"
-              />
-            </div>
-          )}
+          {/* Details row - always visible */}
+          <div className="grid grid-cols-2 gap-2 mt-2 ml-7">
+            <input
+              type="text"
+              value={part.description}
+              onChange={(e) => updatePart(id, "description", e.target.value)}
+              placeholder="Beskrivelse (valgfri)"
+              className="px-2 py-1.5 text-sm border border-gray-200 rounded bg-gray-50 focus:bg-white focus:border-blue-300"
+            />
+            <input
+              type="number"
+              value={part.capacity}
+              onChange={(e) => updatePart(id, "capacity", e.target.value)}
+              placeholder="Kapasitet"
+              className="px-2 py-1.5 text-sm border border-gray-200 rounded bg-gray-50 focus:bg-white focus:border-blue-300"
+            />
+          </div>
         </div>
 
         {/* Children */}
