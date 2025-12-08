@@ -23,7 +23,7 @@ function RegisterForm() {
   const searchParams = useSearchParams()
   const orgSlug = searchParams.get("org")
   
-  const [step, setStep] = useState<"choose" | "join" | "create">(orgSlug ? "join" : "choose")
+  const [step, setStep] = useState<"choose" | "join" | "create" | "success">(orgSlug ? "join" : "choose")
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState("")
 
@@ -80,19 +80,23 @@ function RegisterForm() {
         throw new Error(data.error || "Kunne ikke registrere")
       }
 
-      // Auto-login
-      const result = await signIn("credentials", {
-        email,
-        password,
-        redirect: false,
-      })
+      // For new organizations (admin), auto-login
+      if (step === "create") {
+        const result = await signIn("credentials", {
+          email,
+          password,
+          redirect: false,
+        })
 
-      if (result?.error) {
-        router.push("/login")
-      } else {
-        router.push("/")
-        router.refresh()
+        if (!result?.error) {
+          router.push("/")
+          router.refresh()
+          return
+        }
       }
+
+      // For regular users joining a club, show success message
+      setStep("success")
     } catch (err) {
       setError(err instanceof Error ? err.message : "Noe gikk galt")
     } finally {
@@ -113,9 +117,29 @@ function RegisterForm() {
               <Calendar className="w-8 h-8 text-white" />
             </div>
           </Link>
-          <h1 className="mt-4 text-3xl font-bold text-white">Opprett konto</h1>
-          <p className="mt-2 text-emerald-100">Bli med og book fasiliteter</p>
+          <h1 className="mt-4 text-3xl font-bold text-white">Søk om tilgang</h1>
+          <p className="mt-2 text-emerald-100">Registrer deg for å booke fasiliteter</p>
         </div>
+
+        {/* Success message after registration */}
+        {step === "success" && (
+          <div className="card p-8 animate-fadeIn text-center">
+            <div className="w-16 h-16 rounded-full bg-emerald-100 flex items-center justify-center mx-auto mb-6">
+              <CheckCircle2 className="w-8 h-8 text-emerald-600" />
+            </div>
+            <h2 className="text-xl font-bold text-gray-900 mb-2">
+              Søknad sendt!
+            </h2>
+            <p className="text-gray-600 mb-6">
+              Din registrering er mottatt og venter på godkjenning fra en administrator. 
+              Du vil få tilgang til å logge inn og booke når søknaden er godkjent.
+            </p>
+            <Link href="/" className="btn btn-primary">
+              <Calendar className="w-5 h-5" />
+              Tilbake til forsiden
+            </Link>
+          </div>
+        )}
 
         {/* Step chooser */}
         {step === "choose" && (
@@ -305,6 +329,13 @@ function RegisterForm() {
                 />
               </div>
 
+              {/* Info about approval */}
+              <div className="p-4 bg-amber-50 border border-amber-200 rounded-xl">
+                <p className="text-sm text-amber-800">
+                  <strong>Merk:</strong> Etter registrering må en administrator godkjenne kontoen din før du kan logge inn og booke.
+                </p>
+              </div>
+
               <button
                 type="submit"
                 disabled={isLoading}
@@ -313,12 +344,12 @@ function RegisterForm() {
                 {isLoading ? (
                   <>
                     <Loader2 className="w-5 h-5 animate-spin" />
-                    Registrerer...
+                    Sender søknad...
                   </>
                 ) : (
                   <>
                     <CheckCircle2 className="w-5 h-5" />
-                    Opprett konto
+                    Send søknad
                   </>
                 )}
               </button>
@@ -326,7 +357,7 @@ function RegisterForm() {
 
             <div className="mt-6 pt-6 border-t border-gray-100 text-center">
               <p className="text-sm text-gray-500">
-                Har du allerede en konto?{" "}
+                Allerede godkjent?{" "}
                 <Link href="/login" className="text-emerald-600 hover:text-emerald-700 font-medium">
                   Logg inn
                 </Link>

@@ -29,20 +29,24 @@ model Organization {
 
 // User with role-based access
 model User {
-  id        String   @id @default(cuid())
-  email     String   @unique
-  name      String?
-  password  String
-  role      String   @default("user") // "admin", "user"
-  phone     String?
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id         String   @id @default(cuid())
+  email      String   @unique
+  name       String?
+  password   String
+  role       String   @default("user") // "admin", "user"
+  phone      String?
+  isApproved Boolean  @default(false)  // Must be approved by admin to use system
+  approvedAt DateTime?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
 
   organizationId String
   organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
 
   bookings         Booking[]
   approvedBookings Booking[] @relation("ApprovedBy")
+
+  @@index([organizationId, isApproved])
 }
 
 // Resource category (Stadium, Hall, etc.)

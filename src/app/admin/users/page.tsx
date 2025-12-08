@@ -16,7 +16,12 @@ import {
   Trash2,
   ShieldCheck,
   ShieldOff,
-  Mail
+  Mail,
+  CheckCircle2,
+  XCircle,
+  Clock,
+  UserCheck,
+  UserX
 } from "lucide-react"
 import { format } from "date-fns"
 import { nb } from "date-fns/locale"
@@ -27,6 +32,8 @@ interface UserData {
   name: string | null
   role: string
   phone: string | null
+  isApproved: boolean
+  approvedAt: string | null
   createdAt: string
   _count: {
     bookings: number
@@ -40,6 +47,7 @@ export default function AdminUsersPage() {
   const [isLoading, setIsLoading] = useState(true)
   const [openMenu, setOpenMenu] = useState<string | null>(null)
   const [showAddModal, setShowAddModal] = useState(false)
+  const [activeTab, setActiveTab] = useState<"pending" | "approved">("pending")
 
   // New user form
   const [newEmail, setNewEmail] = useState("")
@@ -67,6 +75,23 @@ export default function AdminUsersPage() {
     const data = await response.json()
     setUsers(data)
     setIsLoading(false)
+  }
+
+  const approveUser = async (userId: string) => {
+    await fetch(`/api/admin/users/${userId}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ isApproved: true })
+    })
+    fetchUsers()
+  }
+
+  const rejectUser = async (userId: string) => {
+    if (!confirm("Er du sikker på at du vil avslå denne søknaden? Brukeren vil bli slettet.")) {
+      return
+    }
+    await fetch(`/api/admin/users/${userId}`, { method: "DELETE" })
+    fetchUsers()
   }
 
   const toggleRole = async (userId: string, currentRole: string) => {
@@ -124,8 +149,10 @@ export default function AdminUsersPage() {
     )
   }
 
-  const admins = users.filter(u => u.role === "admin")
-  const regularUsers = users.filter(u => u.role === "user")
+  const pendingUsers = users.filter(u => !u.isApproved)
+  const approvedUsers = users.filter(u => u.isApproved)
+  const admins = approvedUsers.filter(u => u.role === "admin")
+  const regularUsers = approvedUsers.filter(u => u.role === "user")
 
   return (
     <div className="min-h-screen bg-slate-50">
@@ -140,7 +167,7 @@ export default function AdminUsersPage() {
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
           <div>
             <h1 className="text-2xl font-bold text-gray-900">Brukere</h1>
-            <p className="text-gray-500">Administrer brukere og tilganger</p>
+            <p className="text-gray-500">Administrer brukere og godkjenn nye medlemmer</p>
           </div>
           <button 
             onClick={() => setShowAddModal(true)}
@@ -151,54 +178,146 @@ export default function AdminUsersPage() {
           </button>
         </div>
 
-        {/* Admins */}
-        <section className="mb-8">
-          <h2 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
-            <Shield className="w-5 h-5 text-purple-600" />
-            Administratorer ({admins.length})
-          </h2>
-          <div className="space-y-3">
-            {admins.map((user) => (
-              <UserCard 
-                key={user.id} 
-                user={user} 
-                currentUserId={session?.user?.id}
-                openMenu={openMenu}
-                setOpenMenu={setOpenMenu}
-                onToggleRole={toggleRole}
-                onDelete={deleteUser}
-              />
-            ))}
-          </div>
-        </section>
+        {/* Tabs */}
+        <div className="flex gap-2 mb-6">
+          <button
+            onClick={() => setActiveTab("pending")}
+            className={`px-4 py-2 rounded-lg font-medium flex items-center gap-2 transition-colors ${
+              activeTab === "pending"
+                ? "bg-amber-100 text-amber-800"
+                : "bg-white text-gray-600 hover:bg-gray-100"
+            }`}
+          >
+            <Clock className="w-4 h-4" />
+            Venter på godkjenning
+            {pendingUsers.length > 0 && (
+              <span className="bg-amber-500 text-white text-xs px-2 py-0.5 rounded-full">
+                {pendingUsers.length}
+              </span>
+            )}
+          </button>
+          <button
+            onClick={() => setActiveTab("approved")}
+            className={`px-4 py-2 rounded-lg font-medium flex items-center gap-2 transition-colors ${
+              activeTab === "approved"
+                ? "bg-blue-100 text-blue-800"
+                : "bg-white text-gray-600 hover:bg-gray-100"
+            }`}
+          >
+            <UserCheck className="w-4 h-4" />
+            Godkjente brukere ({approvedUsers.length})
+          </button>
+        </div>
 
-        {/* Regular users */}
-        <section>
-          <h2 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
-            <Users className="w-5 h-5 text-blue-600" />
-            Brukere ({regularUsers.length})
-          </h2>
-          {regularUsers.length === 0 ? (
-            <div className="card p-8 text-center">
-              <User className="w-12 h-12 text-gray-300 mx-auto mb-3" />
-              <p className="text-gray-500">Ingen vanlige brukere enda</p>
-            </div>
-          ) : (
-            <div className="space-y-3">
-              {regularUsers.map((user) => (
-                <UserCard 
-                  key={user.id} 
-                  user={user}
-                  currentUserId={session?.user?.id}
-                  openMenu={openMenu}
-                  setOpenMenu={setOpenMenu}
-                  onToggleRole={toggleRole}
-                  onDelete={deleteUser}
-                />
-              ))}
-            </div>
-          )}
-        </section>
+        {/* Pending Users Tab */}
+        {activeTab === "pending" && (
+          <section>
+            {pendingUsers.length === 0 ? (
+              <div className="card p-12 text-center">
+                <CheckCircle2 className="w-16 h-16 text-green-400 mx-auto mb-4" />
+                <h3 className="text-lg font-semibold text-gray-900 mb-2">Ingen ventende søknader</h3>
+                <p className="text-gray-500">Alle brukerforespørsler er behandlet.</p>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                {pendingUsers.map((user) => (
+                  <div key={user.id} className="card p-5 border-l-4 border-amber-400">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                      <div className="flex items-center gap-4">
+                        <div className="w-12 h-12 rounded-full bg-amber-100 flex items-center justify-center">
+                          <Clock className="w-6 h-6 text-amber-600" />
+                        </div>
+                        <div>
+                          <p className="font-semibold text-gray-900">{user.name || "Uten navn"}</p>
+                          <p className="text-sm text-gray-500 flex items-center gap-1">
+                            <Mail className="w-3 h-3" />
+                            {user.email}
+                          </p>
+                          {user.phone && (
+                            <p className="text-sm text-gray-500">{user.phone}</p>
+                          )}
+                          <p className="text-xs text-gray-400 mt-1">
+                            Søkte {format(new Date(user.createdAt), "d. MMM yyyy 'kl.' HH:mm", { locale: nb })}
+                          </p>
+                        </div>
+                      </div>
+                      <div className="flex gap-2">
+                        <button
+                          onClick={() => approveUser(user.id)}
+                          className="btn bg-green-600 hover:bg-green-700 text-white"
+                        >
+                          <UserCheck className="w-4 h-4" />
+                          Godkjenn
+                        </button>
+                        <button
+                          onClick={() => rejectUser(user.id)}
+                          className="btn bg-red-100 text-red-700 hover:bg-red-200"
+                        >
+                          <UserX className="w-4 h-4" />
+                          Avslå
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </section>
+        )}
+
+        {/* Approved Users Tab */}
+        {activeTab === "approved" && (
+          <>
+            {/* Admins */}
+            <section className="mb-8">
+              <h2 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
+                <Shield className="w-5 h-5 text-purple-600" />
+                Administratorer ({admins.length})
+              </h2>
+              <div className="space-y-3">
+                {admins.map((user) => (
+                  <UserCard 
+                    key={user.id} 
+                    user={user} 
+                    currentUserId={session?.user?.id}
+                    openMenu={openMenu}
+                    setOpenMenu={setOpenMenu}
+                    onToggleRole={toggleRole}
+                    onDelete={deleteUser}
+                  />
+                ))}
+              </div>
+            </section>
+
+            {/* Regular users */}
+            <section>
+              <h2 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
+                <Users className="w-5 h-5 text-blue-600" />
+                Brukere ({regularUsers.length})
+              </h2>
+              {regularUsers.length === 0 ? (
+                <div className="card p-8 text-center">
+                  <User className="w-12 h-12 text-gray-300 mx-auto mb-3" />
+                  <p className="text-gray-500">Ingen vanlige brukere enda</p>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {regularUsers.map((user) => (
+                    <UserCard 
+                      key={user.id} 
+                      user={user}
+                      currentUserId={session?.user?.id}
+                      openMenu={openMenu}
+                      setOpenMenu={setOpenMenu}
+                      onToggleRole={toggleRole}
+                      onDelete={deleteUser}
+                    />
+                  ))}
+                </div>
+              )}
+            </section>
+          </>
+        )}
       </div>
 
       {/* Add User Modal */}
@@ -248,6 +367,9 @@ export default function AdminUsersPage() {
                   <option value="admin">Administrator</option>
                 </select>
               </div>
+              <p className="text-xs text-gray-500">
+                Brukere lagt til av admin blir automatisk godkjent.
+              </p>
               <div className="flex gap-3 pt-2">
                 <button
                   type="submit"
@@ -369,4 +491,3 @@ function UserCard({
     </div>
   )
 }
-

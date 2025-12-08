@@ -14,7 +14,7 @@ export async function PATCH(
   }
 
   const { id } = await params
-  const { role, name, phone } = await request.json()
+  const { role, name, phone, isApproved } = await request.json()
 
   const user = await prisma.user.findUnique({ where: { id } })
 
@@ -27,18 +27,32 @@ export async function PATCH(
     return NextResponse.json({ error: "Kan ikke endre egen rolle" }, { status: 400 })
   }
 
+  // Build update data
+  const updateData: {
+    role?: string
+    name?: string
+    phone?: string
+    isApproved?: boolean
+    approvedAt?: Date | null
+  } = {}
+
+  if (role !== undefined) updateData.role = role
+  if (name !== undefined) updateData.name = name
+  if (phone !== undefined) updateData.phone = phone
+  if (isApproved !== undefined) {
+    updateData.isApproved = isApproved
+    updateData.approvedAt = isApproved ? new Date() : null
+  }
+
   const updated = await prisma.user.update({
     where: { id },
-    data: {
-      role,
-      name,
-      phone
-    },
+    data: updateData,
     select: {
       id: true,
       email: true,
       name: true,
-      role: true
+      role: true,
+      isApproved: true
     }
   })
 

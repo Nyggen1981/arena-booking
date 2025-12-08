@@ -19,12 +19,15 @@ export async function GET() {
       name: true,
       role: true,
       phone: true,
+      isApproved: true,
+      approvedAt: true,
       createdAt: true,
       _count: {
         select: { bookings: true }
       }
     },
     orderBy: [
+      { isApproved: "asc" },
       { role: "asc" },
       { name: "asc" }
     ]
@@ -57,6 +60,8 @@ export async function POST(request: Request) {
       password: hashedPassword,
       role: role || "user",
       phone,
+      isApproved: true, // Users added by admin are auto-approved
+      approvedAt: new Date(),
       organizationId: session.user.organizationId
     },
     select: {

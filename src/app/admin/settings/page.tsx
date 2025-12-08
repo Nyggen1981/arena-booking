@@ -15,7 +15,10 @@ import {
   CheckCircle2,
   Upload,
   Image as ImageIcon,
-  X
+  X,
+  Download,
+  Database,
+  AlertCircle
 } from "lucide-react"
 import Image from "next/image"
 
@@ -37,6 +40,12 @@ export default function AdminSettingsPage() {
   const [success, setSuccess] = useState(false)
   const [error, setError] = useState("")
   const [org, setOrg] = useState<Organization | null>(null)
+  
+  // Import/Export state
+  const [isExporting, setIsExporting] = useState(false)
+  const [isImporting, setIsImporting] = useState(false)
+  const [importMessage, setImportMessage] = useState("")
+  const importFileRef = useRef<HTMLInputElement>(null)
 
   // Form state
   const [name, setName] = useState("")
@@ -375,8 +384,160 @@ export default function AdminSettingsPage() {
             </div>
           </form>
         </div>
+
+        {/* Data Export/Import */}
+        <div className="card p-6 md:p-8 mt-6">
+          <div className="flex items-center gap-3 mb-6">
+            <div className="w-12 h-12 rounded-xl bg-purple-100 flex items-center justify-center">
+              <Database className="w-6 h-6 text-purple-600" />
+            </div>
+            <div>
+              <h2 className="text-xl font-bold text-gray-900">Data</h2>
+              <p className="text-gray-500 text-sm">Eksporter og importer klubbdata</p>
+            </div>
+          </div>
+
+          {importMessage && (
+            <div className={`p-4 rounded-xl mb-6 flex items-center gap-2 ${
+              importMessage.includes("Feil") 
+                ? "bg-red-50 border border-red-100 text-red-700"
+                : "bg-green-50 border border-green-100 text-green-700"
+            }`}>
+              {importMessage.includes("Feil") ? (
+                <AlertCircle className="w-5 h-5 flex-shrink-0" />
+              ) : (
+                <CheckCircle2 className="w-5 h-5 flex-shrink-0" />
+              )}
+              {importMessage}
+            </div>
+          )}
+
+          <div className="grid md:grid-cols-2 gap-6">
+            {/* Export */}
+            <div className="p-4 bg-blue-50 rounded-xl">
+              <h3 className="font-semibold text-gray-900 mb-2">Eksporter data</h3>
+              <p className="text-sm text-gray-600 mb-4">
+                Last ned alle fasiliteter, kategorier, brukere og bookinger som JSON-fil.
+              </p>
+              <button
+                onClick={handleExport}
+                disabled={isExporting}
+                className="btn bg-blue-600 hover:bg-blue-700 text-white"
+              >
+                {isExporting ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    Eksporterer...
+                  </>
+                ) : (
+                  <>
+                    <Download className="w-4 h-4" />
+                    Eksporter JSON
+                  </>
+                )}
+              </button>
+            </div>
+
+            {/* Import */}
+            <div className="p-4 bg-amber-50 rounded-xl">
+              <h3 className="font-semibold text-gray-900 mb-2">Importer data</h3>
+              <p className="text-sm text-gray-600 mb-4">
+                Last opp en JSON-fil for å importere fasiliteter, kategorier og brukere.
+              </p>
+              <button
+                onClick={() => importFileRef.current?.click()}
+                disabled={isImporting}
+                className="btn bg-amber-600 hover:bg-amber-700 text-white"
+              >
+                {isImporting ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    Importerer...
+                  </>
+                ) : (
+                  <>
+                    <Upload className="w-4 h-4" />
+                    Importer JSON
+                  </>
+                )}
+              </button>
+              <input
+                ref={importFileRef}
+                type="file"
+                accept=".json"
+                onChange={handleImport}
+                className="hidden"
+              />
+            </div>
+          </div>
+
+          <p className="text-xs text-gray-500 mt-4">
+            <strong>Tips:</strong> Bruk eksport som backup før du gjør store endringer. 
+            Import vil ikke overskrive eksisterende data.
+          </p>
+        </div>
       </div>
     </div>
   )
+
+  async function handleExport() {
+    setIsExporting(true)
+    setImportMessage("")
+    try {
+      const response = await fetch("/api/admin/data")
+      const data = await response.json()
+      
+      const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" })
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement("a")
+      a.href = url
+      a.download = `${org?.slug || "arena-booking"}-export-${new Date().toISOString().split("T")[0]}.json`
+      document.body.appendChild(a)
+      a.click()
+      document.body.removeChild(a)
+      URL.revokeObjectURL(url)
+      
+      setImportMessage("Data eksportert!")
+      setTimeout(() => setImportMessage(""), 3000)
+    } catch {
+      setImportMessage("Feil: Kunne ikke eksportere data")
+    } finally {
+      setIsExporting(false)
+    }
+  }
+
+  async function handleImport(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0]
+    if (!file) return
+
+    setIsImporting(true)
+    setImportMessage("")
+
+    try {
+      const text = await file.text()
+      const data = JSON.parse(text)
+
+      const response = await fetch("/api/admin/data", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(data)
+      })
+
+      const result = await response.json()
+
+      if (!response.ok) {
+        throw new Error(result.error || "Import feilet")
+      }
+
+      setImportMessage(result.message || "Data importert!")
+    } catch (err) {
+      setImportMessage(`Feil: ${err instanceof Error ? err.message : "Kunne ikke importere"}`)
+    } finally {
+      setIsImporting(false)
+      if (importFileRef.current) {
+        importFileRef.current.value = ""
+      }
+    }
+  }
 }
 

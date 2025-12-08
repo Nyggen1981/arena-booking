@@ -34,6 +34,11 @@ export const authOptions: NextAuthOptions = {
           return null
         }
 
+        // Check if user is approved (admins and organization creators are always approved)
+        if (!user.isApproved && user.role !== "admin") {
+          throw new Error("Din konto venter på godkjenning fra administrator")
+        }
+
         return {
           id: user.id,
           email: user.email,

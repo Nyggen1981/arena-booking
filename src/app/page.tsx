@@ -196,15 +196,19 @@ export default async function PublicHomePage() {
                 <p className="text-2xl font-bold" style={{ color: primaryColor }}>{resources.length}</p>
                 <p className="text-xs text-gray-500 uppercase tracking-wide">Fasiliteter</p>
               </div>
-              <div className="h-10 w-px bg-gray-200" />
-              <Link 
-                href="/resources"
-                className="flex items-center gap-2 text-sm font-medium hover:underline"
-                style={{ color: primaryColor }}
-              >
-                <Building2 className="w-4 h-4" />
-                Se alle fasiliteter
-              </Link>
+              {session && (
+                <>
+                  <div className="h-10 w-px bg-gray-200" />
+                  <Link 
+                    href="/resources"
+                    className="flex items-center gap-2 text-sm font-medium hover:underline"
+                    style={{ color: primaryColor }}
+                  >
+                    <Building2 className="w-4 h-4" />
+                    Se alle fasiliteter
+                  </Link>
+                </>
+              )}
             </div>
           </div>
         </div>
@@ -250,16 +254,16 @@ export default async function PublicHomePage() {
               <div>
                 <h3 className="font-semibold text-gray-900">Vil du booke en fasilitet?</h3>
                 <p className="text-gray-600 mt-1">
-                  For å booke en av våre fasiliteter må du først registrere deg eller logge inn. 
-                  Det er helt gratis for medlemmer av {organization?.name || "klubben"}.
+                  For å booke fasiliteter må du være registrert medlem av {organization?.name || "klubben"}. 
+                  Registrer deg så vil en administrator godkjenne tilgangen din.
                 </p>
                 <div className="flex items-center gap-3 mt-4">
                   <Link href="/register" className="btn btn-primary">
                     <UserPlus className="w-4 h-4" />
-                    Registrer deg gratis
+                    Søk om tilgang
                   </Link>
                   <Link href="/login" className="text-sm text-blue-600 hover:underline">
-                    Har du allerede bruker? Logg inn
+                    Allerede godkjent? Logg inn
                   </Link>
                 </div>
               </div>
