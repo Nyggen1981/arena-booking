@@ -14,8 +14,19 @@ import {
   Loader2,
   CheckCircle2,
   AlertCircle,
-  Repeat
+  Repeat,
+  MapPin
 } from "lucide-react"
+import { MapViewer } from "@/components/MapViewer"
+
+interface ResourcePart {
+  id: string
+  name: string
+  description?: string | null
+  capacity?: number | null
+  mapCoordinates?: string | null
+  parentId?: string | null
+}
 
 interface Resource {
   id: string
@@ -23,7 +34,8 @@ interface Resource {
   minBookingMinutes: number
   maxBookingMinutes: number
   requiresApproval: boolean
-  parts: { id: string; name: string }[]
+  mapImage?: string | null
+  parts: ResourcePart[]
   category: { color: string } | null
 }
 
@@ -50,6 +62,7 @@ export default function BookResourcePage({ params }: Props) {
   const [startTime, setStartTime] = useState("")
   const [endTime, setEndTime] = useState("")
   const [selectedPart, setSelectedPart] = useState("")
+  const [hoveredPart, setHoveredPart] = useState<string | null>(null)
   const [contactName, setContactName] = useState("")
   const [contactEmail, setContactEmail] = useState("")
   const [contactPhone, setContactPhone] = useState("")
@@ -245,22 +258,91 @@ export default function BookResourcePage({ params }: Props) {
               />
             </div>
 
-            {/* Part selection */}
+            {/* Part selection with map */}
             {resource.parts.length > 0 && (
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+              <div className="space-y-4">
+                <label className="block text-sm font-medium text-gray-700">
                   Velg del av {resource.name}
                 </label>
-                <select
-                  value={selectedPart}
-                  onChange={(e) => setSelectedPart(e.target.value)}
-                  className="input"
-                >
-                  <option value="">Hele fasiliteten</option>
-                  {resource.parts.map(part => (
-                    <option key={part.id} value={part.id}>{part.name}</option>
+                
+                {/* Map view if available */}
+                {resource.mapImage && resource.parts.some(p => p.mapCoordinates) && (
+                  <div className="rounded-xl overflow-hidden border border-gray-200">
+                    <MapViewer
+                      mapImage={resource.mapImage}
+                      parts={resource.parts}
+                      selectedPartId={selectedPart || hoveredPart}
+                      onPartClick={(partId) => setSelectedPart(partId === selectedPart ? "" : partId)}
+                    />
+                  </div>
+                )}
+
+                {/* Part list with hover sync */}
+                <div className="space-y-2">
+                  <button
+                    type="button"
+                    onClick={() => setSelectedPart("")}
+                    onMouseEnter={() => setHoveredPart(null)}
+                    onMouseLeave={() => setHoveredPart(null)}
+                    className={`w-full p-3 rounded-lg border-2 text-left transition-all ${
+                      selectedPart === "" 
+                        ? "border-blue-500 bg-blue-50" 
+                        : "border-gray-200 hover:border-gray-300"
+                    }`}
+                  >
+                    <span className="font-medium text-gray-900">Hele {resource.name}</span>
+                    <p className="text-sm text-gray-500">Book hele fasiliteten</p>
+                  </button>
+                  
+                  {resource.parts.filter(p => !p.parentId).map(part => (
+                    <div key={part.id}>
+                      <button
+                        type="button"
+                        onClick={() => setSelectedPart(part.id === selectedPart ? "" : part.id)}
+                        onMouseEnter={() => setHoveredPart(part.id)}
+                        onMouseLeave={() => setHoveredPart(null)}
+                        className={`w-full p-3 rounded-lg border-2 text-left transition-all ${
+                          selectedPart === part.id 
+                            ? "border-blue-500 bg-blue-50" 
+                            : hoveredPart === part.id
+                              ? "border-blue-300 bg-blue-50/50"
+                              : "border-gray-200 hover:border-gray-300"
+                        }`}
+                      >
+                        <span className="font-medium text-gray-900">{part.name}</span>
+                        {part.description && (
+                          <p className="text-sm text-gray-500">{part.description}</p>
+                        )}
+                        {part.capacity && (
+                          <p className="text-xs text-gray-400">Kapasitet: {part.capacity} personer</p>
+                        )}
+                      </button>
+                      
+                      {/* Child parts */}
+                      {resource.parts.filter(child => child.parentId === part.id).map(child => (
+                        <button
+                          key={child.id}
+                          type="button"
+                          onClick={() => setSelectedPart(child.id === selectedPart ? "" : child.id)}
+                          onMouseEnter={() => setHoveredPart(child.id)}
+                          onMouseLeave={() => setHoveredPart(null)}
+                          className={`w-full p-3 pl-8 rounded-lg border-2 text-left transition-all ml-4 mt-2 ${
+                            selectedPart === child.id 
+                              ? "border-blue-500 bg-blue-50" 
+                              : hoveredPart === child.id
+                                ? "border-blue-300 bg-blue-50/50"
+                                : "border-gray-200 hover:border-gray-300"
+                          }`}
+                        >
+                          <span className="font-medium text-gray-900">{child.name}</span>
+                          {child.description && (
+                            <p className="text-sm text-gray-500">{child.description}</p>
+                          )}
+                        </button>
+                      ))}
+                    </div>
                   ))}
-                </select>
+                </div>
               </div>
             )}
 
