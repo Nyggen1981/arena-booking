@@ -483,15 +483,27 @@ export default function EditResourcePage({ params }: Props) {
                   <Map className="w-5 h-5 text-blue-600" />
                   <h2 className="font-semibold text-gray-900">Oversiktskart</h2>
                 </div>
-                <p className="text-sm text-gray-500">
-                  Last opp et bilde av fasiliteten og marker hvor de ulike delene befinner seg.
-                </p>
-                <MapEditor
-                  mapImage={mapImage}
-                  parts={parts}
-                  onMapImageChange={setMapImage}
-                  onPartsUpdate={setParts}
-                />
+                
+                {/* Check if any parts are unsaved (no id) */}
+                {parts.some(p => !p.id) ? (
+                  <div className="p-4 bg-amber-50 border border-amber-200 rounded-xl">
+                    <p className="text-sm text-amber-800">
+                      <strong>Tips:</strong> Lagre endringene først for å kunne markere delene på et oversiktskart.
+                    </p>
+                  </div>
+                ) : (
+                  <>
+                    <p className="text-sm text-gray-500">
+                      Last opp et bilde av fasiliteten og marker hvor de ulike delene befinner seg.
+                    </p>
+                    <MapEditor
+                      mapImage={mapImage}
+                      parts={parts}
+                      onMapImageChange={setMapImage}
+                      onPartsUpdate={setParts}
+                    />
+                  </>
+                )}
               </div>
             )}
 
