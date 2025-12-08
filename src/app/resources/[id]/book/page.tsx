@@ -289,15 +289,6 @@ export default function BookResourcePage({ params }: Props) {
                           : `Hele ${resource.name}`
                         }
                       </p>
-                      {selectedPart && (
-                        <button
-                          type="button"
-                          onClick={() => setSelectedPart("")}
-                          className="text-sm text-blue-600 hover:text-blue-700 mt-2"
-                        >
-                          Velg hele fasiliteten i stedet
-                        </button>
-                      )}
                     </div>
                     
                     <p className="text-xs text-gray-500">
