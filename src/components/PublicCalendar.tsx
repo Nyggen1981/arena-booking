@@ -316,12 +316,12 @@ export function PublicCalendar({ resources, bookings, isLoggedIn }: Props) {
             onClick={() => setSelectedResource(selectedResource === resource.id ? null : resource.id)}
             className={`flex items-center gap-2 px-2 py-1 rounded-lg transition-colors ${
               selectedResource === resource.id 
-                ? 'bg-gray-100 ring-2 ring-offset-1' 
+                ? 'bg-gray-100' 
                 : 'hover:bg-gray-50'
             }`}
-            style={{ 
-              ringColor: selectedResource === resource.id ? resource.color : undefined 
-            }}
+            style={selectedResource === resource.id ? { 
+              boxShadow: `0 0 0 2px ${resource.color}`
+            } : undefined}
           >
             <div 
               className="w-3 h-3 rounded-full" 
