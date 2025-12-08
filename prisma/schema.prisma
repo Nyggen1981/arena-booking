@@ -90,6 +90,10 @@ model Resource {
 
   parts    ResourcePart[]
   bookings Booking[]
+
+  // Indexes for faster queries
+  @@index([organizationId, isActive])
+  @@index([categoryId])
 }
 
 // Part of a resource (e.g., "Bane 1", "Bane 2", "Halv hall")
@@ -150,4 +154,11 @@ model Booking {
 
   approvedById String?
   approvedBy   User?   @relation("ApprovedBy", fields: [approvedById], references: [id])
+
+  // Indexes for faster queries
+  @@index([resourceId, status, startTime])
+  @@index([userId])
+  @@index([organizationId])
+  @@index([startTime])
+  @@index([status])
 }

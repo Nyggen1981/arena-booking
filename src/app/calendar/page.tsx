@@ -1,12 +1,14 @@
 import { Navbar } from "@/components/Navbar"
 import { prisma } from "@/lib/prisma"
 import { CalendarView } from "@/components/CalendarView"
+import { unstable_cache } from "next/cache"
 
-// Disable caching to always show fresh data
-export const dynamic = 'force-dynamic'
+// Revalidate every 30 seconds
+export const revalidate = 30
 
-async function getResources() {
-  return prisma.resource.findMany({
+// Cache resources for 60 seconds
+const getResources = unstable_cache(
+  async () => prisma.resource.findMany({
     where: { isActive: true },
     orderBy: { name: "asc" },
     select: {
@@ -17,26 +19,33 @@ async function getResources() {
         select: { color: true }
       }
     }
-  })
-}
+  }),
+  ["calendar-resources"],
+  { revalidate: 60 }
+)
 
-async function getBookings() {
-  const now = new Date()
-  const twoWeeksAgo = new Date(now.getTime() - 14 * 24 * 60 * 60 * 1000)
-  const twoMonthsAhead = new Date(now.getTime() + 60 * 24 * 60 * 60 * 1000)
+// Cache bookings for 30 seconds (time-sensitive)
+const getBookings = unstable_cache(
+  async () => {
+    const now = new Date()
+    const twoWeeksAgo = new Date(now.getTime() - 14 * 24 * 60 * 60 * 1000)
+    const twoMonthsAhead = new Date(now.getTime() + 60 * 24 * 60 * 60 * 1000)
 
-  return prisma.booking.findMany({
-    where: {
-      status: { in: ["approved", "pending"] },
-      startTime: { gte: twoWeeksAgo, lte: twoMonthsAhead }
-    },
-    include: {
-      resource: true,
-      resourcePart: true
-    },
-    orderBy: { startTime: "asc" }
-  })
-}
+    return prisma.booking.findMany({
+      where: {
+        status: { in: ["approved", "pending"] },
+        startTime: { gte: twoWeeksAgo, lte: twoMonthsAhead }
+      },
+      include: {
+        resource: true,
+        resourcePart: true
+      },
+      orderBy: { startTime: "asc" }
+    })
+  },
+  ["calendar-bookings"],
+  { revalidate: 30 }
+)
 
 export default async function CalendarPage() {
   const [resources, bookings] = await Promise.all([

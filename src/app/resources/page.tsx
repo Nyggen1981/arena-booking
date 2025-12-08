@@ -3,12 +3,14 @@ import { prisma } from "@/lib/prisma"
 import Link from "next/link"
 import Image from "next/image"
 import { MapPin, Clock, ArrowRight, Filter } from "lucide-react"
+import { unstable_cache } from "next/cache"
 
-// Disable caching to always show fresh data
-export const dynamic = 'force-dynamic'
+// Revalidate every 60 seconds
+export const revalidate = 60
 
-async function getResources() {
-  return prisma.resource.findMany({
+// Cache resources for 60 seconds
+const getResources = unstable_cache(
+  async () => prisma.resource.findMany({
     where: { isActive: true },
     include: {
       category: true,
@@ -18,14 +20,19 @@ async function getResources() {
       { category: { name: "asc" } },
       { name: "asc" }
     ]
-  })
-}
+  }),
+  ["resources-list"],
+  { revalidate: 60 }
+)
 
-async function getCategories() {
-  return prisma.resourceCategory.findMany({
+// Cache categories for 5 minutes (rarely changes)
+const getCategories = unstable_cache(
+  async () => prisma.resourceCategory.findMany({
     orderBy: { name: "asc" }
-  })
-}
+  }),
+  ["categories"],
+  { revalidate: 300 }
+)
 
 export default async function ResourcesPage() {
   const [resources, categories] = await Promise.all([
