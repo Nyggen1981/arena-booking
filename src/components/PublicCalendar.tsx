@@ -384,7 +384,7 @@ export function PublicCalendar({ categories, resources, bookings, isLoggedIn }: 
       {viewMode === "week" && (
         <div className="bg-white rounded-xl border border-gray-200 overflow-hidden shadow-sm">
           {/* Header */}
-          <div className="grid grid-cols-8 bg-gray-50 border-b border-gray-200">
+          <div className="grid bg-gray-50 border-b border-gray-200" style={{ gridTemplateColumns: '60px repeat(7, 1fr)' }}>
             <div className="p-3 text-center text-sm font-medium text-gray-500" />
             {weekDays.map((day) => (
               <div 
@@ -408,7 +408,7 @@ export function PublicCalendar({ categories, resources, bookings, isLoggedIn }: 
           {/* Time grid */}
           <div className="max-h-[600px] overflow-y-auto">
             {hours.map((hour) => (
-              <div key={hour} className="grid grid-cols-8 border-b border-gray-100 last:border-b-0">
+              <div key={hour} className="grid border-b border-gray-100 last:border-b-0" style={{ gridTemplateColumns: '60px repeat(7, 1fr)' }}>
                 <div className="p-2 text-right text-xs text-gray-400 pr-3 font-medium">
                   {hour.toString().padStart(2, "0")}:00
                 </div>
