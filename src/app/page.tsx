@@ -6,9 +6,9 @@ import {
   LogIn,
   UserPlus,
   Building2,
-  Info
+  Info,
+  AlertCircle
 } from "lucide-react"
-import { unstable_cache } from "next/cache"
 import { PublicCalendar } from "@/components/PublicCalendar"
 import { getServerSession } from "next-auth"
 import { authOptions } from "@/lib/auth"
@@ -16,39 +16,40 @@ import { authOptions } from "@/lib/auth"
 // Revalidate every 30 seconds for fresh booking data
 export const revalidate = 30
 
-// Cache organization data for 5 minutes (rarely changes)
-const getOrganization = unstable_cache(
-  async () => prisma.organization.findFirst(),
-  ["organization"],
-  { revalidate: 300 }
-)
+async function getOrganization() {
+  try {
+    return await prisma.organization.findFirst()
+  } catch {
+    return null
+  }
+}
 
-// Cache resources for 60 seconds
-const getResources = unstable_cache(
-  async () => prisma.resource.findMany({
-    where: { isActive: true },
-    select: {
-      id: true,
-      name: true,
-      color: true,
-      category: {
-        select: { color: true }
-      }
-    },
-    orderBy: { name: "asc" }
-  }),
-  ["public-resources"],
-  { revalidate: 60 }
-)
+async function getResources() {
+  try {
+    return await prisma.resource.findMany({
+      where: { isActive: true },
+      select: {
+        id: true,
+        name: true,
+        color: true,
+        category: {
+          select: { color: true }
+        }
+      },
+      orderBy: { name: "asc" }
+    })
+  } catch {
+    return []
+  }
+}
 
-// Get all bookings for calendar (public view - only approved)
-const getPublicBookings = unstable_cache(
-  async () => {
+async function getPublicBookings() {
+  try {
     const now = new Date()
     const twoWeeksAgo = new Date(now.getTime() - 14 * 24 * 60 * 60 * 1000)
     const twoMonthsAhead = new Date(now.getTime() + 60 * 24 * 60 * 60 * 1000)
 
-    return prisma.booking.findMany({
+    return await prisma.booking.findMany({
       where: {
         status: "approved",
         startTime: { gte: twoWeeksAgo, lte: twoMonthsAhead }
@@ -68,10 +69,10 @@ const getPublicBookings = unstable_cache(
       },
       orderBy: { startTime: "asc" }
     })
-  },
-  ["public-bookings"],
-  { revalidate: 30 }
-)
+  } catch {
+    return []
+  }
+}
 
 export default async function PublicHomePage() {
   // Try to get session, but don't fail if auth is not configured
@@ -82,14 +83,14 @@ export default async function PublicHomePage() {
     // Auth not configured or error - continue without session
   }
   
-  const organization = await getOrganization()
-  
-  const [resources, bookings] = await Promise.all([
+  const [organization, resources, bookings] = await Promise.all([
+    getOrganization(),
     getResources(),
     getPublicBookings()
   ])
   
   const primaryColor = organization?.primaryColor || "#2563eb"
+  const hasData = resources.length > 0
 
   return (
     <div className="min-h-screen bg-slate-50">
@@ -211,23 +212,33 @@ export default async function PublicHomePage() {
 
       {/* Main Calendar */}
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <PublicCalendar 
-          resources={resources.map(r => ({
-            id: r.id,
-            name: r.name,
-            color: r.color || r.category?.color || '#3b82f6'
-          }))}
-          bookings={bookings.map(b => ({
-            id: b.id,
-            title: b.title,
-            startTime: b.startTime.toISOString(),
-            endTime: b.endTime.toISOString(),
-            resourceId: b.resourceId,
-            resourceName: b.resource.name,
-            resourcePartName: b.resourcePart?.name
-          }))}
-          isLoggedIn={!!session}
-        />
+        {hasData ? (
+          <PublicCalendar 
+            resources={resources.map(r => ({
+              id: r.id,
+              name: r.name,
+              color: r.color || r.category?.color || '#3b82f6'
+            }))}
+            bookings={bookings.map(b => ({
+              id: b.id,
+              title: b.title,
+              startTime: b.startTime.toISOString(),
+              endTime: b.endTime.toISOString(),
+              resourceId: b.resourceId,
+              resourceName: b.resource.name,
+              resourcePartName: b.resourcePart?.name
+            }))}
+            isLoggedIn={!!session}
+          />
+        ) : (
+          <div className="bg-white rounded-xl border border-gray-200 p-12 text-center">
+            <AlertCircle className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+            <h3 className="text-lg font-semibold text-gray-900 mb-2">Ingen fasiliteter tilgjengelig</h3>
+            <p className="text-gray-600">
+              Det er ingen fasiliteter konfigurert ennå. Kontakt administrator for å sette opp bookingsystemet.
+            </p>
+          </div>
+        )}
 
         {/* Info box for non-logged in users */}
         {!session && (
