@@ -25,15 +25,36 @@ async function getOrganization() {
 async function getResources() {
   try {
     return await prisma.resource.findMany({
-      where: { isActive: true },
+      where: { 
+        isActive: true,
+        showOnPublicCalendar: true
+      },
       select: {
         id: true,
         name: true,
         color: true,
+        categoryId: true,
         category: {
-          select: { color: true }
+          select: { 
+            id: true,
+            name: true,
+            color: true 
+          }
         }
       },
+      orderBy: [
+        { category: { name: "asc" } },
+        { name: "asc" }
+      ]
+    })
+  } catch {
+    return []
+  }
+}
+
+async function getCategories() {
+  try {
+    return await prisma.resourceCategory.findMany({
       orderBy: { name: "asc" }
     })
   } catch {
@@ -81,10 +102,11 @@ export default async function PublicHomePage() {
     // Auth not configured or error - continue without session
   }
   
-  const [organization, resources, bookings] = await Promise.all([
+  const [organization, resources, bookings, categories] = await Promise.all([
     getOrganization(),
     getResources(),
-    getPublicBookings()
+    getPublicBookings(),
+    getCategories()
   ])
   
   const primaryColor = organization?.primaryColor || "#2563eb"
@@ -175,10 +197,17 @@ export default async function PublicHomePage() {
       <main className="flex-1 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 w-full">
         {hasData ? (
           <PublicCalendar 
+            categories={categories.map(c => ({
+              id: c.id,
+              name: c.name,
+              color: c.color
+            }))}
             resources={resources.map(r => ({
               id: r.id,
               name: r.name,
-              color: r.color || r.category?.color || '#3b82f6'
+              color: r.color || r.category?.color || '#3b82f6',
+              categoryId: r.categoryId,
+              categoryName: r.category?.name
             }))}
             bookings={bookings.map(b => ({
               id: b.id,

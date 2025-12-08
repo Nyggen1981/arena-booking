@@ -6,7 +6,6 @@ import {
   format, 
   startOfWeek, 
   startOfMonth,
-  endOfMonth,
   addDays, 
   addWeeks, 
   addMonths,
@@ -20,10 +19,18 @@ import {
 import { nb } from "date-fns/locale"
 import Link from "next/link"
 
+interface Category {
+  id: string
+  name: string
+  color: string
+}
+
 interface Resource {
   id: string
   name: string
   color: string
+  categoryId: string | null
+  categoryName?: string | null
 }
 
 interface Booking {
@@ -37,6 +44,7 @@ interface Booking {
 }
 
 interface Props {
+  categories: Category[]
   resources: Resource[]
   bookings: Booking[]
   isLoggedIn: boolean
@@ -44,17 +52,29 @@ interface Props {
 
 type ViewMode = "week" | "month"
 
-export function PublicCalendar({ resources, bookings, isLoggedIn }: Props) {
+export function PublicCalendar({ categories, resources, bookings, isLoggedIn }: Props) {
   const [currentDate, setCurrentDate] = useState(new Date())
   const [viewMode, setViewMode] = useState<ViewMode>("week")
+  const [selectedCategories, setSelectedCategories] = useState<Set<string>>(new Set(categories.map(c => c.id)))
   const [selectedResources, setSelectedResources] = useState<Set<string>>(new Set(resources.map(r => r.id)))
   const [selectedBooking, setSelectedBooking] = useState<Booking | null>(null)
   const [showFilterPanel, setShowFilterPanel] = useState(false)
 
+  // Filter resources by selected categories first, then by selected resources
+  const visibleResources = useMemo(() => {
+    return resources.filter(r => {
+      // If resource has no category, show it if "Ukategorisert" is selected or if all categories are selected
+      if (!r.categoryId) {
+        return selectedCategories.has('uncategorized') || selectedCategories.size === categories.length + 1
+      }
+      return selectedCategories.has(r.categoryId) && selectedResources.has(r.id)
+    })
+  }, [resources, selectedCategories, selectedResources, categories.length])
+
   const filteredBookings = useMemo(() => {
-    if (selectedResources.size === resources.length) return bookings
-    return bookings.filter(b => selectedResources.has(b.resourceId))
-  }, [bookings, selectedResources, resources.length])
+    const visibleResourceIds = new Set(visibleResources.map(r => r.id))
+    return bookings.filter(b => visibleResourceIds.has(b.resourceId) && selectedResources.has(b.resourceId))
+  }, [bookings, visibleResources, selectedResources])
 
   // Week view data
   const weekStart = startOfWeek(currentDate, { weekStartsOn: 1 })
@@ -84,6 +104,25 @@ export function PublicCalendar({ resources, bookings, isLoggedIn }: Props) {
     }
   }
 
+  const toggleCategory = (categoryId: string) => {
+    const newSelected = new Set(selectedCategories)
+    if (newSelected.has(categoryId)) {
+      newSelected.delete(categoryId)
+      // Also deselect all resources in this category
+      resources.filter(r => r.categoryId === categoryId || (categoryId === 'uncategorized' && !r.categoryId))
+        .forEach(r => selectedResources.delete(r.id))
+      setSelectedResources(new Set(selectedResources))
+    } else {
+      newSelected.add(categoryId)
+      // Also select all resources in this category
+      const newResources = new Set(selectedResources)
+      resources.filter(r => r.categoryId === categoryId || (categoryId === 'uncategorized' && !r.categoryId))
+        .forEach(r => newResources.add(r.id))
+      setSelectedResources(newResources)
+    }
+    setSelectedCategories(newSelected)
+  }
+
   const toggleResource = (resourceId: string) => {
     const newSelected = new Set(selectedResources)
     if (newSelected.has(resourceId)) {
@@ -94,10 +133,44 @@ export function PublicCalendar({ resources, bookings, isLoggedIn }: Props) {
     setSelectedResources(newSelected)
   }
 
-  const selectAll = () => setSelectedResources(new Set(resources.map(r => r.id)))
-  const selectNone = () => setSelectedResources(new Set())
+  const selectAll = () => {
+    setSelectedCategories(new Set([...categories.map(c => c.id), 'uncategorized']))
+    setSelectedResources(new Set(resources.map(r => r.id)))
+  }
+  
+  const selectNone = () => {
+    setSelectedCategories(new Set())
+    setSelectedResources(new Set())
+  }
+
+  // Group resources by category
+  const resourcesByCategory = useMemo(() => {
+    const grouped: { [key: string]: { category: Category | null, resources: Resource[] } } = {}
+    
+    // Initialize with categories
+    categories.forEach(c => {
+      grouped[c.id] = { category: c, resources: [] }
+    })
+    
+    // Add uncategorized
+    grouped['uncategorized'] = { category: null, resources: [] }
+    
+    // Group resources
+    resources.forEach(r => {
+      const key = r.categoryId || 'uncategorized'
+      if (grouped[key]) {
+        grouped[key].resources.push(r)
+      }
+    })
+    
+    // Filter out empty categories
+    return Object.entries(grouped).filter(([_, v]) => v.resources.length > 0)
+  }, [categories, resources])
 
   const activeFilterCount = resources.length - selectedResources.size
+
+  // Resources to show in legend (only selected ones)
+  const legendResources = resources.filter(r => selectedResources.has(r.id))
 
   return (
     <div className="space-y-4">
@@ -183,8 +256,8 @@ export function PublicCalendar({ resources, bookings, isLoggedIn }: Props) {
         {/* Filter panel */}
         {showFilterPanel && (
           <div className="border-t border-gray-200 p-4 bg-gray-50">
-            <div className="flex items-center justify-between mb-3">
-              <span className="text-sm font-medium text-gray-700">Velg fasiliteter</span>
+            <div className="flex items-center justify-between mb-4">
+              <span className="text-sm font-medium text-gray-700">Filtrer visning</span>
               <div className="flex gap-2">
                 <button
                   onClick={selectAll}
@@ -201,34 +274,71 @@ export function PublicCalendar({ resources, bookings, isLoggedIn }: Props) {
                 </button>
               </div>
             </div>
-            <div className="flex flex-wrap gap-2">
-              {resources.map((resource) => {
-                const isSelected = selectedResources.has(resource.id)
-                return (
+
+            {/* Categories and resources */}
+            <div className="space-y-4">
+              {resourcesByCategory.map(([categoryId, { category, resources: catResources }]) => (
+                <div key={categoryId} className="space-y-2">
+                  {/* Category header */}
                   <button
-                    key={resource.id}
-                    onClick={() => toggleResource(resource.id)}
-                    className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-all ${
-                      isSelected 
-                        ? 'bg-white shadow-sm border-2' 
+                    onClick={() => toggleCategory(categoryId)}
+                    className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-semibold transition-all w-full ${
+                      selectedCategories.has(categoryId)
+                        ? 'bg-white shadow-sm border border-gray-200'
                         : 'bg-gray-200/50 text-gray-500 hover:bg-gray-200'
                     }`}
-                    style={isSelected ? { 
-                      borderColor: resource.color,
-                      color: resource.color
-                    } : undefined}
                   >
                     <div 
-                      className={`w-4 h-4 rounded flex items-center justify-center ${isSelected ? '' : 'bg-gray-300'}`}
-                      style={isSelected ? { backgroundColor: resource.color } : undefined}
+                      className={`w-5 h-5 rounded flex items-center justify-center ${
+                        selectedCategories.has(categoryId) ? '' : 'bg-gray-300'
+                      }`}
+                      style={selectedCategories.has(categoryId) ? { 
+                        backgroundColor: category?.color || '#6b7280' 
+                      } : undefined}
                     >
-                      {isSelected && <Check className="w-3 h-3 text-white" />}
+                      {selectedCategories.has(categoryId) && <Check className="w-3.5 h-3.5 text-white" />}
                     </div>
-                    {resource.name}
+                    <span style={selectedCategories.has(categoryId) ? { color: category?.color || '#374151' } : undefined}>
+                      {category?.name || 'Ukategorisert'}
+                    </span>
+                    <span className="text-xs text-gray-400 ml-auto">
+                      {catResources.filter(r => selectedResources.has(r.id)).length}/{catResources.length}
+                    </span>
                   </button>
-                )
-              })}
+
+                  {/* Resources in category */}
+                  {selectedCategories.has(categoryId) && (
+                    <div className="flex flex-wrap gap-2 pl-4">
+                      {catResources.map((resource) => {
+                        const isSelected = selectedResources.has(resource.id)
+                        return (
+                          <button
+                            key={resource.id}
+                            onClick={() => toggleResource(resource.id)}
+                            className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium transition-all ${
+                              isSelected 
+                                ? 'bg-white shadow-sm border' 
+                                : 'bg-gray-200/50 text-gray-500 hover:bg-gray-200'
+                            }`}
+                            style={isSelected ? { 
+                              borderColor: resource.color,
+                              color: resource.color
+                            } : undefined}
+                          >
+                            <div 
+                              className={`w-3 h-3 rounded-full ${isSelected ? '' : 'bg-gray-300'}`}
+                              style={isSelected ? { backgroundColor: resource.color } : undefined}
+                            />
+                            {resource.name}
+                          </button>
+                        )
+                      })}
+                    </div>
+                  )}
+                </div>
+              ))}
             </div>
+
             {selectedResources.size === 0 && (
               <p className="text-sm text-amber-600 mt-3 flex items-center gap-2">
                 <span className="w-1.5 h-1.5 rounded-full bg-amber-500"></span>
@@ -243,7 +353,7 @@ export function PublicCalendar({ resources, bookings, isLoggedIn }: Props) {
       {!showFilterPanel && activeFilterCount > 0 && (
         <div className="flex items-center gap-2 flex-wrap">
           <span className="text-sm text-gray-500">Viser:</span>
-          {resources.filter(r => selectedResources.has(r.id)).map((resource) => (
+          {legendResources.slice(0, 5).map((resource) => (
             <span
               key={resource.id}
               className="inline-flex items-center gap-1.5 px-2 py-1 rounded-full text-xs font-medium text-white"
@@ -258,6 +368,9 @@ export function PublicCalendar({ resources, bookings, isLoggedIn }: Props) {
               </button>
             </span>
           ))}
+          {legendResources.length > 5 && (
+            <span className="text-xs text-gray-500">+{legendResources.length - 5} til</span>
+          )}
           <button
             onClick={selectAll}
             className="text-xs text-blue-600 hover:text-blue-700 font-medium ml-2"
@@ -420,19 +533,21 @@ export function PublicCalendar({ resources, bookings, isLoggedIn }: Props) {
         </div>
       )}
 
-      {/* Compact legend (always visible at bottom) */}
-      <div className="flex items-center gap-3 text-xs text-gray-500 flex-wrap">
-        <span className="font-medium">Farger:</span>
-        {resources.map((resource) => (
-          <span key={resource.id} className="flex items-center gap-1">
-            <span 
-              className="w-2.5 h-2.5 rounded-full" 
-              style={{ backgroundColor: resource.color }}
-            />
-            {resource.name}
-          </span>
-        ))}
-      </div>
+      {/* Compact legend - only show selected resources */}
+      {legendResources.length > 0 && (
+        <div className="flex items-center gap-3 text-xs text-gray-500 flex-wrap">
+          <span className="font-medium">Farger:</span>
+          {legendResources.map((resource) => (
+            <span key={resource.id} className="flex items-center gap-1">
+              <span 
+                className="w-2.5 h-2.5 rounded-full" 
+                style={{ backgroundColor: resource.color }}
+              />
+              {resource.name}
+            </span>
+          ))}
+        </div>
+      )}
 
       {/* Booking detail modal */}
       {selectedBooking && (

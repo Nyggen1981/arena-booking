@@ -61,6 +61,7 @@ export default function EditResourcePage({ params }: Props) {
   const [advanceBookingDays, setAdvanceBookingDays] = useState("30")
   const [blockPartsWhenWholeBooked, setBlockPartsWhenWholeBooked] = useState(true)
   const [blockWholeWhenPartBooked, setBlockWholeWhenPartBooked] = useState(true)
+  const [showOnPublicCalendar, setShowOnPublicCalendar] = useState(true)
   const [parts, setParts] = useState<Part[]>([])
 
   useEffect(() => {
@@ -91,6 +92,7 @@ export default function EditResourcePage({ params }: Props) {
       setAdvanceBookingDays(String(resource.advanceBookingDays || 30))
       setBlockPartsWhenWholeBooked(resource.blockPartsWhenWholeBooked ?? true)
       setBlockWholeWhenPartBooked(resource.blockWholeWhenPartBooked ?? true)
+      setShowOnPublicCalendar(resource.showOnPublicCalendar ?? true)
       setParts(resource.parts?.map((p: { id: string; name: string; description?: string; capacity?: number }) => ({
         id: p.id,
         name: p.name,
@@ -170,6 +172,7 @@ export default function EditResourcePage({ params }: Props) {
           advanceBookingDays: limitAdvanceBooking ? parseInt(advanceBookingDays) : null,
           blockPartsWhenWholeBooked,
           blockWholeWhenPartBooked,
+          showOnPublicCalendar,
           parts: parts.filter(p => p.name.trim()).map(p => ({
             id: p.id,
             name: p.name,
@@ -454,6 +457,19 @@ export default function EditResourcePage({ params }: Props) {
                 />
                 <label htmlFor="requiresApproval" className="text-sm text-gray-700">
                   Krever godkjenning fra admin før booking er bekreftet
+                </label>
+              </div>
+
+              <div className="flex items-center gap-3">
+                <input
+                  type="checkbox"
+                  id="showOnPublicCalendar"
+                  checked={showOnPublicCalendar}
+                  onChange={(e) => setShowOnPublicCalendar(e.target.checked)}
+                  className="w-5 h-5 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                />
+                <label htmlFor="showOnPublicCalendar" className="text-sm text-gray-700">
+                  Vis fasiliteten på offentlig kalender (forsiden)
                 </label>
               </div>
             </div>

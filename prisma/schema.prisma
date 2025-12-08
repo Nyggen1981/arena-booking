@@ -69,6 +69,7 @@ model Resource {
   image       String?
   color       String?  // Custom color for this facility
   isActive    Boolean @default(true)
+  showOnPublicCalendar Boolean @default(true)  // Show on public calendar
   
   // Part booking settings
   blockPartsWhenWholeBooked Boolean @default(true)  // When whole facility is booked, block all parts
@@ -98,6 +99,7 @@ model Resource {
   // Indexes for faster queries
   @@index([organizationId, isActive])
   @@index([categoryId])
+  @@index([showOnPublicCalendar])
 }
 
 // Part of a resource (e.g., "Bane 1", "Bane 2", "Halv hall")

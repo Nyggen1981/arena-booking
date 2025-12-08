@@ -54,6 +54,7 @@ export default function NewResourcePage() {
   const [advanceBookingDays, setAdvanceBookingDays] = useState("30")
   const [blockPartsWhenWholeBooked, setBlockPartsWhenWholeBooked] = useState(true)
   const [blockWholeWhenPartBooked, setBlockWholeWhenPartBooked] = useState(true)
+  const [showOnPublicCalendar, setShowOnPublicCalendar] = useState(true)
   const [parts, setParts] = useState<Part[]>([])
 
   useEffect(() => {
@@ -139,6 +140,7 @@ export default function NewResourcePage() {
           advanceBookingDays: limitAdvanceBooking ? parseInt(advanceBookingDays) : null,
           blockPartsWhenWholeBooked,
           blockWholeWhenPartBooked,
+          showOnPublicCalendar,
           parts: parts.filter(p => p.name.trim()).map(p => ({
             name: p.name,
             description: p.description || null,
@@ -422,6 +424,19 @@ export default function NewResourcePage() {
                 />
                 <label htmlFor="requiresApproval" className="text-sm text-gray-700">
                   Krever godkjenning fra admin før booking er bekreftet
+                </label>
+              </div>
+
+              <div className="flex items-center gap-3">
+                <input
+                  type="checkbox"
+                  id="showOnPublicCalendar"
+                  checked={showOnPublicCalendar}
+                  onChange={(e) => setShowOnPublicCalendar(e.target.checked)}
+                  className="w-5 h-5 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                />
+                <label htmlFor="showOnPublicCalendar" className="text-sm text-gray-700">
+                  Vis fasiliteten på offentlig kalender (forsiden)
                 </label>
               </div>
             </div>

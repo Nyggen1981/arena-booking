@@ -46,6 +46,7 @@ export async function POST(request: Request) {
     advanceBookingDays,
     blockPartsWhenWholeBooked,
     blockWholeWhenPartBooked,
+    showOnPublicCalendar,
     openingHours,
     parts
   } = body
@@ -60,6 +61,7 @@ export async function POST(request: Request) {
       categoryId,
       blockPartsWhenWholeBooked: blockPartsWhenWholeBooked ?? true,
       blockWholeWhenPartBooked: blockWholeWhenPartBooked ?? true,
+      showOnPublicCalendar: showOnPublicCalendar ?? true,
       minBookingMinutes: minBookingMinutes || 60,
       maxBookingMinutes: maxBookingMinutes || 240,
       requiresApproval: requiresApproval ?? true,
