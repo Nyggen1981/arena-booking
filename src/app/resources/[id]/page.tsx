@@ -194,7 +194,10 @@ export default async function ResourcePage({ params }: Props) {
                   <div>
                     <p className="text-sm font-medium text-gray-900">Varighet</p>
                     <p className="text-sm text-gray-500">
-                      {resource.minBookingMinutes} - {resource.maxBookingMinutes} minutter
+                      {resource.minBookingMinutes !== 0 && resource.maxBookingMinutes !== 9999
+                        ? `${resource.minBookingMinutes} - ${resource.maxBookingMinutes} minutter`
+                        : "Ubegrenset varighet"
+                      }
                     </p>
                   </div>
                 </div>
