@@ -22,12 +22,21 @@ interface EditBookingModalProps {
   onSaved: (updatedBooking: any) => void
 }
 
+// Round time to nearest 15 minutes
+const roundTo15Min = (timeStr: string): string => {
+  const [hours, minutes] = timeStr.split(":").map(Number)
+  const roundedMinutes = Math.round(minutes / 15) * 15
+  const adjustedHours = roundedMinutes === 60 ? hours + 1 : hours
+  const finalMinutes = roundedMinutes === 60 ? 0 : roundedMinutes
+  return `${String(adjustedHours).padStart(2, "0")}:${String(finalMinutes).padStart(2, "0")}`
+}
+
 export function EditBookingModal({ booking, isAdmin, onClose, onSaved }: EditBookingModalProps) {
   const [title, setTitle] = useState(booking.title)
   const [description, setDescription] = useState(booking.description || "")
   const [date, setDate] = useState(format(new Date(booking.startTime), "yyyy-MM-dd"))
-  const [startTime, setStartTime] = useState(format(new Date(booking.startTime), "HH:mm"))
-  const [endTime, setEndTime] = useState(format(new Date(booking.endTime), "HH:mm"))
+  const [startTime, setStartTime] = useState(roundTo15Min(format(new Date(booking.startTime), "HH:mm")))
+  const [endTime, setEndTime] = useState(roundTo15Min(format(new Date(booking.endTime), "HH:mm")))
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [error, setError] = useState("")
 
@@ -163,7 +172,7 @@ export function EditBookingModal({ booking, isAdmin, onClose, onSaved }: EditBoo
               <input
                 type="time"
                 value={startTime}
-                onChange={(e) => setStartTime(e.target.value)}
+                onChange={(e) => setStartTime(roundTo15Min(e.target.value))}
                 step="900"
                 required
                 className="input"
@@ -177,7 +186,7 @@ export function EditBookingModal({ booking, isAdmin, onClose, onSaved }: EditBoo
               <input
                 type="time"
                 value={endTime}
-                onChange={(e) => setEndTime(e.target.value)}
+                onChange={(e) => setEndTime(roundTo15Min(e.target.value))}
                 step="900"
                 required
                 className="input"
