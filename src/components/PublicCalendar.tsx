@@ -383,30 +383,31 @@ export function PublicCalendar({ categories, resources, bookings, isLoggedIn }: 
       {/* Week View */}
       {viewMode === "week" && (
         <div className="bg-white rounded-xl border border-gray-200 overflow-hidden shadow-sm">
-          {/* Header */}
-          <div className="grid bg-gray-50 border-b border-gray-200" style={{ gridTemplateColumns: '60px repeat(7, 1fr)' }}>
-            <div className="p-3 text-center text-sm font-medium text-gray-500" />
-            {weekDays.map((day) => (
-              <div 
-                key={day.toISOString()} 
-                className={`p-3 text-center border-l border-gray-200 ${
-                  isToday(day) ? 'bg-blue-50' : ''
-                }`}
-              >
-                <p className="text-xs text-gray-500 uppercase font-medium">
-                  {format(day, "EEE", { locale: nb })}
-                </p>
-                <p className={`text-xl font-bold ${
-                  isToday(day) ? 'text-blue-600' : 'text-gray-900'
-                }`}>
-                  {format(day, "d")}
-                </p>
-              </div>
-            ))}
-          </div>
+          {/* Time grid with sticky header */}
+          <div className="max-h-[650px] overflow-y-auto">
+            {/* Header - sticky */}
+            <div className="grid bg-gray-50 border-b border-gray-200 sticky top-0 z-10" style={{ gridTemplateColumns: '60px repeat(7, 1fr)' }}>
+              <div className="p-3 text-center text-sm font-medium text-gray-500" />
+              {weekDays.map((day) => (
+                <div 
+                  key={day.toISOString()} 
+                  className={`p-3 text-center border-l border-gray-200 ${
+                    isToday(day) ? 'bg-blue-50' : 'bg-gray-50'
+                  }`}
+                >
+                  <p className="text-xs text-gray-500 uppercase font-medium">
+                    {format(day, "EEE", { locale: nb })}
+                  </p>
+                  <p className={`text-xl font-bold ${
+                    isToday(day) ? 'text-blue-600' : 'text-gray-900'
+                  }`}>
+                    {format(day, "d")}
+                  </p>
+                </div>
+              ))}
+            </div>
 
-          {/* Time grid */}
-          <div className="max-h-[600px] overflow-y-auto">
+            {/* Time rows */}
             {hours.map((hour) => (
               <div key={hour} className="grid border-b border-gray-100 last:border-b-0" style={{ gridTemplateColumns: '60px repeat(7, 1fr)' }}>
                 <div className="p-2 text-right text-xs text-gray-400 pr-3 font-medium">
