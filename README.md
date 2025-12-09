@@ -54,10 +54,9 @@ npm run dev
 
 ## Demo-innlogging
 
-| Rolle  | E-post          | Passord   |
-|--------|-----------------|-----------|
-| Admin  | admin@lyn.no    | admin123  |
-| Bruker | bruker@lyn.no   | bruker123 |
+Etter at du har opprettet en klubb via `/register`, kan du logge inn med den admin-brukeren du opprettet.
+
+For testing kan du opprette flere brukere via admin-panelet etter innlogging.
 
 ## Scripts
 
