@@ -65,7 +65,7 @@ export function ResourceCalendar({ bookings, parts }: Props) {
     return days
   }, [monthStartWeek, monthEnd])
 
-  const hours = Array.from({ length: 16 }, (_, i) => i + 7) // 07:00 - 22:00
+  const hours = Array.from({ length: 18 }, (_, i) => i + 6) // 06:00 - 23:00
 
   const filteredBookings = useMemo(() => {
     return bookings.filter(booking => {

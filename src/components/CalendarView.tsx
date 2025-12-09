@@ -124,7 +124,7 @@ export function CalendarView({ resources, bookings: initialBookings }: Props) {
   // Week view data
   const weekStart = startOfWeek(currentDate, { weekStartsOn: 1 })
   const weekDays = Array.from({ length: 7 }, (_, i) => addDays(weekStart, i))
-  const hours = Array.from({ length: 16 }, (_, i) => i + 7)
+  const hours = Array.from({ length: 18 }, (_, i) => i + 6) // 06:00 - 23:00
 
   // Month view data
   const monthStart = startOfMonth(currentDate)
