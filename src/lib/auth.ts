@@ -47,8 +47,8 @@ export const authOptions: NextAuthOptions = {
           organizationId: user.organizationId,
           organizationName: user.organization.name,
           organizationSlug: user.organization.slug,
-          organizationLogo: user.organization.logo,
-          organizationTagline: user.organization.tagline,
+          organizationLogo: user.organization.logo || null,
+          organizationTagline: (user.organization as { tagline?: string }).tagline || "Kalender",
           organizationColor: user.organization.primaryColor,
         }
       }
