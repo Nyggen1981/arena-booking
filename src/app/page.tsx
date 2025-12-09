@@ -95,11 +95,6 @@ export default async function PublicHomePage() {
     // Auth not configured or error - continue without session
   }
   
-  // Redirect logged-in users to the resources page
-  if (session) {
-    redirect("/resources")
-  }
-  
   const [resources, bookings, categories] = await Promise.all([
     getResources(),
     getPublicBookings(),
@@ -107,6 +102,12 @@ export default async function PublicHomePage() {
   ])
   
   const hasData = resources.length > 0
+  
+  // Only redirect logged-in users to resources page if there are resources
+  // If no resources, keep them on public calendar
+  if (session && hasData) {
+    redirect("/resources")
+  }
 
   return (
     <div className="min-h-screen bg-slate-50 flex flex-col">

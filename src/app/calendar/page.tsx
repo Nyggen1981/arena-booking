@@ -2,6 +2,7 @@ import { PageLayout } from "@/components/PageLayout"
 import { prisma } from "@/lib/prisma"
 import { CalendarView } from "@/components/CalendarView"
 import { unstable_cache } from "next/cache"
+import { redirect } from "next/navigation"
 
 // Revalidate every 30 seconds
 export const revalidate = 30
@@ -62,6 +63,11 @@ export default async function CalendarPage() {
     getResources(),
     getBookings()
   ])
+
+  // If no resources, redirect to home page (public calendar)
+  if (resources.length === 0) {
+    redirect("/")
+  }
 
   return (
     <PageLayout>

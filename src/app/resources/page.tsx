@@ -2,6 +2,7 @@ import { PageLayout } from "@/components/PageLayout"
 import { ResourceFilter } from "@/components/ResourceFilter"
 import { prisma } from "@/lib/prisma"
 import { unstable_cache } from "next/cache"
+import { redirect } from "next/navigation"
 
 // Revalidate every 60 seconds
 export const revalidate = 60
@@ -49,6 +50,11 @@ export default async function ResourcesPage() {
     getResources(),
     getCategories()
   ])
+
+  // If no resources, redirect to home page (public calendar)
+  if (resources.length === 0) {
+    redirect("/")
+  }
 
   return (
     <PageLayout>
