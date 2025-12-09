@@ -19,7 +19,9 @@ import {
   X,
   Download,
   Database,
-  AlertCircle
+  AlertCircle,
+  Mail,
+  Send
 } from "lucide-react"
 import Image from "next/image"
 
@@ -48,6 +50,14 @@ export default function AdminSettingsPage() {
   const [isImporting, setIsImporting] = useState(false)
   const [importMessage, setImportMessage] = useState("")
   const importFileRef = useRef<HTMLInputElement>(null)
+
+  // Email test state
+  const [emailStatus, setEmailStatus] = useState<{
+    configured: boolean
+    settings?: Record<string, string>
+  } | null>(null)
+  const [isTestingEmail, setIsTestingEmail] = useState(false)
+  const [emailTestResult, setEmailTestResult] = useState("")
 
   // Form state
   const [name, setName] = useState("")
@@ -81,8 +91,32 @@ export default function AdminSettingsPage() {
           setIsLoading(false)
         })
         .catch(() => setIsLoading(false))
+
+      // Check email configuration
+      fetch("/api/test-email")
+        .then(res => res.json())
+        .then(data => setEmailStatus(data))
+        .catch(() => {})
     }
   }, [session])
+
+  const testEmail = async () => {
+    setIsTestingEmail(true)
+    setEmailTestResult("")
+    try {
+      const response = await fetch("/api/test-email", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: session?.user?.email })
+      })
+      const data = await response.json()
+      setEmailTestResult(data.message || (data.success ? "E-post sendt!" : "Feilet"))
+    } catch {
+      setEmailTestResult("Kunne ikke teste e-post")
+    } finally {
+      setIsTestingEmail(false)
+    }
+  }
 
   const handleLogoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
@@ -497,7 +531,107 @@ export default function AdminSettingsPage() {
             Import vil ikke overskrive eksisterende data.
           </p>
         </div>
+
+        {/* Email Configuration */}
+        <div className="card p-6 md:p-8 mt-6">
+          <div className="flex items-center gap-3 mb-6">
+            <div className="w-12 h-12 rounded-xl bg-green-100 flex items-center justify-center">
+              <Mail className="w-6 h-6 text-green-600" />
+            </div>
+            <div>
+              <h2 className="text-xl font-bold text-gray-900">E-post</h2>
+              <p className="text-gray-500 text-sm">Sjekk e-postkonfigurasjon og send testmelding</p>
+            </div>
+          </div>
+
+          {/* Status */}
+          <div className="mb-6">
+            <h3 className="font-semibold text-gray-900 mb-3">Konfigurasjonsstatus</h3>
+            {emailStatus ? (
+              <div className={`p-4 rounded-xl ${emailStatus.configured ? 'bg-green-50 border border-green-200' : 'bg-amber-50 border border-amber-200'}`}>
+                <div className="flex items-center gap-2 mb-3">
+                  {emailStatus.configured ? (
+                    <>
+                      <CheckCircle2 className="w-5 h-5 text-green-600" />
+                      <span className="font-medium text-green-800">E-post er konfigurert</span>
+                    </>
+                  ) : (
+                    <>
+                      <AlertCircle className="w-5 h-5 text-amber-600" />
+                      <span className="font-medium text-amber-800">E-post er ikke konfigurert</span>
+                    </>
+                  )}
+                </div>
+                {emailStatus.settings && (
+                  <div className="space-y-1 text-sm">
+                    {Object.entries(emailStatus.settings).map(([key, value]) => (
+                      <div key={key} className="flex gap-2">
+                        <span className="text-gray-500 w-20">{key}:</span>
+                        <span className={value.startsWith("✓") ? "text-green-700" : "text-red-600"}>{value}</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            ) : (
+              <div className="p-4 bg-gray-50 rounded-xl flex items-center gap-2">
+                <Loader2 className="w-4 h-4 animate-spin text-gray-500" />
+                <span className="text-gray-500">Sjekker konfigurasjon...</span>
+              </div>
+            )}
+          </div>
+
+          {/* Test button */}
+          <div className="p-4 bg-blue-50 rounded-xl">
+            <h3 className="font-semibold text-gray-900 mb-2">Send test-e-post</h3>
+            <p className="text-sm text-gray-600 mb-4">
+              Send en test-e-post til {session?.user?.email} for å verifisere at alt fungerer.
+            </p>
+
+            {emailTestResult && (
+              <div className={`p-3 rounded-lg mb-4 text-sm ${
+                emailTestResult.includes("sendt") || emailTestResult.includes("Sendt")
+                  ? "bg-green-100 text-green-800"
+                  : "bg-red-100 text-red-800"
+              }`}>
+                {emailTestResult}
+              </div>
+            )}
+
+            <button
+              onClick={testEmail}
+              disabled={isTestingEmail || !emailStatus?.configured}
+              className="btn bg-blue-600 hover:bg-blue-700 text-white disabled:opacity-50"
+            >
+              {isTestingEmail ? (
+                <>
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  Sender...
+                </>
+              ) : (
+                <>
+                  <Send className="w-4 h-4" />
+                  Send test-e-post
+                </>
+              )}
+            </button>
+          </div>
+
+          <div className="mt-4 p-4 bg-gray-50 rounded-xl">
+            <h4 className="font-medium text-gray-900 mb-2">Slik setter du opp e-post (Office 365):</h4>
+            <ol className="list-decimal list-inside text-sm text-gray-600 space-y-1">
+              <li>Gå til Vercel Dashboard → Settings → Environment Variables</li>
+              <li>Legg til: <code className="bg-gray-200 px-1 rounded">SMTP_HOST</code> = <code className="bg-gray-200 px-1 rounded">smtp.office365.com</code></li>
+              <li>Legg til: <code className="bg-gray-200 px-1 rounded">SMTP_PORT</code> = <code className="bg-gray-200 px-1 rounded">587</code></li>
+              <li>Legg til: <code className="bg-gray-200 px-1 rounded">SMTP_USER</code> = din e-postadresse</li>
+              <li>Legg til: <code className="bg-gray-200 px-1 rounded">SMTP_PASS</code> = ditt passord (eller app-passord)</li>
+              <li>Legg til: <code className="bg-gray-200 px-1 rounded">SMTP_FROM</code> = din e-postadresse</li>
+              <li>Redeploy applikasjonen</li>
+            </ol>
+          </div>
+        </div>
       </div>
+      <Footer />
     </div>
   )
 
