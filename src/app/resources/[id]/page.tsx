@@ -24,23 +24,27 @@ interface Props {
 }
 
 async function getResource(id: string) {
-  return prisma.resource.findUnique({
-    where: { id },
-    include: {
-      category: true,
-      parts: true,
-      bookings: {
-        where: {
-          status: { in: ["approved", "pending"] },
-          startTime: { gte: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000) }
-        },
-        include: {
-          resourcePart: true
-        },
-        orderBy: { startTime: "asc" }
+  try {
+    return await prisma.resource.findUnique({
+      where: { id },
+      include: {
+        category: true,
+        parts: true,
+        bookings: {
+          where: {
+            status: { in: ["approved", "pending"] },
+            startTime: { gte: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000) }
+          },
+          include: {
+            resourcePart: true
+          },
+          orderBy: { startTime: "asc" }
+        }
       }
-    }
-  })
+    })
+  } catch {
+    return null
+  }
 }
 
 export default async function ResourcePage({ params }: Props) {

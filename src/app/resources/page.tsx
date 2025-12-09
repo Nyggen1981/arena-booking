@@ -8,26 +8,38 @@ export const revalidate = 60
 
 // Cache resources for 60 seconds
 const getResources = unstable_cache(
-  async () => prisma.resource.findMany({
-    where: { isActive: true },
-    include: {
-      category: true,
-      parts: true,
-    },
-    orderBy: [
-      { category: { name: "asc" } },
-      { name: "asc" }
-    ]
-  }),
+  async () => {
+    try {
+      return await prisma.resource.findMany({
+        where: { isActive: true },
+        include: {
+          category: true,
+          parts: true,
+        },
+        orderBy: [
+          { category: { name: "asc" } },
+          { name: "asc" }
+        ]
+      })
+    } catch {
+      return []
+    }
+  },
   ["resources-list"],
   { revalidate: 60 }
 )
 
 // Cache categories for 5 minutes (rarely changes)
 const getCategories = unstable_cache(
-  async () => prisma.resourceCategory.findMany({
-    orderBy: { name: "asc" }
-  }),
+  async () => {
+    try {
+      return await prisma.resourceCategory.findMany({
+        orderBy: { name: "asc" }
+      })
+    } catch {
+      return []
+    }
+  },
   ["categories"],
   { revalidate: 300 }
 )
