@@ -73,7 +73,9 @@ export default async function CalendarPage() {
             status: b.status,
             resourceId: b.resourceId,
             resourceName: b.resource.name,
-            resourcePartName: b.resourcePart?.name
+            resourcePartName: b.resourcePart?.name,
+            isRecurring: b.isRecurring,
+            parentBookingId: b.parentBookingId
           }))}
         />
       </div>

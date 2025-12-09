@@ -17,7 +17,7 @@ export async function PATCH(
   }
 
   const { id } = await params
-  const { action, statusNote } = await request.json()
+  const { action, statusNote, applyToAll } = await request.json()
 
   const booking = await prisma.booking.findUnique({
     where: { id },
@@ -32,14 +32,42 @@ export async function PATCH(
     return NextResponse.json({ error: "Booking not found" }, { status: 404 })
   }
 
-  const updatedBooking = await prisma.booking.update({
-    where: { id },
+  // Determine which bookings to update
+  let bookingIdsToUpdate: string[] = [id]
+
+  if (applyToAll && booking.isRecurring) {
+    // Find all related recurring bookings (same parent or this is the parent)
+    const parentId = booking.parentBookingId || booking.id
+    
+    const relatedBookings = await prisma.booking.findMany({
+      where: {
+        organizationId: session.user.organizationId,
+        status: "pending",
+        OR: [
+          { id: parentId },
+          { parentBookingId: parentId }
+        ]
+      },
+      select: { id: true }
+    })
+    
+    bookingIdsToUpdate = relatedBookings.map(b => b.id)
+  }
+
+  // Update all selected bookings
+  await prisma.booking.updateMany({
+    where: { id: { in: bookingIdsToUpdate } },
     data: {
       status: action === "approve" ? "approved" : "rejected",
       statusNote: statusNote || null,
       approvedAt: action === "approve" ? new Date() : null,
       approvedById: action === "approve" ? session.user.id : null
     }
+  })
+
+  // Get the updated booking to return
+  const updatedBooking = await prisma.booking.findUnique({
+    where: { id }
   })
 
   // Send email notification
@@ -52,13 +80,29 @@ export async function PATCH(
       : booking.resource.name
 
     if (action === "approve") {
-      const emailContent = getBookingApprovedEmail(booking.title, resourceName, date, time)
+      const count = bookingIdsToUpdate.length
+      const emailContent = getBookingApprovedEmail(
+        booking.title, 
+        resourceName, 
+        count > 1 ? `${date} (og ${count - 1} andre datoer)` : date, 
+        time
+      )
       await sendEmail({ to: userEmail, ...emailContent })
     } else {
-      const emailContent = getBookingRejectedEmail(booking.title, resourceName, date, time, statusNote)
+      const count = bookingIdsToUpdate.length
+      const emailContent = getBookingRejectedEmail(
+        booking.title, 
+        resourceName, 
+        count > 1 ? `${date} (og ${count - 1} andre datoer)` : date, 
+        time, 
+        statusNote
+      )
       await sendEmail({ to: userEmail, ...emailContent })
     }
   }
 
-  return NextResponse.json(updatedBooking)
+  return NextResponse.json({ 
+    ...updatedBooking, 
+    updatedCount: bookingIdsToUpdate.length 
+  })
 }

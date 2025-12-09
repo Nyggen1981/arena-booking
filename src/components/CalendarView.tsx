@@ -2,7 +2,7 @@
 
 import { useState, useMemo } from "react"
 import { useSession } from "next-auth/react"
-import { ChevronLeft, ChevronRight, List, Grid3X3, CheckCircle2, XCircle, Trash2, X, Loader2, Calendar, Clock, User } from "lucide-react"
+import { ChevronLeft, ChevronRight, List, Grid3X3, CheckCircle2, XCircle, Trash2, X, Loader2, Calendar, Clock, User, Repeat } from "lucide-react"
 import { 
   format, 
   startOfWeek, 
@@ -35,6 +35,8 @@ interface Booking {
   resourceId: string
   resourceName: string
   resourcePartName?: string | null
+  isRecurring?: boolean
+  parentBookingId?: string | null
 }
 
 interface Props {
@@ -54,6 +56,7 @@ export function CalendarView({ resources, bookings: initialBookings }: Props) {
   const [selectedResource, setSelectedResource] = useState<string | null>(null)
   const [selectedBooking, setSelectedBooking] = useState<Booking | null>(null)
   const [isProcessing, setIsProcessing] = useState(false)
+  const [applyToAll, setApplyToAll] = useState(true)
 
   const filteredBookings = useMemo(() => {
     if (!selectedResource) return bookings
@@ -91,35 +94,57 @@ export function CalendarView({ resources, bookings: initialBookings }: Props) {
 
   const handleBookingAction = async (bookingId: string, action: "approve" | "reject" | "cancel") => {
     setIsProcessing(true)
+    const booking = bookings.find(b => b.id === bookingId)
+    const shouldApplyToAll = applyToAll && booking?.isRecurring
     
     let response
     if (action === "cancel") {
       response = await fetch(`/api/bookings/${bookingId}/cancel`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ reason: "Kansellert fra kalender" })
+        body: JSON.stringify({ reason: "Kansellert fra kalender", applyToAll: shouldApplyToAll })
       })
     } else {
       response = await fetch(`/api/admin/bookings/${bookingId}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action })
+        body: JSON.stringify({ action, applyToAll: shouldApplyToAll })
       })
     }
 
     if (response.ok) {
+      const result = await response.json()
+      
       if (action === "approve") {
-        setBookings(bookings.map(b => 
-          b.id === bookingId ? { ...b, status: "approved" } : b
-        ))
+        if (shouldApplyToAll && booking) {
+          // Update all related recurring bookings
+          const parentId = booking.parentBookingId || booking.id
+          setBookings(bookings.map(b => 
+            (b.id === parentId || b.parentBookingId === parentId) && b.status === "pending"
+              ? { ...b, status: "approved" } 
+              : b
+          ))
+        } else {
+          setBookings(bookings.map(b => 
+            b.id === bookingId ? { ...b, status: "approved" } : b
+          ))
+        }
       } else {
-        // Remove rejected or cancelled bookings from view
-        setBookings(bookings.filter(b => b.id !== bookingId))
+        if (shouldApplyToAll && booking) {
+          // Remove all related recurring bookings
+          const parentId = booking.parentBookingId || booking.id
+          setBookings(bookings.filter(b => 
+            !(b.id === parentId || b.parentBookingId === parentId)
+          ))
+        } else {
+          setBookings(bookings.filter(b => b.id !== bookingId))
+        }
       }
     }
     
     setIsProcessing(false)
     setSelectedBooking(null)
+    setApplyToAll(true) // Reset for next time
   }
 
   return (
@@ -407,13 +432,21 @@ export function CalendarView({ resources, bookings: initialBookings }: Props) {
             <div className="p-4 space-y-4">
               <div>
                 <h4 className="font-semibold text-gray-900 text-lg">{selectedBooking.title}</h4>
-                <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium mt-1 ${
-                  selectedBooking.status === "pending" 
-                    ? "bg-amber-100 text-amber-700" 
-                    : "bg-green-100 text-green-700"
-                }`}>
-                  {selectedBooking.status === "pending" ? "Venter på godkjenning" : "Godkjent"}
-                </span>
+                <div className="flex items-center gap-2 mt-1 flex-wrap">
+                  <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium ${
+                    selectedBooking.status === "pending" 
+                      ? "bg-amber-100 text-amber-700" 
+                      : "bg-green-100 text-green-700"
+                  }`}>
+                    {selectedBooking.status === "pending" ? "Venter på godkjenning" : "Godkjent"}
+                  </span>
+                  {selectedBooking.isRecurring && (
+                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-700">
+                      <Repeat className="w-3 h-3" />
+                      Gjentakende
+                    </span>
+                  )}
+                </div>
               </div>
               
               <div className="space-y-2 text-sm">
@@ -440,7 +473,22 @@ export function CalendarView({ resources, bookings: initialBookings }: Props) {
 
             {/* Actions - only for admin */}
             {isAdmin ? (
-              <div className="p-4 border-t bg-gray-50 rounded-b-xl space-y-2">
+              <div className="p-4 border-t bg-gray-50 rounded-b-xl space-y-3">
+                {/* Recurring booking checkbox */}
+                {selectedBooking.isRecurring && selectedBooking.status === "pending" && (
+                  <label className="flex items-center gap-2 p-2 bg-blue-50 rounded-lg cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={applyToAll}
+                      onChange={(e) => setApplyToAll(e.target.checked)}
+                      className="w-4 h-4 text-blue-600 rounded"
+                    />
+                    <span className="text-sm text-blue-800">
+                      Behandle alle gjentakende bookinger
+                    </span>
+                  </label>
+                )}
+                
                 {selectedBooking.status === "pending" && (
                   <div className="flex gap-2">
                     <button
@@ -449,7 +497,7 @@ export function CalendarView({ resources, bookings: initialBookings }: Props) {
                       className="flex-1 btn btn-success disabled:opacity-50"
                     >
                       {isProcessing ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCircle2 className="w-4 h-4" />}
-                      Godkjenn
+                      {selectedBooking.isRecurring && applyToAll ? "Godkjenn alle" : "Godkjenn"}
                     </button>
                     <button
                       onClick={() => handleBookingAction(selectedBooking.id, "reject")}
@@ -457,7 +505,7 @@ export function CalendarView({ resources, bookings: initialBookings }: Props) {
                       className="flex-1 btn btn-danger disabled:opacity-50"
                     >
                       {isProcessing ? <Loader2 className="w-4 h-4 animate-spin" /> : <XCircle className="w-4 h-4" />}
-                      Avslå
+                      {selectedBooking.isRecurring && applyToAll ? "Avslå alle" : "Avslå"}
                     </button>
                   </div>
                 )}
