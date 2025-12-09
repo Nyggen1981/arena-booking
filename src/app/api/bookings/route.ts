@@ -53,14 +53,15 @@ export async function POST(request: Request) {
     const end = new Date(endTime)
     const durationMinutes = (end.getTime() - start.getTime()) / (1000 * 60)
 
-    if (durationMinutes < resource.minBookingMinutes) {
+    // Only validate duration if limits are set (not null = unlimited)
+    if (resource.minBookingMinutes !== null && durationMinutes < resource.minBookingMinutes) {
       return NextResponse.json(
         { error: `Minimum varighet er ${resource.minBookingMinutes} minutter` },
         { status: 400 }
       )
     }
 
-    if (durationMinutes > resource.maxBookingMinutes) {
+    if (resource.maxBookingMinutes !== null && durationMinutes > resource.maxBookingMinutes) {
       return NextResponse.json(
         { error: `Maksimum varighet er ${resource.maxBookingMinutes} minutter` },
         { status: 400 }
