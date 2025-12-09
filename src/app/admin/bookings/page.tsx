@@ -15,7 +15,8 @@ import {
   Calendar,
   User,
   Mail,
-  Phone
+  Phone,
+  Trash2
 } from "lucide-react"
 import { format } from "date-fns"
 import { nb } from "date-fns/locale"
@@ -49,6 +50,8 @@ export default function AdminBookingsPage() {
   const [isLoading, setIsLoading] = useState(true)
   const [filter, setFilter] = useState<"pending" | "all">("pending")
   const [processingId, setProcessingId] = useState<string | null>(null)
+  const [cancellingId, setCancellingId] = useState<string | null>(null)
+  const [cancelReason, setCancelReason] = useState("")
 
   useEffect(() => {
     if (status === "unauthenticated") {
@@ -86,6 +89,27 @@ export default function AdminBookingsPage() {
     }
     
     setProcessingId(null)
+  }
+
+  const handleCancel = async (bookingId: string) => {
+    setProcessingId(bookingId)
+    
+    const response = await fetch(`/api/bookings/${bookingId}/cancel`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ reason: cancelReason })
+    })
+
+    if (response.ok) {
+      // Update the booking status in the list instead of removing
+      setBookings(bookings.map(b => 
+        b.id === bookingId ? { ...b, status: "cancelled" } : b
+      ))
+    }
+    
+    setProcessingId(null)
+    setCancellingId(null)
+    setCancelReason("")
   }
 
   if (status === "loading" || isLoading) {
@@ -208,40 +232,99 @@ export default function AdminBookingsPage() {
                     </div>
                   </div>
 
-                  {booking.status === "pending" && (
-                    <div className="flex gap-3 lg:flex-col">
+                  <div className="flex gap-3 lg:flex-col">
+                    {booking.status === "pending" && (
+                      <>
+                        <button
+                          onClick={() => handleAction(booking.id, "approve")}
+                          disabled={processingId === booking.id}
+                          className="btn btn-success flex-1 lg:flex-none disabled:opacity-50"
+                        >
+                          {processingId === booking.id ? (
+                            <Loader2 className="w-4 h-4 animate-spin" />
+                          ) : (
+                            <CheckCircle2 className="w-4 h-4" />
+                          )}
+                          Godkjenn
+                        </button>
+                        <button
+                          onClick={() => handleAction(booking.id, "reject")}
+                          disabled={processingId === booking.id}
+                          className="btn btn-danger flex-1 lg:flex-none disabled:opacity-50"
+                        >
+                          {processingId === booking.id ? (
+                            <Loader2 className="w-4 h-4 animate-spin" />
+                          ) : (
+                            <XCircle className="w-4 h-4" />
+                          )}
+                          Avslå
+                        </button>
+                      </>
+                    )}
+                    {(booking.status === "approved" || booking.status === "pending") && (
                       <button
-                        onClick={() => handleAction(booking.id, "approve")}
+                        onClick={() => setCancellingId(booking.id)}
                         disabled={processingId === booking.id}
-                        className="btn btn-success flex-1 lg:flex-none disabled:opacity-50"
+                        className="btn btn-secondary flex-1 lg:flex-none disabled:opacity-50 text-red-600 hover:bg-red-50"
                       >
-                        {processingId === booking.id ? (
-                          <Loader2 className="w-4 h-4 animate-spin" />
-                        ) : (
-                          <CheckCircle2 className="w-4 h-4" />
-                        )}
-                        Godkjenn
+                        <Trash2 className="w-4 h-4" />
+                        Kanseller
                       </button>
-                      <button
-                        onClick={() => handleAction(booking.id, "reject")}
-                        disabled={processingId === booking.id}
-                        className="btn btn-danger flex-1 lg:flex-none disabled:opacity-50"
-                      >
-                        {processingId === booking.id ? (
-                          <Loader2 className="w-4 h-4 animate-spin" />
-                        ) : (
-                          <XCircle className="w-4 h-4" />
-                        )}
-                        Avslå
-                      </button>
-                    </div>
-                  )}
+                    )}
+                  </div>
                 </div>
               </div>
             ))}
           </div>
         )}
       </div>
+
+      {/* Cancel confirmation modal */}
+      {cancellingId && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl max-w-md w-full shadow-2xl p-6">
+            <h3 className="text-lg font-bold text-gray-900 mb-2">Kanseller booking?</h3>
+            <p className="text-gray-600 mb-4">
+              Er du sikker på at du vil kansellere denne bookingen? Brukeren vil bli varslet på e-post.
+            </p>
+            <div className="mb-4">
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Årsak (valgfritt)
+              </label>
+              <textarea
+                value={cancelReason}
+                onChange={(e) => setCancelReason(e.target.value)}
+                placeholder="F.eks. Fasiliteten er stengt for vedlikehold..."
+                className="input min-h-[80px]"
+              />
+            </div>
+            <div className="flex gap-3">
+              <button
+                type="button"
+                onClick={() => {
+                  setCancellingId(null)
+                  setCancelReason("")
+                }}
+                className="flex-1 px-4 py-2 border border-gray-300 rounded-lg text-gray-700 font-medium hover:bg-gray-50"
+              >
+                Avbryt
+              </button>
+              <button
+                type="button"
+                onClick={() => handleCancel(cancellingId)}
+                disabled={processingId === cancellingId}
+                className="flex-1 px-4 py-2 bg-red-600 text-white rounded-lg font-medium hover:bg-red-700 disabled:opacity-50"
+              >
+                {processingId === cancellingId ? (
+                  <Loader2 className="w-4 h-4 animate-spin mx-auto" />
+                ) : (
+                  "Ja, kanseller"
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

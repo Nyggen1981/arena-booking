@@ -14,7 +14,8 @@ import {
   AlertCircle,
   CheckCircle2,
   XCircle,
-  Hourglass
+  Hourglass,
+  Trash2
 } from "lucide-react"
 import { format } from "date-fns"
 import { nb } from "date-fns/locale"
@@ -49,6 +50,8 @@ export default function MyBookingsPage() {
   const router = useRouter()
   const [bookings, setBookings] = useState<Booking[]>([])
   const [isLoading, setIsLoading] = useState(true)
+  const [cancellingId, setCancellingId] = useState<string | null>(null)
+  const [isProcessing, setIsProcessing] = useState(false)
 
   useEffect(() => {
     if (status === "unauthenticated") {
@@ -66,6 +69,25 @@ export default function MyBookingsPage() {
         })
     }
   }, [session])
+
+  const handleCancel = async (bookingId: string) => {
+    setIsProcessing(true)
+    
+    const response = await fetch(`/api/bookings/${bookingId}/cancel`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({})
+    })
+
+    if (response.ok) {
+      setBookings(bookings.map(b => 
+        b.id === bookingId ? { ...b, status: "cancelled" } : b
+      ))
+    }
+    
+    setIsProcessing(false)
+    setCancellingId(null)
+  }
 
   if (status === "loading" || isLoading) {
     return (
@@ -141,14 +163,25 @@ export default function MyBookingsPage() {
                               </p>
                             )}
                           </div>
-                          <div className="text-left md:text-right">
-                            <p className="font-medium text-gray-900">
-                              {format(new Date(booking.startTime), "EEEE d. MMMM", { locale: nb })}
-                            </p>
-                            <p className="text-sm text-gray-500 flex items-center gap-1 md:justify-end">
-                              <Clock className="w-4 h-4" />
-                              {format(new Date(booking.startTime), "HH:mm")} - {format(new Date(booking.endTime), "HH:mm")}
-                            </p>
+                          <div className="text-left md:text-right flex flex-col items-start md:items-end gap-2">
+                            <div>
+                              <p className="font-medium text-gray-900">
+                                {format(new Date(booking.startTime), "EEEE d. MMMM", { locale: nb })}
+                              </p>
+                              <p className="text-sm text-gray-500 flex items-center gap-1 md:justify-end">
+                                <Clock className="w-4 h-4" />
+                                {format(new Date(booking.startTime), "HH:mm")} - {format(new Date(booking.endTime), "HH:mm")}
+                              </p>
+                            </div>
+                            {(booking.status === "pending" || booking.status === "approved") && (
+                              <button
+                                onClick={() => setCancellingId(booking.id)}
+                                className="text-sm text-red-600 hover:text-red-700 flex items-center gap-1"
+                              >
+                                <Trash2 className="w-4 h-4" />
+                                Kanseller
+                              </button>
+                            )}
                           </div>
                         </div>
                       </div>
@@ -196,6 +229,39 @@ export default function MyBookingsPage() {
         </div>
       </main>
       <Footer />
+
+      {/* Cancel confirmation modal */}
+      {cancellingId && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl max-w-md w-full shadow-2xl p-6">
+            <h3 className="text-lg font-bold text-gray-900 mb-2">Kanseller booking?</h3>
+            <p className="text-gray-600 mb-4">
+              Er du sikker på at du vil kansellere denne bookingen? Administrator vil bli varslet.
+            </p>
+            <div className="flex gap-3">
+              <button
+                type="button"
+                onClick={() => setCancellingId(null)}
+                className="flex-1 px-4 py-2 border border-gray-300 rounded-lg text-gray-700 font-medium hover:bg-gray-50"
+              >
+                Avbryt
+              </button>
+              <button
+                type="button"
+                onClick={() => handleCancel(cancellingId)}
+                disabled={isProcessing}
+                className="flex-1 px-4 py-2 bg-red-600 text-white rounded-lg font-medium hover:bg-red-700 disabled:opacity-50"
+              >
+                {isProcessing ? (
+                  <Loader2 className="w-4 h-4 animate-spin mx-auto" />
+                ) : (
+                  "Ja, kanseller"
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
