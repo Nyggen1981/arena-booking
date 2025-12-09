@@ -22,13 +22,13 @@ interface EditBookingModalProps {
   onSaved: (updatedBooking: any) => void
 }
 
-// Round time to nearest 15 minutes
+// Round time to nearest 15 minutes for display
 const roundTo15Min = (timeStr: string): string => {
   const [hours, minutes] = timeStr.split(":").map(Number)
   const roundedMinutes = Math.round(minutes / 15) * 15
   const adjustedHours = roundedMinutes === 60 ? hours + 1 : hours
   const finalMinutes = roundedMinutes === 60 ? 0 : roundedMinutes
-  return `${String(adjustedHours).padStart(2, "0")}:${String(finalMinutes).padStart(2, "0")}`
+  return `${String(adjustedHours % 24).padStart(2, "0")}:${String(finalMinutes).padStart(2, "0")}`
 }
 
 export function EditBookingModal({ booking, isAdmin, onClose, onSaved }: EditBookingModalProps) {
@@ -169,28 +169,38 @@ export function EditBookingModal({ booking, isAdmin, onClose, onSaved }: EditBoo
                 <Clock className="w-4 h-4 inline mr-1" />
                 Fra *
               </label>
-              <input
-                type="time"
+              <select
                 value={startTime}
-                onChange={(e) => setStartTime(roundTo15Min(e.target.value))}
-                step="900"
+                onChange={(e) => setStartTime(e.target.value)}
                 required
                 className="input"
-              />
+              >
+                {Array.from({ length: 24 * 4 }, (_, i) => {
+                  const hour = Math.floor(i / 4)
+                  const minute = (i % 4) * 15
+                  const time = `${hour.toString().padStart(2, '0')}:${minute.toString().padStart(2, '0')}`
+                  return <option key={time} value={time}>{time}</option>
+                })}
+              </select>
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
                 <Clock className="w-4 h-4 inline mr-1" />
                 Til *
               </label>
-              <input
-                type="time"
+              <select
                 value={endTime}
-                onChange={(e) => setEndTime(roundTo15Min(e.target.value))}
-                step="900"
+                onChange={(e) => setEndTime(e.target.value)}
                 required
                 className="input"
-              />
+              >
+                {Array.from({ length: 24 * 4 }, (_, i) => {
+                  const hour = Math.floor(i / 4)
+                  const minute = (i % 4) * 15
+                  const time = `${hour.toString().padStart(2, '0')}:${minute.toString().padStart(2, '0')}`
+                  return <option key={time} value={time}>{time}</option>
+                })}
+              </select>
             </div>
           </div>
 
