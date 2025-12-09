@@ -443,7 +443,7 @@ export function PublicCalendar({ categories, resources, bookings }: Props) {
                           <button
                             key={booking.id}
                             onClick={() => setSelectedBooking(booking)}
-                            className="absolute left-0.5 right-0.5 rounded px-1.5 py-1 text-xs overflow-hidden cursor-pointer z-10 pointer-events-auto text-left booking-event border-2 border-white/60"
+                            className="absolute left-0.5 right-0.5 rounded px-1.5 py-1 text-xs overflow-hidden cursor-pointer z-10 pointer-events-auto text-left booking-event ring-2 ring-gray-900/40"
                             style={{
                               top: `${top}%`,
                               height: `${Math.max(duration * 100, 100)}%`,
