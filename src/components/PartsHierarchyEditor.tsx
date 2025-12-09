@@ -111,13 +111,15 @@ export function PartsHierarchyEditor({ parts, onPartsChange }: Props) {
 
   const updatePart = (id: string, field: keyof HierarchicalPart, value: string) => {
     const updated = parts.map(p => {
-      const partId = p.id || p.tempId
+      const partId = p.id || p.tempId || ''
       if (partId === id) {
-        return { ...p, [field]: value }
+        // Create a new object to ensure React detects the change
+        const updatedPart = { ...p, [field]: value }
+        return updatedPart
       }
       return p
     })
-    onPartsChange(updated)
+    onPartsChange([...updated])
   }
 
   const deletePart = (id: string) => {
