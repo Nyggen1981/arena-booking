@@ -436,21 +436,25 @@ export function PublicCalendar({ categories, resources, bookings }: Props) {
                         const start = parseISO(booking.startTime)
                         const end = parseISO(booking.endTime)
                         const duration = (end.getTime() - start.getTime()) / (1000 * 60 * 60)
-                        const top = (start.getMinutes() / 60) * 100
                         const resourceColor = getResourceColor(booking.resourceId)
+
+                        // Add 2px gap between bookings
+                        const gapPx = 2
+                        const cellHeight = 48 // min-h-[48px]
+                        const topPx = (start.getMinutes() / 60) * cellHeight + gapPx
+                        const heightPx = duration * cellHeight - (gapPx * 2)
 
                         return (
                           <button
                             key={booking.id}
                             onClick={() => setSelectedBooking(booking)}
-                            className="absolute left-0.5 right-0.5 rounded px-1.5 py-1 text-xs overflow-hidden cursor-pointer z-10 pointer-events-auto text-left booking-event ring-2 ring-gray-900/40"
+                            className="absolute left-0.5 right-0.5 rounded px-1.5 py-1 text-xs overflow-hidden cursor-pointer z-10 pointer-events-auto text-left booking-event"
                             style={{
-                              top: `${top}%`,
-                              height: `${Math.max(duration * 100, 100)}%`,
-                              minHeight: '40px',
+                              top: `${topPx}px`,
+                              height: `${Math.max(heightPx, 36)}px`,
                               backgroundColor: resourceColor,
                               color: 'white',
-                              boxShadow: '0 1px 2px rgba(0,0,0,0.15)'
+                              boxShadow: '0 1px 3px rgba(0,0,0,0.2)'
                             }}
                           >
                             <p className="font-semibold truncate text-[11px]">{booking.title}</p>

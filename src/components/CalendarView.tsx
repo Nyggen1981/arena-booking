@@ -250,27 +250,31 @@ export function CalendarView({ resources, bookings: initialBookings }: Props) {
                         const start = parseISO(booking.startTime)
                         const end = parseISO(booking.endTime)
                         const duration = (end.getTime() - start.getTime()) / (1000 * 60 * 60)
-                        const top = (start.getMinutes() / 60) * 100
                         const isPending = booking.status === "pending"
                         const resourceColor = getResourceColor(booking.resourceId)
+
+                        // Add 2px gap between bookings
+                        const gapPx = 2
+                        const cellHeight = 48 // min-h-[48px]
+                        const topPx = (start.getMinutes() / 60) * cellHeight + gapPx
+                        const heightPx = duration * cellHeight - (gapPx * 2)
 
                         return (
                           <div
                             key={booking.id}
                             onClick={() => setSelectedBooking(booking)}
                             className={`absolute left-1 right-1 rounded-md px-2 py-1 text-xs overflow-hidden z-10 cursor-pointer pointer-events-auto booking-event ${
-                              isPending ? 'border-2 border-dashed' : 'ring-2 ring-gray-900/40'
+                              isPending ? 'border-2 border-dashed' : ''
                             }`}
                             style={{
-                              top: `${top}%`,
-                              height: `${Math.max(duration * 100, 100)}%`,
-                              minHeight: '40px',
+                              top: `${topPx}px`,
+                              height: `${Math.max(heightPx, 36)}px`,
                               backgroundColor: isPending 
                                 ? `${resourceColor}20`
                                 : resourceColor,
                               borderColor: isPending ? resourceColor : undefined,
                               color: isPending ? resourceColor : 'white',
-                              boxShadow: isPending ? undefined : '0 1px 2px rgba(0,0,0,0.15)'
+                              boxShadow: '0 1px 3px rgba(0,0,0,0.2)'
                             }}
                             title={`${format(start, "HH:mm")}-${format(end, "HH:mm")} ${booking.title} - ${booking.resourceName}${booking.resourcePartName ? ` (${booking.resourcePartName})` : ''}${isPending ? ' (venter på godkjenning)' : ''} - Klikk for mer info`}
                           >
