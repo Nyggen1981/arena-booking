@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/prisma"
 import Link from "next/link"
 import Image from "next/image"
+import { redirect } from "next/navigation"
 import { 
   Calendar, 
   LogIn,
@@ -101,6 +102,11 @@ export default async function PublicHomePage() {
     // Auth not configured or error - continue without session
   }
   
+  // Redirect logged-in users to the resources page
+  if (session) {
+    redirect("/resources")
+  }
+  
   const [organization, resources, bookings, categories] = await Promise.all([
     getOrganization(),
     getResources(),
@@ -145,48 +151,20 @@ export default async function PublicHomePage() {
 
             {/* Auth buttons */}
             <div className="flex items-center gap-2">
-              {session ? (
-                <>
-                  <Link 
-                    href="/my-bookings"
-                    className="px-4 py-2 text-sm font-medium text-gray-700 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors"
-                  >
-                    Mine bookinger
-                  </Link>
-                  {session.user?.role === "admin" && (
-                    <Link 
-                      href="/admin"
-                      className="px-4 py-2 text-sm font-medium text-blue-600 hover:text-blue-700 hover:bg-blue-50 rounded-lg transition-colors"
-                    >
-                      Admin
-                    </Link>
-                  )}
-                  <Link 
-                    href="/resources"
-                    className="btn btn-primary"
-                  >
-                    <Calendar className="w-4 h-4" />
-                    Book nå
-                  </Link>
-                </>
-              ) : (
-                <>
-                  <Link 
-                    href="/login"
-                    className="px-4 py-2 text-sm font-medium text-gray-700 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors flex items-center gap-2"
-                  >
-                    <LogIn className="w-4 h-4" />
-                    Logg inn
-                  </Link>
-                  <Link 
-                    href="/register"
-                    className="btn btn-primary"
-                  >
-                    <UserPlus className="w-4 h-4" />
-                    Registrer deg
-                  </Link>
-                </>
-              )}
+              <Link 
+                href="/login"
+                className="px-4 py-2 text-sm font-medium text-gray-700 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors flex items-center gap-2"
+              >
+                <LogIn className="w-4 h-4" />
+                Logg inn
+              </Link>
+              <Link 
+                href="/register"
+                className="btn btn-primary"
+              >
+                <UserPlus className="w-4 h-4" />
+                Registrer deg
+              </Link>
             </div>
           </div>
         </div>
@@ -217,7 +195,7 @@ export default async function PublicHomePage() {
               resourceName: b.resource.name,
               resourcePartName: b.resourcePart?.name
             }))}
-            isLoggedIn={!!session}
+            isLoggedIn={false}
           />
         ) : (
           <div className="bg-white rounded-xl border border-gray-200 p-12 text-center">
