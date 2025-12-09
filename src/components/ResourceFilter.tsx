@@ -37,7 +37,7 @@ export function ResourceFilter({ categories, resources }: Props) {
     ? resources.filter(r => r.category?.id === selectedCategory)
     : resources
 
-  // Group filtered resources by category
+  // Group filtered resources by category (only show categories that have resources after filtering)
   const grouped = filteredResources.reduce((acc, resource) => {
     const categoryName = resource.category?.name || "Annet"
     if (!acc[categoryName]) {
@@ -49,6 +49,9 @@ export function ResourceFilter({ categories, resources }: Props) {
     acc[categoryName].resources.push(resource)
     return acc
   }, {} as Record<string, { category: Category | null, resources: Resource[] }>)
+
+  // Only show categories that have resources after filtering
+  const visibleCategories = Object.keys(grouped).filter(categoryName => grouped[categoryName].resources.length > 0)
 
   return (
     <>
@@ -88,7 +91,9 @@ export function ResourceFilter({ categories, resources }: Props) {
 
       {/* Resources by category */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-16">
-        {Object.entries(grouped).map(([categoryName, { category, resources: categoryResources }]) => (
+        {visibleCategories.map((categoryName) => {
+          const { category, resources: categoryResources } = grouped[categoryName]
+          return (
           <section key={categoryName} className="mb-12">
             <div className="flex items-center gap-3 mb-6">
               <div 
@@ -196,7 +201,8 @@ export function ResourceFilter({ categories, resources }: Props) {
               ))}
             </div>
           </section>
-        ))}
+          )
+        })}
 
         {filteredResources.length === 0 && (
           <div className="text-center py-12">
