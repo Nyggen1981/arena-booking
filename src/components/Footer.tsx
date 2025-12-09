@@ -1,5 +1,7 @@
 import { Calendar } from "lucide-react"
 
+const VERSION = "1.0.0"
+
 export function Footer() {
   return (
     <footer className="bg-slate-900 text-white mt-auto">
@@ -16,10 +18,15 @@ export function Footer() {
             </div>
           </div>
 
-          {/* Copyright */}
-          <p className="text-xs text-slate-500">
-            © {new Date().getFullYear()} Arena Booking. Alle rettigheter reservert.
-          </p>
+          {/* Copyright and Version */}
+          <div className="text-right">
+            <p className="text-xs text-slate-500">
+              © {new Date().getFullYear()} Arena Booking. Alle rettigheter reservert.
+            </p>
+            <p className="text-xs text-slate-600 mt-1">
+              v{VERSION}
+            </p>
+          </div>
         </div>
       </div>
     </footer>
