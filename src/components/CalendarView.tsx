@@ -259,7 +259,7 @@ export function CalendarView({ resources, bookings: initialBookings }: Props) {
                             key={booking.id}
                             onClick={() => setSelectedBooking(booking)}
                             className={`absolute left-1 right-1 rounded-md px-2 py-1 text-xs overflow-hidden z-10 cursor-pointer pointer-events-auto booking-event ${
-                              isPending ? 'border-2 border-dashed' : 'border border-white/30'
+                              isPending ? 'border-2 border-dashed' : 'border-2 border-white/60'
                             }`}
                             style={{
                               top: `${top}%`,
