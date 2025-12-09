@@ -134,6 +134,9 @@ export async function POST(request: Request) {
     for (const { start: bookingStart, end: bookingEnd } of bookingDates) {
       let conflictingBookings
       
+      // Only check active bookings - explicitly exclude cancelled and rejected
+      const activeStatusFilter = { status: { notIn: ["cancelled", "rejected"] } }
+      
       if (!resourcePartId) {
         // Booking whole facility
         if (resource.blockPartsWhenWholeBooked) {
@@ -141,7 +144,7 @@ export async function POST(request: Request) {
           conflictingBookings = await prisma.booking.findMany({
             where: {
               resourceId,
-              status: { in: ["approved", "pending"] },
+              ...activeStatusFilter,
               OR: getTimeOverlapConditions(bookingStart, bookingEnd)
             },
             include: { resourcePart: true }
@@ -152,7 +155,7 @@ export async function POST(request: Request) {
             where: {
               resourceId,
               resourcePartId: null,
-              status: { in: ["approved", "pending"] },
+              ...activeStatusFilter,
               OR: getTimeOverlapConditions(bookingStart, bookingEnd)
             },
             include: { resourcePart: true }
@@ -172,7 +175,7 @@ export async function POST(request: Request) {
           where: {
             AND: [
               { resourceId },
-              { status: { in: ["approved", "pending"] } },
+              activeStatusFilter,
               { OR: partConditions },
               { OR: getTimeOverlapConditions(bookingStart, bookingEnd) }
             ]
