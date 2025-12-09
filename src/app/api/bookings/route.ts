@@ -195,27 +195,60 @@ export async function POST(request: Request) {
     }
 
     // Create all bookings
-    const createdBookings = await prisma.$transaction(
-      bookingDates.map(({ start: bookingStart, end: bookingEnd }) =>
-        prisma.booking.create({
-          data: {
-            title,
-            description,
-            startTime: bookingStart,
-            endTime: bookingEnd,
-            status: resource.requiresApproval ? "pending" : "approved",
-            approvedAt: resource.requiresApproval ? null : new Date(),
-            contactName,
-            contactEmail,
-            contactPhone,
-            organizationId: session.user.organizationId,
-            resourceId,
-            resourcePartId: resourcePartId || null,
-            userId: session.user.id
-          }
-        })
-      )
-    )
+    // First, create the parent booking
+    const isRecurringBooking = isRecurring && bookingDates.length > 1
+    
+    const parentBooking = await prisma.booking.create({
+      data: {
+        title,
+        description,
+        startTime: bookingDates[0].start,
+        endTime: bookingDates[0].end,
+        status: resource.requiresApproval ? "pending" : "approved",
+        approvedAt: resource.requiresApproval ? null : new Date(),
+        contactName,
+        contactEmail,
+        contactPhone,
+        organizationId: session.user.organizationId,
+        resourceId,
+        resourcePartId: resourcePartId || null,
+        userId: session.user.id,
+        isRecurring: isRecurringBooking,
+        recurringPattern: isRecurringBooking ? recurringType : null,
+        recurringEndDate: isRecurringBooking ? new Date(recurringEndDate) : null
+      }
+    })
+
+    // Then create child bookings if recurring
+    const childBookings = isRecurringBooking && bookingDates.length > 1
+      ? await prisma.$transaction(
+          bookingDates.slice(1).map(({ start: bookingStart, end: bookingEnd }) =>
+            prisma.booking.create({
+              data: {
+                title,
+                description,
+                startTime: bookingStart,
+                endTime: bookingEnd,
+                status: resource.requiresApproval ? "pending" : "approved",
+                approvedAt: resource.requiresApproval ? null : new Date(),
+                contactName,
+                contactEmail,
+                contactPhone,
+                organizationId: session.user.organizationId,
+                resourceId,
+                resourcePartId: resourcePartId || null,
+                userId: session.user.id,
+                isRecurring: true,
+                recurringPattern: recurringType,
+                recurringEndDate: new Date(recurringEndDate),
+                parentBookingId: parentBooking.id
+              }
+            })
+          )
+        )
+      : []
+
+    const createdBookings = [parentBooking, ...childBookings]
 
     // Send email notification to admins if booking requires approval
     if (resource.requiresApproval && createdBookings.length > 0) {
