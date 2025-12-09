@@ -1,7 +1,8 @@
 "use client"
 
 import { useState, useMemo } from "react"
-import { ChevronLeft, ChevronRight, List, Grid3X3 } from "lucide-react"
+import { useSession } from "next-auth/react"
+import { ChevronLeft, ChevronRight, List, Grid3X3, CheckCircle2, XCircle, Trash2, X, Loader2, Calendar, Clock, User } from "lucide-react"
 import { 
   format, 
   startOfWeek, 
@@ -43,10 +44,16 @@ interface Props {
 
 type ViewMode = "week" | "month"
 
-export function CalendarView({ resources, bookings }: Props) {
+export function CalendarView({ resources, bookings: initialBookings }: Props) {
+  const { data: session } = useSession()
+  const isAdmin = session?.user?.role === "admin"
+  
+  const [bookings, setBookings] = useState<Booking[]>(initialBookings)
   const [currentDate, setCurrentDate] = useState(new Date())
   const [viewMode, setViewMode] = useState<ViewMode>("week")
   const [selectedResource, setSelectedResource] = useState<string | null>(null)
+  const [selectedBooking, setSelectedBooking] = useState<Booking | null>(null)
+  const [isProcessing, setIsProcessing] = useState(false)
 
   const filteredBookings = useMemo(() => {
     if (!selectedResource) return bookings
@@ -80,6 +87,39 @@ export function CalendarView({ resources, bookings }: Props) {
     } else {
       setCurrentDate(direction === "prev" ? subMonths(currentDate, 1) : addMonths(currentDate, 1))
     }
+  }
+
+  const handleBookingAction = async (bookingId: string, action: "approve" | "reject" | "cancel") => {
+    setIsProcessing(true)
+    
+    let response
+    if (action === "cancel") {
+      response = await fetch(`/api/bookings/${bookingId}/cancel`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ reason: "Kansellert fra kalender" })
+      })
+    } else {
+      response = await fetch(`/api/admin/bookings/${bookingId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action })
+      })
+    }
+
+    if (response.ok) {
+      if (action === "approve") {
+        setBookings(bookings.map(b => 
+          b.id === bookingId ? { ...b, status: "approved" } : b
+        ))
+      } else {
+        // Remove rejected or cancelled bookings from view
+        setBookings(bookings.filter(b => b.id !== bookingId))
+      }
+    }
+    
+    setIsProcessing(false)
+    setSelectedBooking(null)
   }
 
   return (
@@ -216,9 +256,10 @@ export function CalendarView({ resources, bookings }: Props) {
                         return (
                           <div
                             key={booking.id}
-                            className={`absolute left-1 right-1 rounded-md px-2 py-1 text-xs overflow-hidden cursor-pointer transition-transform hover:scale-[1.02] hover:z-10 ${
+                            onClick={() => isAdmin && setSelectedBooking(booking)}
+                            className={`absolute left-1 right-1 rounded-md px-2 py-1 text-xs overflow-hidden transition-transform hover:scale-[1.02] hover:z-10 ${
                               isPending ? 'border-2 border-dashed' : ''
-                            }`}
+                            } ${isAdmin ? 'cursor-pointer' : 'cursor-default'}`}
                             style={{
                               top: `${top}%`,
                               height: `${Math.max(duration * 100, 100)}%`,
@@ -229,7 +270,7 @@ export function CalendarView({ resources, bookings }: Props) {
                               borderColor: isPending ? resourceColor : 'transparent',
                               color: isPending ? resourceColor : 'white'
                             }}
-                            title={`${format(start, "HH:mm")}-${format(end, "HH:mm")} ${booking.title} - ${booking.resourceName}${booking.resourcePartName ? ` (${booking.resourcePartName})` : ''}${isPending ? ' (venter på godkjenning)' : ''}`}
+                            title={`${format(start, "HH:mm")}-${format(end, "HH:mm")} ${booking.title} - ${booking.resourceName}${booking.resourcePartName ? ` (${booking.resourcePartName})` : ''}${isPending ? ' (venter på godkjenning)' : ''}${isAdmin ? ' - Klikk for å behandle' : ''}`}
                           >
                             <p className="font-medium truncate">{booking.title}</p>
                             <p className={`truncate text-[10px] ${isPending ? 'opacity-70' : 'opacity-80'}`}>{booking.resourceName}</p>
@@ -286,9 +327,10 @@ export function CalendarView({ resources, bookings }: Props) {
                       return (
                         <div
                           key={booking.id}
+                          onClick={() => isAdmin && setSelectedBooking(booking)}
                           className={`text-xs px-1.5 py-0.5 rounded truncate ${
                             isPending ? 'border border-dashed' : ''
-                          }`}
+                          } ${isAdmin ? 'cursor-pointer hover:opacity-80' : ''}`}
                           style={{
                             backgroundColor: isPending 
                               ? `${resourceColor}20`
@@ -296,7 +338,7 @@ export function CalendarView({ resources, bookings }: Props) {
                             borderColor: isPending ? resourceColor : 'transparent',
                             color: isPending ? resourceColor : 'white'
                           }}
-                          title={`${format(parseISO(booking.startTime), "HH:mm")} ${booking.title}${isPending ? ' (venter)' : ''}`}
+                          title={`${format(parseISO(booking.startTime), "HH:mm")} ${booking.title}${isPending ? ' (venter)' : ''}${isAdmin ? ' - Klikk for å behandle' : ''}`}
                         >
                           {format(parseISO(booking.startTime), "HH:mm")} {booking.title}
                         </div>
@@ -331,7 +373,97 @@ export function CalendarView({ resources, bookings }: Props) {
           <div className="w-4 h-3 rounded border-2 border-dashed border-gray-400 bg-gray-100" />
           <span className="text-gray-600">Venter på godkjenning</span>
         </div>
+        {isAdmin && (
+          <div className="ml-4 pl-4 border-l border-gray-200 text-gray-500 italic">
+            Klikk på en booking for å behandle
+          </div>
+        )}
       </div>
+
+      {/* Admin Booking Modal */}
+      {selectedBooking && isAdmin && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl max-w-md w-full shadow-2xl">
+            {/* Header */}
+            <div className="flex items-center justify-between p-4 border-b">
+              <h3 className="text-lg font-bold text-gray-900">Behandle booking</h3>
+              <button
+                onClick={() => setSelectedBooking(null)}
+                className="p-1 rounded hover:bg-gray-100"
+              >
+                <X className="w-5 h-5 text-gray-500" />
+              </button>
+            </div>
+            
+            {/* Content */}
+            <div className="p-4 space-y-4">
+              <div>
+                <h4 className="font-semibold text-gray-900 text-lg">{selectedBooking.title}</h4>
+                <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium mt-1 ${
+                  selectedBooking.status === "pending" 
+                    ? "bg-amber-100 text-amber-700" 
+                    : "bg-green-100 text-green-700"
+                }`}>
+                  {selectedBooking.status === "pending" ? "Venter på godkjenning" : "Godkjent"}
+                </span>
+              </div>
+              
+              <div className="space-y-2 text-sm">
+                <div className="flex items-center gap-2 text-gray-600">
+                  <div 
+                    className="w-3 h-3 rounded"
+                    style={{ backgroundColor: getResourceColor(selectedBooking.resourceId) }}
+                  />
+                  <span>
+                    {selectedBooking.resourceName}
+                    {selectedBooking.resourcePartName && ` → ${selectedBooking.resourcePartName}`}
+                  </span>
+                </div>
+                <div className="flex items-center gap-2 text-gray-600">
+                  <Calendar className="w-4 h-4 text-gray-400" />
+                  {format(parseISO(selectedBooking.startTime), "EEEE d. MMMM yyyy", { locale: nb })}
+                </div>
+                <div className="flex items-center gap-2 text-gray-600">
+                  <Clock className="w-4 h-4 text-gray-400" />
+                  {format(parseISO(selectedBooking.startTime), "HH:mm")} - {format(parseISO(selectedBooking.endTime), "HH:mm")}
+                </div>
+              </div>
+            </div>
+
+            {/* Actions */}
+            <div className="p-4 border-t bg-gray-50 rounded-b-xl space-y-2">
+              {selectedBooking.status === "pending" && (
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => handleBookingAction(selectedBooking.id, "approve")}
+                    disabled={isProcessing}
+                    className="flex-1 btn btn-success disabled:opacity-50"
+                  >
+                    {isProcessing ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCircle2 className="w-4 h-4" />}
+                    Godkjenn
+                  </button>
+                  <button
+                    onClick={() => handleBookingAction(selectedBooking.id, "reject")}
+                    disabled={isProcessing}
+                    className="flex-1 btn btn-danger disabled:opacity-50"
+                  >
+                    {isProcessing ? <Loader2 className="w-4 h-4 animate-spin" /> : <XCircle className="w-4 h-4" />}
+                    Avslå
+                  </button>
+                </div>
+              )}
+              <button
+                onClick={() => handleBookingAction(selectedBooking.id, "cancel")}
+                disabled={isProcessing}
+                className="w-full btn btn-secondary text-red-600 hover:bg-red-50 disabled:opacity-50"
+              >
+                {isProcessing ? <Loader2 className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4" />}
+                Kanseller booking
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

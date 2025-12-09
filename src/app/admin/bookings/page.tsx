@@ -16,7 +16,10 @@ import {
   User,
   Mail,
   Phone,
-  Trash2
+  Trash2,
+  Search,
+  Filter,
+  Building2
 } from "lucide-react"
 import { format } from "date-fns"
 import { nb } from "date-fns/locale"
@@ -47,11 +50,17 @@ export default function AdminBookingsPage() {
   const { data: session, status } = useSession()
   const router = useRouter()
   const [bookings, setBookings] = useState<Booking[]>([])
+  const [resources, setResources] = useState<{ id: string; name: string }[]>([])
   const [isLoading, setIsLoading] = useState(true)
-  const [filter, setFilter] = useState<"pending" | "all">("pending")
+  const [statusFilter, setStatusFilter] = useState<"pending" | "approved" | "all">("pending")
+  const [resourceFilter, setResourceFilter] = useState<string>("")
+  const [searchQuery, setSearchQuery] = useState("")
+  const [dateFrom, setDateFrom] = useState("")
+  const [dateTo, setDateTo] = useState("")
   const [processingId, setProcessingId] = useState<string | null>(null)
   const [cancellingId, setCancellingId] = useState<string | null>(null)
   const [cancelReason, setCancelReason] = useState("")
+  const [showFilters, setShowFilters] = useState(false)
 
   useEffect(() => {
     if (status === "unauthenticated") {
@@ -64,16 +73,55 @@ export default function AdminBookingsPage() {
   useEffect(() => {
     if (session?.user?.role === "admin") {
       fetchBookings()
+      fetchResources()
     }
-  }, [session, filter])
+  }, [session])
+
+  const fetchResources = async () => {
+    const response = await fetch("/api/admin/resources")
+    const data = await response.json()
+    setResources(data)
+  }
 
   const fetchBookings = async () => {
     setIsLoading(true)
-    const response = await fetch(`/api/admin/bookings?status=${filter}`)
+    const response = await fetch(`/api/admin/bookings?status=all`)
     const data = await response.json()
     setBookings(data)
     setIsLoading(false)
   }
+
+  // Client-side filtering
+  const filteredBookings = bookings.filter(booking => {
+    // Status filter
+    if (statusFilter !== "all" && booking.status !== statusFilter) return false
+    
+    // Resource filter
+    if (resourceFilter && booking.resource.name !== resourceFilter) return false
+    
+    // Search filter
+    if (searchQuery) {
+      const query = searchQuery.toLowerCase()
+      const matchTitle = booking.title.toLowerCase().includes(query)
+      const matchUser = (booking.user.name || "").toLowerCase().includes(query)
+      const matchEmail = booking.user.email.toLowerCase().includes(query)
+      const matchContact = (booking.contactName || "").toLowerCase().includes(query)
+      if (!matchTitle && !matchUser && !matchEmail && !matchContact) return false
+    }
+    
+    // Date filters
+    if (dateFrom) {
+      const fromDate = new Date(dateFrom)
+      if (new Date(booking.startTime) < fromDate) return false
+    }
+    if (dateTo) {
+      const toDate = new Date(dateTo)
+      toDate.setHours(23, 59, 59, 999)
+      if (new Date(booking.startTime) > toDate) return false
+    }
+    
+    return true
+  })
 
   const handleAction = async (bookingId: string, action: "approve" | "reject") => {
     setProcessingId(bookingId)
@@ -140,9 +188,9 @@ export default function AdminBookingsPage() {
           </div>
           <div className="flex gap-2">
             <button
-              onClick={() => setFilter("pending")}
+              onClick={() => setStatusFilter("pending")}
               className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-                filter === "pending" 
+                statusFilter === "pending" 
                   ? "bg-amber-100 text-amber-700" 
                   : "bg-white text-gray-600 hover:bg-gray-100"
               }`}
@@ -151,33 +199,143 @@ export default function AdminBookingsPage() {
               Ventende
             </button>
             <button
-              onClick={() => setFilter("all")}
+              onClick={() => setStatusFilter("approved")}
               className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-                filter === "all" 
+                statusFilter === "approved" 
+                  ? "bg-green-100 text-green-700" 
+                  : "bg-white text-gray-600 hover:bg-gray-100"
+              }`}
+            >
+              <CheckCircle2 className="w-4 h-4 inline mr-1" />
+              Godkjente
+            </button>
+            <button
+              onClick={() => setStatusFilter("all")}
+              className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                statusFilter === "all" 
                   ? "bg-blue-100 text-blue-700" 
                   : "bg-white text-gray-600 hover:bg-gray-100"
               }`}
             >
               Alle
             </button>
+            <button
+              onClick={() => setShowFilters(!showFilters)}
+              className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                showFilters 
+                  ? "bg-gray-900 text-white" 
+                  : "bg-white text-gray-600 hover:bg-gray-100"
+              }`}
+            >
+              <Filter className="w-4 h-4 inline mr-1" />
+              Filter
+            </button>
           </div>
         </div>
 
-        {bookings.length === 0 ? (
+        {/* Extended filters */}
+        {showFilters && (
+          <div className="card p-4 mb-6 animate-fadeIn">
+            <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
+              {/* Search */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  <Search className="w-4 h-4 inline mr-1" />
+                  Søk
+                </label>
+                <input
+                  type="text"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  placeholder="Navn, e-post, tittel..."
+                  className="input"
+                />
+              </div>
+
+              {/* Resource filter */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  <Building2 className="w-4 h-4 inline mr-1" />
+                  Fasilitet
+                </label>
+                <select
+                  value={resourceFilter}
+                  onChange={(e) => setResourceFilter(e.target.value)}
+                  className="input"
+                >
+                  <option value="">Alle fasiliteter</option>
+                  {resources.map(r => (
+                    <option key={r.id} value={r.name}>{r.name}</option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Date from */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  <Calendar className="w-4 h-4 inline mr-1" />
+                  Fra dato
+                </label>
+                <input
+                  type="date"
+                  value={dateFrom}
+                  onChange={(e) => setDateFrom(e.target.value)}
+                  className="input"
+                />
+              </div>
+
+              {/* Date to */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  <Calendar className="w-4 h-4 inline mr-1" />
+                  Til dato
+                </label>
+                <input
+                  type="date"
+                  value={dateTo}
+                  onChange={(e) => setDateTo(e.target.value)}
+                  className="input"
+                />
+              </div>
+            </div>
+
+            {/* Clear filters */}
+            {(searchQuery || resourceFilter || dateFrom || dateTo) && (
+              <button
+                onClick={() => {
+                  setSearchQuery("")
+                  setResourceFilter("")
+                  setDateFrom("")
+                  setDateTo("")
+                }}
+                className="mt-4 text-sm text-blue-600 hover:text-blue-700"
+              >
+                Nullstill alle filter
+              </button>
+            )}
+          </div>
+        )}
+
+        {/* Results count */}
+        <p className="text-sm text-gray-500 mb-4">
+          Viser {filteredBookings.length} av {bookings.length} bookinger
+        </p>
+
+        {filteredBookings.length === 0 ? (
           <div className="card p-12 text-center">
             <CheckCircle2 className="w-16 h-16 text-green-500 mx-auto mb-4" />
             <h2 className="text-xl font-semibold text-gray-900 mb-2">
-              {filter === "pending" ? "Ingen ventende bookinger" : "Ingen bookinger"}
+              {statusFilter === "pending" ? "Ingen ventende bookinger" : "Ingen bookinger funnet"}
             </h2>
             <p className="text-gray-500">
-              {filter === "pending" 
+              {statusFilter === "pending" 
                 ? "Alle bookinger er behandlet 🎉" 
-                : "Det er ingen bookinger i systemet"}
+                : "Prøv å justere filterene"}
             </p>
           </div>
         ) : (
           <div className="space-y-4">
-            {bookings.map((booking) => (
+            {filteredBookings.map((booking) => (
               <div key={booking.id} className="card p-6 animate-fadeIn">
                 <div className="flex flex-col lg:flex-row lg:items-start justify-between gap-6">
                   <div className="flex-1">
