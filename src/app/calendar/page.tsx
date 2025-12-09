@@ -8,18 +8,24 @@ export const revalidate = 30
 
 // Cache resources for 60 seconds
 const getResources = unstable_cache(
-  async () => prisma.resource.findMany({
-    where: { isActive: true },
-    orderBy: { name: "asc" },
-    select: {
-      id: true,
-      name: true,
-      color: true,
-      category: {
-        select: { color: true }
-      }
+  async () => {
+    try {
+      return await prisma.resource.findMany({
+        where: { isActive: true },
+        orderBy: { name: "asc" },
+        select: {
+          id: true,
+          name: true,
+          color: true,
+          category: {
+            select: { color: true }
+          }
+        }
+      })
+    } catch {
+      return []
     }
-  }),
+  },
   ["calendar-resources"],
   { revalidate: 60 }
 )
@@ -27,21 +33,25 @@ const getResources = unstable_cache(
 // Cache bookings for 30 seconds (time-sensitive)
 const getBookings = unstable_cache(
   async () => {
-    const now = new Date()
-    const twoWeeksAgo = new Date(now.getTime() - 14 * 24 * 60 * 60 * 1000)
-    const twoMonthsAhead = new Date(now.getTime() + 60 * 24 * 60 * 60 * 1000)
+    try {
+      const now = new Date()
+      const twoWeeksAgo = new Date(now.getTime() - 14 * 24 * 60 * 60 * 1000)
+      const twoMonthsAhead = new Date(now.getTime() + 60 * 24 * 60 * 60 * 1000)
 
-    return prisma.booking.findMany({
-      where: {
-        status: { in: ["approved", "pending"] },
-        startTime: { gte: twoWeeksAgo, lte: twoMonthsAhead }
-      },
-      include: {
-        resource: true,
-        resourcePart: true
-      },
-      orderBy: { startTime: "asc" }
-    })
+      return await prisma.booking.findMany({
+        where: {
+          status: { in: ["approved", "pending"] },
+          startTime: { gte: twoWeeksAgo, lte: twoMonthsAhead }
+        },
+        include: {
+          resource: true,
+          resourcePart: true
+        },
+        orderBy: { startTime: "asc" }
+      })
+    } catch {
+      return []
+    }
   },
   ["calendar-bookings"],
   { revalidate: 30 }
