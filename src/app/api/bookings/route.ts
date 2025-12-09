@@ -132,56 +132,68 @@ export async function POST(request: Request) {
     ]
 
     for (const { start: bookingStart, end: bookingEnd } of bookingDates) {
-      let conflictingBookings
-      
       // Time overlap conditions
-      const timeOverlap = {
-        OR: getTimeOverlapConditions(bookingStart, bookingEnd)
+      const timeOverlapConditions = getTimeOverlapConditions(bookingStart, bookingEnd)
+      
+      // Base filter: same resource, not cancelled/rejected, overlapping time
+      const baseFilter = {
+        resourceId,
+        status: { notIn: ["cancelled", "rejected"] },
+        OR: timeOverlapConditions
       }
+      
+      let conflictingBookings
       
       if (!resourcePartId) {
         // Booking whole facility
         if (resource.blockPartsWhenWholeBooked) {
           // Check if ANY booking exists (whole or parts)
           conflictingBookings = await prisma.booking.findMany({
-            where: {
-              resourceId,
-              status: { notIn: ["cancelled", "rejected"] },
-              ...timeOverlap
-            },
+            where: baseFilter,
             include: { resourcePart: true }
           })
         } else {
           // Only check for whole facility bookings
           conflictingBookings = await prisma.booking.findMany({
             where: {
-              resourceId,
-              resourcePartId: null,
-              status: { notIn: ["cancelled", "rejected"] },
-              ...timeOverlap
+              ...baseFilter,
+              resourcePartId: null
             },
             include: { resourcePart: true }
           })
         }
       } else {
-        // Booking a specific part
-        const partConditions: { resourcePartId: string | null }[] = [
-          { resourcePartId: resourcePartId } // Same part is always checked
-        ]
-        
+        // Booking a specific part - check same part OR whole facility
         if (resource.blockWholeWhenPartBooked) {
-          partConditions.push({ resourcePartId: null }) // Also check whole facility bookings
+          conflictingBookings = await prisma.booking.findMany({
+            where: {
+              resourceId,
+              status: { notIn: ["cancelled", "rejected"] },
+              OR: [
+                // Same part with time overlap
+                {
+                  resourcePartId: resourcePartId,
+                  OR: timeOverlapConditions
+                },
+                // Whole facility with time overlap
+                {
+                  resourcePartId: null,
+                  OR: timeOverlapConditions
+                }
+              ]
+            },
+            include: { resourcePart: true }
+          })
+        } else {
+          // Only check same part
+          conflictingBookings = await prisma.booking.findMany({
+            where: {
+              ...baseFilter,
+              resourcePartId: resourcePartId
+            },
+            include: { resourcePart: true }
+          })
         }
-
-        conflictingBookings = await prisma.booking.findMany({
-          where: {
-            resourceId,
-            status: { notIn: ["cancelled", "rejected"] },
-            OR: partConditions,
-            AND: [timeOverlap]
-          },
-          include: { resourcePart: true }
-        })
       }
 
       if (conflictingBookings.length > 0) {
@@ -191,17 +203,16 @@ export async function POST(request: Request) {
           ? `"${conflict.resourcePart.name}"` 
           : "hele fasiliteten"
         
-        // Debug: Log the conflicting booking
-        console.log("Conflict found:", {
-          bookingId: conflict.id,
-          status: conflict.status,
-          title: conflict.title,
-          startTime: conflict.startTime,
-          endTime: conflict.endTime
-        })
+        // Debug: Log the conflicting booking status
+        console.log("=== BOOKING CONFLICT DEBUG ===")
+        console.log("Conflicting booking ID:", conflict.id)
+        console.log("Conflicting booking STATUS:", conflict.status)
+        console.log("Conflicting booking title:", conflict.title)
+        console.log("Conflicting booking time:", conflict.startTime, "-", conflict.endTime)
+        console.log("==============================")
         
         return NextResponse.json(
-          { error: `Konflikt ${conflictDate}: ${conflictInfo} er allerede booket i dette tidsrommet` },
+          { error: `Konflikt ${conflictDate}: ${conflictInfo} er allerede booket i dette tidsrommet (status: ${conflict.status})` },
           { status: 409 }
         )
       }
