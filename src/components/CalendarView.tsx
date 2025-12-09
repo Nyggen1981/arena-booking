@@ -193,30 +193,31 @@ export function CalendarView({ resources, bookings: initialBookings }: Props) {
       {/* Week View */}
       {viewMode === "week" && (
         <div className="card overflow-hidden">
-          {/* Header */}
-          <div className="grid grid-cols-8 bg-gray-50 border-b border-gray-200">
-            <div className="p-3 text-center text-sm font-medium text-gray-500" />
-            {weekDays.map((day) => (
-              <div 
-                key={day.toISOString()} 
-                className={`p-3 text-center border-l border-gray-200 ${
-                  isToday(day) ? 'bg-blue-50' : ''
-                }`}
-              >
-                <p className="text-xs text-gray-500 uppercase">
-                  {format(day, "EEE", { locale: nb })}
-                </p>
-                <p className={`text-lg font-semibold ${
-                  isToday(day) ? 'text-blue-600' : 'text-gray-900'
-                }`}>
-                  {format(day, "d")}
-                </p>
-              </div>
-            ))}
-          </div>
-
-          {/* Time grid */}
+          {/* Time grid with sticky header */}
           <div className="max-h-[600px] overflow-y-auto">
+            {/* Header - sticky */}
+            <div className="grid grid-cols-8 bg-gray-50 border-b border-gray-200 sticky top-0 z-10">
+              <div className="p-3 text-center text-sm font-medium text-gray-500" />
+              {weekDays.map((day) => (
+                <div 
+                  key={day.toISOString()} 
+                  className={`p-3 text-center border-l border-gray-200 ${
+                    isToday(day) ? 'bg-blue-50' : 'bg-gray-50'
+                  }`}
+                >
+                  <p className="text-xs text-gray-500 uppercase">
+                    {format(day, "EEE", { locale: nb })}
+                  </p>
+                  <p className={`text-lg font-semibold ${
+                    isToday(day) ? 'text-blue-600' : 'text-gray-900'
+                  }`}>
+                    {format(day, "d")}
+                  </p>
+                </div>
+              ))}
+            </div>
+
+            {/* Time rows */}
             {hours.map((hour) => (
               <div key={hour} className="grid grid-cols-8 border-b border-gray-100 last:border-b-0">
                 <div className="p-2 text-right text-xs text-gray-400 pr-3">
