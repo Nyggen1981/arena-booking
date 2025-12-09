@@ -132,7 +132,6 @@ export default async function PublicHomePage() {
               resourceName: b.resource.name,
               resourcePartName: b.resourcePart?.name
             }))}
-            isLoggedIn={false}
           />
         ) : (
           <div className="bg-white rounded-xl border border-gray-200 p-12 text-center">

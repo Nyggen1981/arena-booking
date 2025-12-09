@@ -17,7 +17,6 @@ import {
   isToday
 } from "date-fns"
 import { nb } from "date-fns/locale"
-import Link from "next/link"
 
 interface Category {
   id: string
@@ -47,12 +46,11 @@ interface Props {
   categories: Category[]
   resources: Resource[]
   bookings: Booking[]
-  isLoggedIn: boolean
 }
 
 type ViewMode = "week" | "month"
 
-export function PublicCalendar({ categories, resources, bookings, isLoggedIn }: Props) {
+export function PublicCalendar({ categories, resources, bookings }: Props) {
   const [currentDate, setCurrentDate] = useState(new Date())
   const [viewMode, setViewMode] = useState<ViewMode>("week")
   const [selectedCategories, setSelectedCategories] = useState<Set<string>>(new Set(categories.map(c => c.id)))
@@ -445,13 +443,15 @@ export function PublicCalendar({ categories, resources, bookings, isLoggedIn }: 
                           <button
                             key={booking.id}
                             onClick={() => setSelectedBooking(booking)}
-                            className="absolute left-0.5 right-0.5 rounded px-1.5 py-1 text-xs overflow-hidden cursor-pointer transition-all hover:scale-[1.02] hover:shadow-lg hover:z-10 text-left"
+                            className="absolute left-0.5 right-0.5 rounded px-1.5 py-1 text-xs overflow-hidden cursor-pointer hover:z-10 text-left booking-event"
                             style={{
                               top: `${top}%`,
                               height: `${Math.max(duration * 100, 100)}%`,
                               minHeight: '40px',
                               backgroundColor: resourceColor,
-                              color: 'white'
+                              color: 'white',
+                              // @ts-expect-error CSS custom property for hover glow
+                              '--glow-color': `${resourceColor}80`
                             }}
                           >
                             <p className="font-semibold truncate text-[11px]">{booking.title}</p>
@@ -511,10 +511,12 @@ export function PublicCalendar({ categories, resources, bookings, isLoggedIn }: 
                         <button
                           key={booking.id}
                           onClick={() => setSelectedBooking(booking)}
-                          className="w-full text-[10px] px-1 py-0.5 rounded truncate text-left hover:opacity-80 transition-opacity"
+                          className="w-full text-[10px] px-1 py-0.5 rounded truncate text-left booking-event"
                           style={{
                             backgroundColor: resourceColor,
-                            color: 'white'
+                            color: 'white',
+                            // @ts-expect-error CSS custom property for hover glow
+                            '--glow-color': `${resourceColor}60`
                           }}
                         >
                           {format(parseISO(booking.startTime), "HH:mm")} {booking.title}
@@ -598,28 +600,13 @@ export function PublicCalendar({ categories, resources, bookings, isLoggedIn }: 
             </div>
 
             {/* Actions */}
-            <div className="px-6 pb-6 flex gap-3">
+            <div className="px-6 pb-6">
               <button
                 onClick={() => setSelectedBooking(null)}
-                className="flex-1 px-4 py-2.5 border border-gray-200 rounded-lg text-gray-700 font-medium hover:bg-gray-50 transition-colors"
+                className="w-full px-4 py-2.5 border border-gray-200 rounded-lg text-gray-700 font-medium hover:bg-gray-50 transition-colors"
               >
                 Lukk
               </button>
-              {isLoggedIn ? (
-                <Link
-                  href={`/resources/${selectedBooking.resourceId}/book`}
-                  className="flex-1 px-4 py-2.5 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 transition-colors text-center"
-                >
-                  Book denne fasiliteten
-                </Link>
-              ) : (
-                <Link
-                  href="/login"
-                  className="flex-1 px-4 py-2.5 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 transition-colors text-center"
-                >
-                  Logg inn for å booke
-                </Link>
-              )}
             </div>
           </div>
         </div>

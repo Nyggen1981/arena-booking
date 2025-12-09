@@ -76,6 +76,16 @@ body {
   z-index: 10;
 }
 
+/* Calendar event with glow effect */
+.booking-event {
+  --glow-color: rgba(59, 130, 246, 0.5);
+  transition: box-shadow 0.2s ease, filter 0.2s ease;
+}
+
+.booking-event:hover {
+  box-shadow: 0 0 20px var(--glow-color), 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
 .booking-approved {
   background: linear-gradient(135deg, #22c55e, #16a34a);
   color: white;

@@ -258,7 +258,7 @@ export function CalendarView({ resources, bookings: initialBookings }: Props) {
                           <div
                             key={booking.id}
                             onClick={() => setSelectedBooking(booking)}
-                            className={`absolute left-1 right-1 rounded-md px-2 py-1 text-xs overflow-hidden transition-transform hover:scale-[1.02] hover:z-10 cursor-pointer ${
+                            className={`absolute left-1 right-1 rounded-md px-2 py-1 text-xs overflow-hidden hover:z-10 cursor-pointer booking-event ${
                               isPending ? 'border-2 border-dashed' : ''
                             }`}
                             style={{
@@ -269,7 +269,9 @@ export function CalendarView({ resources, bookings: initialBookings }: Props) {
                                 ? `${resourceColor}20`
                                 : resourceColor,
                               borderColor: isPending ? resourceColor : 'transparent',
-                              color: isPending ? resourceColor : 'white'
+                              color: isPending ? resourceColor : 'white',
+                              // @ts-expect-error CSS custom property for hover glow
+                              '--glow-color': `${resourceColor}80`
                             }}
                             title={`${format(start, "HH:mm")}-${format(end, "HH:mm")} ${booking.title} - ${booking.resourceName}${booking.resourcePartName ? ` (${booking.resourcePartName})` : ''}${isPending ? ' (venter på godkjenning)' : ''} - Klikk for mer info`}
                           >
@@ -329,7 +331,7 @@ export function CalendarView({ resources, bookings: initialBookings }: Props) {
                         <div
                           key={booking.id}
                           onClick={() => setSelectedBooking(booking)}
-                          className={`text-xs px-1.5 py-0.5 rounded truncate cursor-pointer hover:opacity-80 ${
+                          className={`text-xs px-1.5 py-0.5 rounded truncate cursor-pointer booking-event ${
                             isPending ? 'border border-dashed' : ''
                           }`}
                           style={{
@@ -337,7 +339,9 @@ export function CalendarView({ resources, bookings: initialBookings }: Props) {
                               ? `${resourceColor}20`
                               : resourceColor,
                             borderColor: isPending ? resourceColor : 'transparent',
-                            color: isPending ? resourceColor : 'white'
+                            color: isPending ? resourceColor : 'white',
+                            // @ts-expect-error CSS custom property for hover glow
+                            '--glow-color': `${resourceColor}60`
                           }}
                           title={`${format(parseISO(booking.startTime), "HH:mm")} ${booking.title}${isPending ? ' (venter)' : ''} - Klikk for mer info`}
                         >
