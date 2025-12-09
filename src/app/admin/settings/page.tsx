@@ -218,7 +218,7 @@ export default function AdminSettingsPage() {
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  URL-slug *
+                  Klubbkode *
                 </label>
                 <input
                   type="text"
@@ -229,7 +229,7 @@ export default function AdminSettingsPage() {
                   required
                 />
                 <p className="text-xs text-gray-500 mt-1">
-                  Brukes som unik identifikator for klubben. Kun små bokstaver, tall og bindestrek.
+                  Brukes som kode for nye brukere å bli med i klubben. Kun små bokstaver, tall og bindestrek.
                 </p>
               </div>
 

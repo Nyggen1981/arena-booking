@@ -35,7 +35,7 @@ export async function PUT(request: Request) {
       }
     })
     if (existing) {
-      return NextResponse.json({ error: "Denne URL-sluggen er allerede i bruk" }, { status: 400 })
+      return NextResponse.json({ error: "Denne klubbkoden er allerede i bruk" }, { status: 400 })
     }
   }
 
