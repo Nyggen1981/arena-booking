@@ -134,8 +134,10 @@ export async function POST(request: Request) {
     for (const { start: bookingStart, end: bookingEnd } of bookingDates) {
       let conflictingBookings
       
-      // Only check active bookings - explicitly exclude cancelled and rejected
-      const activeStatusFilter = { status: { notIn: ["cancelled", "rejected"] } }
+      // Time overlap conditions
+      const timeOverlap = {
+        OR: getTimeOverlapConditions(bookingStart, bookingEnd)
+      }
       
       if (!resourcePartId) {
         // Booking whole facility
@@ -144,8 +146,8 @@ export async function POST(request: Request) {
           conflictingBookings = await prisma.booking.findMany({
             where: {
               resourceId,
-              ...activeStatusFilter,
-              OR: getTimeOverlapConditions(bookingStart, bookingEnd)
+              status: { notIn: ["cancelled", "rejected"] },
+              ...timeOverlap
             },
             include: { resourcePart: true }
           })
@@ -155,8 +157,8 @@ export async function POST(request: Request) {
             where: {
               resourceId,
               resourcePartId: null,
-              ...activeStatusFilter,
-              OR: getTimeOverlapConditions(bookingStart, bookingEnd)
+              status: { notIn: ["cancelled", "rejected"] },
+              ...timeOverlap
             },
             include: { resourcePart: true }
           })
@@ -173,12 +175,10 @@ export async function POST(request: Request) {
 
         conflictingBookings = await prisma.booking.findMany({
           where: {
-            AND: [
-              { resourceId },
-              activeStatusFilter,
-              { OR: partConditions },
-              { OR: getTimeOverlapConditions(bookingStart, bookingEnd) }
-            ]
+            resourceId,
+            status: { notIn: ["cancelled", "rejected"] },
+            OR: partConditions,
+            AND: [timeOverlap]
           },
           include: { resourcePart: true }
         })
@@ -190,6 +190,16 @@ export async function POST(request: Request) {
         const conflictInfo = conflict.resourcePart 
           ? `"${conflict.resourcePart.name}"` 
           : "hele fasiliteten"
+        
+        // Debug: Log the conflicting booking
+        console.log("Conflict found:", {
+          bookingId: conflict.id,
+          status: conflict.status,
+          title: conflict.title,
+          startTime: conflict.startTime,
+          endTime: conflict.endTime
+        })
+        
         return NextResponse.json(
           { error: `Konflikt ${conflictDate}: ${conflictInfo} er allerede booket i dette tidsrommet` },
           { status: 409 }
