@@ -18,7 +18,8 @@ import {
   Trash2,
   ChevronRight,
   Plus,
-  Pencil
+  Pencil,
+  Filter
 } from "lucide-react"
 import { EditBookingModal } from "@/components/EditBookingModal"
 import { format, isToday, isTomorrow, isThisWeek, parseISO } from "date-fns"
@@ -52,6 +53,18 @@ export default function MyBookingsPage() {
   const [cancellingId, setCancellingId] = useState<string | null>(null)
   const [editingBooking, setEditingBooking] = useState<Booking | null>(null)
   const [isProcessing, setIsProcessing] = useState(false)
+  const [selectedResourceId, setSelectedResourceId] = useState<string | null>(null)
+
+  // Get unique resources from bookings
+  const resources = useMemo(() => {
+    const resourceMap = new Map<string, { id: string; name: string }>()
+    bookings.forEach(b => {
+      if (!resourceMap.has(b.resource.id)) {
+        resourceMap.set(b.resource.id, { id: b.resource.id, name: b.resource.name })
+      }
+    })
+    return Array.from(resourceMap.values()).sort((a, b) => a.name.localeCompare(b.name))
+  }, [bookings])
 
   useEffect(() => {
     if (status === "unauthenticated") {
@@ -84,21 +97,24 @@ export default function MyBookingsPage() {
     setCancellingId(null)
   }
 
-  // Categorize bookings
+  // Categorize and filter bookings
   const { upcoming, history } = useMemo(() => {
     const now = new Date()
+    const filtered = selectedResourceId 
+      ? bookings.filter(b => b.resource.id === selectedResourceId)
+      : bookings
     return {
-      upcoming: bookings.filter(b => 
+      upcoming: filtered.filter(b => 
         new Date(b.startTime) >= now && 
         (b.status === "pending" || b.status === "approved")
       ).sort((a, b) => new Date(a.startTime).getTime() - new Date(b.startTime).getTime()),
-      history: bookings.filter(b => 
+      history: filtered.filter(b => 
         new Date(b.startTime) < now || 
         b.status === "rejected" || 
         b.status === "cancelled"
       ).sort((a, b) => new Date(b.startTime).getTime() - new Date(a.startTime).getTime())
     }
-  }, [bookings])
+  }, [bookings, selectedResourceId])
 
   const activeBookings = activeTab === "upcoming" ? upcoming : history
 
@@ -164,18 +180,37 @@ export default function MyBookingsPage() {
             </div>
           ) : (
             <>
-              {/* Tabs */}
-              <div className="flex gap-1 p-1 bg-gray-100 rounded-xl mb-6">
-                <button
-                  onClick={() => setActiveTab("upcoming")}
-                  className={`flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg font-medium transition-all ${
-                    activeTab === "upcoming"
-                      ? "bg-white text-gray-900 shadow-sm"
-                      : "text-gray-600 hover:text-gray-900"
-                  }`}
-                >
-                  <Calendar className="w-4 h-4" />
-                  Kommende
+              {/* Filter and Tabs */}
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
+                {/* Resource filter */}
+                {resources.length > 1 && (
+                  <div className="flex items-center gap-2">
+                    <Filter className="w-4 h-4 text-gray-400" />
+                    <select
+                      value={selectedResourceId || ""}
+                      onChange={(e) => setSelectedResourceId(e.target.value || null)}
+                      className="input py-2 text-sm max-w-[200px]"
+                    >
+                      <option value="">Alle fasiliteter</option>
+                      {resources.map(r => (
+                        <option key={r.id} value={r.id}>{r.name}</option>
+                      ))}
+                    </select>
+                  </div>
+                )}
+
+                {/* Tabs */}
+                <div className="flex gap-1 p-1 bg-gray-100 rounded-xl flex-1 sm:flex-initial">
+                  <button
+                    onClick={() => setActiveTab("upcoming")}
+                    className={`flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg font-medium transition-all ${
+                      activeTab === "upcoming"
+                        ? "bg-white text-gray-900 shadow-sm"
+                        : "text-gray-600 hover:text-gray-900"
+                    }`}
+                  >
+                    <Calendar className="w-4 h-4" />
+                    Kommende
                   {upcoming.length > 0 && (
                     <span className={`px-2 py-0.5 text-xs rounded-full ${
                       activeTab === "upcoming" ? "bg-blue-100 text-blue-700" : "bg-gray-200 text-gray-600"
@@ -202,6 +237,7 @@ export default function MyBookingsPage() {
                     </span>
                   )}
                 </button>
+                </div>
               </div>
 
               {/* Bookings list */}
