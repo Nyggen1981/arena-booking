@@ -101,8 +101,18 @@ export default function MyBookingsPage() {
     )
   }
 
-  const upcomingBookings = bookings.filter(b => new Date(b.startTime) >= new Date())
-  const pastBookings = bookings.filter(b => new Date(b.startTime) < new Date())
+  // Only show pending/approved as upcoming, rejected/cancelled go to separate section
+  const upcomingBookings = bookings.filter(b => 
+    new Date(b.startTime) >= new Date() && 
+    (b.status === "pending" || b.status === "approved")
+  )
+  const cancelledBookings = bookings.filter(b => 
+    b.status === "rejected" || b.status === "cancelled"
+  )
+  const pastBookings = bookings.filter(b => 
+    new Date(b.startTime) < new Date() && 
+    b.status !== "rejected" && b.status !== "cancelled"
+  )
 
   return (
     <div className="min-h-screen bg-slate-50 flex flex-col">
@@ -183,6 +193,50 @@ export default function MyBookingsPage() {
                               </button>
                             )}
                           </div>
+                        </div>
+                      </div>
+                    )
+                  })}
+                </div>
+              </section>
+            )}
+
+            {/* Cancelled/Rejected */}
+            {cancelledBookings.length > 0 && (
+              <section>
+                <h2 className="text-lg font-semibold text-gray-500 mb-4 flex items-center gap-2">
+                  <XCircle className="w-5 h-5 text-red-400" />
+                  Avslåtte/Kansellerte ({cancelledBookings.length})
+                </h2>
+                <div className="space-y-3 opacity-70">
+                  {cancelledBookings.map((booking) => {
+                    const statusInfo = statusConfig[booking.status]
+                    const StatusIcon = statusInfo.icon
+                    return (
+                      <div key={booking.id} className="card p-4 border-l-4 border-red-200">
+                        <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">
+                          <div>
+                            <div className="flex items-center gap-2 mb-1">
+                              <h3 className="font-medium text-gray-700">{booking.title}</h3>
+                              <span className={`status-badge text-xs ${statusInfo.className}`}>
+                                <StatusIcon className="w-3 h-3" />
+                                {statusInfo.label}
+                              </span>
+                            </div>
+                            <p className="text-sm text-gray-500">
+                              {booking.resource.name}
+                              {booking.resourcePart && ` → ${booking.resourcePart.name}`}
+                            </p>
+                            {booking.statusNote && (
+                              <p className="text-sm text-red-600 mt-1 flex items-start gap-1">
+                                <AlertCircle className="w-4 h-4 mt-0.5 flex-shrink-0" />
+                                {booking.statusNote}
+                              </p>
+                            )}
+                          </div>
+                          <p className="text-sm text-gray-500">
+                            {format(new Date(booking.startTime), "d. MMM yyyy", { locale: nb })}
+                          </p>
                         </div>
                       </div>
                     )
