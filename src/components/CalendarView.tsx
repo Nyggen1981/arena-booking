@@ -259,7 +259,7 @@ export function CalendarView({ resources, bookings: initialBookings }: Props) {
                             key={booking.id}
                             onClick={() => setSelectedBooking(booking)}
                             className={`absolute left-1 right-1 rounded-md px-2 py-1 text-xs overflow-hidden z-10 cursor-pointer pointer-events-auto booking-event ${
-                              isPending ? 'border-2 border-dashed' : ''
+                              isPending ? 'border-2 border-dashed' : 'border border-white/30'
                             }`}
                             style={{
                               top: `${top}%`,
@@ -268,8 +268,9 @@ export function CalendarView({ resources, bookings: initialBookings }: Props) {
                               backgroundColor: isPending 
                                 ? `${resourceColor}20`
                                 : resourceColor,
-                              borderColor: isPending ? resourceColor : 'transparent',
-                              color: isPending ? resourceColor : 'white'
+                              borderColor: isPending ? resourceColor : undefined,
+                              color: isPending ? resourceColor : 'white',
+                              boxShadow: isPending ? undefined : '0 1px 2px rgba(0,0,0,0.15)'
                             }}
                             title={`${format(start, "HH:mm")}-${format(end, "HH:mm")} ${booking.title} - ${booking.resourceName}${booking.resourcePartName ? ` (${booking.resourcePartName})` : ''}${isPending ? ' (venter på godkjenning)' : ''} - Klikk for mer info`}
                           >
