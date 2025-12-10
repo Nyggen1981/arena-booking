@@ -25,7 +25,7 @@ export async function PATCH(
   console.log("Content-Type:", request.headers.get("content-type"))
   
   // Parse request body - try request.json() first, fallback to text parsing
-  let body: { action?: string; statusNote?: string; applyToAll?: boolean } = {}
+  let body: { action?: string; status?: string; statusNote?: string; applyToAll?: boolean } = {}
   try {
     // Try to get body as JSON directly
     body = await request.json()
