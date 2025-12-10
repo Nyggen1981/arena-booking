@@ -168,15 +168,16 @@ export default function PersonvernPage() {
             <section className="mb-8">
               <h2 className="text-2xl font-semibold text-gray-900 mb-4">7. Databehandlere</h2>
               <p className="text-gray-700 leading-relaxed mb-4">
-                Vi bruker følgende tjenester som databehandlere:
+                Vi bruker følgende typer tjenester som databehandlere:
               </p>
               <ul className="list-disc pl-6 space-y-2 text-gray-700">
-                <li><strong>Vercel:</strong> Hosting av nettsiden (personopplysninger kan lagres i serverless-funksjoner)</li>
-                <li><strong>Supabase/PostgreSQL:</strong> Database for lagring av alle data</li>
-                <li><strong>E-posttjeneste (SMTP):</strong> For sending av e-postvarsler</li>
+                <li><strong>Hosting-leverandør:</strong> For hosting av nettsiden og serverless-funksjoner (personopplysninger kan lagres midlertidig i serverless-funksjoner)</li>
+                <li><strong>Database-leverandør:</strong> For lagring av alle data i en PostgreSQL-database</li>
+                <li><strong>E-posttjeneste (SMTP):</strong> For sending av e-postvarsler om bookinger</li>
               </ul>
               <p className="text-gray-700 leading-relaxed mt-4">
-                Alle databehandlere er forpliktet til å overholde GDPR og har databehandleravtaler på plass.
+                Alle databehandlere er forpliktet til å overholde GDPR og har databehandleravtaler på plass. 
+                For informasjon om hvilke spesifikke leverandører som brukes, kan du kontakte din organisasjons administrator.
               </p>
             </section>
 

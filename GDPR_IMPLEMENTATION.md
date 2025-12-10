@@ -98,10 +98,14 @@ Dette dokumentet beskriver alle GDPR-relaterte funksjoner som er implementert i 
 ## Tekniske detaljer
 
 ### Databehandlere
-Systemet bruker følgende tjenester som databehandlere:
-- **Vercel:** Hosting (serverless functions)
-- **Supabase/PostgreSQL:** Database
-- **SMTP-tjeneste:** E-postutsending
+Systemet bruker følgende typer tjenester som databehandlere:
+- **Hosting-leverandør:** For hosting av nettsiden og serverless-funksjoner
+- **Database-leverandør:** PostgreSQL-database for lagring av data
+- **SMTP-tjeneste:** For e-postutsending
+
+**Merk:** Personvernpolicy-siden beskriver databehandlerne generisk uten å hardkode spesifikke leverandører, 
+siden dette kan variere avhengig av deployment. Kontakt din organisasjons administrator for informasjon om 
+hvilke spesifikke leverandører som brukes.
 
 ### Sikkerhetstiltak
 - Krypterte passord (bcrypt)
