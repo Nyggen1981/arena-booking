@@ -401,53 +401,6 @@ export function CalendarView({ categories, resources, bookings: initialBookings 
         </div>
       </div>
 
-          {/* View mode toggle */}
-          <div className="flex bg-gray-100 rounded-lg p-1">
-            <button
-              onClick={() => setViewMode("week")}
-              className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors flex items-center gap-1 ${
-                viewMode === "week" ? "bg-white shadow text-gray-900" : "text-gray-600"
-              }`}
-            >
-              <List className="w-4 h-4" />
-              Uke
-            </button>
-            <button
-              onClick={() => setViewMode("month")}
-              className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors flex items-center gap-1 ${
-                viewMode === "month" ? "bg-white shadow text-gray-900" : "text-gray-600"
-              }`}
-            >
-              <Grid3X3 className="w-4 h-4" />
-              Måned
-            </button>
-          </div>
-
-          {/* Save as default button - only for logged in users */}
-          {isLoggedIn && (
-            <button
-              onClick={savePreferences}
-              disabled={savingPreferences}
-              className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all flex items-center gap-1 ${
-                showSaveSuccess 
-                  ? "bg-green-100 text-green-700" 
-                  : "bg-amber-50 text-amber-700 hover:bg-amber-100"
-              }`}
-              title="Lagre dette som din standardvisning"
-            >
-              {savingPreferences ? (
-                <Loader2 className="w-4 h-4 animate-spin" />
-              ) : showSaveSuccess ? (
-                <CheckCircle2 className="w-4 h-4" />
-              ) : (
-                <Star className="w-4 h-4" />
-              )}
-              {showSaveSuccess ? "Lagret!" : "Sett som standardvisning"}
-            </button>
-          )}
-        </div>
-      </div>
-
       {/* Week View */}
       {viewMode === "week" && (
         <div className="bg-white rounded-xl border border-gray-200 overflow-hidden shadow-sm">
