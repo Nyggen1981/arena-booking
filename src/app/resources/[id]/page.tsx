@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma"
 import { notFound } from "next/navigation"
 import Link from "next/link"
 import Image from "next/image"
+import { unstable_cache } from "next/cache"
 import { 
   MapPin, 
   Clock, 
@@ -23,40 +24,81 @@ interface Props {
   params: Promise<{ id: string }>
 }
 
-async function getResource(id: string) {
-  try {
-    return await prisma.resource.findUnique({
-      where: { id },
-      include: {
-        category: true,
-        parts: true,
-        bookings: {
-          where: {
-            status: { in: ["approved", "pending"] },
-            startTime: { gte: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000) }
-          },
-          include: {
-            resourcePart: true,
-            user: {
-              select: {
-                id: true,
-                name: true,
-                email: true
-              }
+// Cache resource data for 30 seconds
+const getResource = unstable_cache(
+  async (id: string) => {
+    try {
+      const now = new Date()
+      const twoWeeksAgo = new Date(now.getTime() - 14 * 24 * 60 * 60 * 1000)
+      const twoMonthsAhead = new Date(now.getTime() + 60 * 24 * 60 * 60 * 1000)
+
+      return await prisma.resource.findUnique({
+        where: { id },
+        include: {
+          category: {
+            select: {
+              id: true,
+              name: true,
+              color: true
             }
           },
-          orderBy: { startTime: "asc" }
+          parts: {
+            where: { isActive: true },
+            select: {
+              id: true,
+              name: true,
+              description: true,
+              capacity: true,
+              mapCoordinates: true
+            },
+            orderBy: { name: "asc" }
+          },
+          bookings: {
+            where: {
+              status: { in: ["approved", "pending"] },
+              startTime: { gte: twoWeeksAgo, lte: twoMonthsAhead }
+            },
+            select: {
+              id: true,
+              title: true,
+              startTime: true,
+              endTime: true,
+              status: true,
+              isRecurring: true,
+              parentBookingId: true,
+              userId: true,
+              resourcePart: {
+                select: {
+                  name: true
+                }
+              },
+              user: {
+                select: {
+                  id: true,
+                  name: true,
+                  email: true
+                }
+              }
+            },
+            orderBy: { startTime: "asc" }
+          }
         }
-      }
-    })
-  } catch {
-    return null
-  }
-}
+      })
+    } catch {
+      return null
+    }
+  },
+  ["resource-detail"],
+  { revalidate: 30 }
+)
 
 export default async function ResourcePage({ params }: Props) {
   const { id } = await params
   const resource = await getResource(id)
+  
+  if (!resource) {
+    notFound()
+  }
 
   if (!resource) {
     notFound()
@@ -107,26 +149,17 @@ export default async function ResourcePage({ params }: Props) {
             <ArrowLeft className="w-4 h-4" />
             Tilbake til fasiliteter
           </Link>
-          <div className="flex items-start justify-between">
-            <div>
-              <span className="inline-block px-3 py-1 rounded-full bg-white/20 backdrop-blur-sm text-white text-sm mb-3">
-                {resource.category?.name || "Fasilitet"}
-              </span>
-              <h1 className="text-3xl md:text-4xl font-bold text-white">{resource.name}</h1>
-              {resource.location && (
-                <p className="text-white/80 flex items-center gap-2 mt-2">
-                  <MapPin className="w-5 h-5" />
-                  {resource.location}
-                </p>
-              )}
-            </div>
-            <Link
-              href={`/resources/${resource.id}/book`}
-              className="btn btn-primary bg-white text-blue-600 hover:bg-blue-50 hidden md:flex"
-            >
-              <Calendar className="w-5 h-5" />
-              Book nå
-            </Link>
+          <div>
+            <span className="inline-block px-3 py-1 rounded-full bg-white/20 backdrop-blur-sm text-white text-sm mb-3">
+              {resource.category?.name || "Fasilitet"}
+            </span>
+            <h1 className="text-3xl md:text-4xl font-bold text-white">{resource.name}</h1>
+            {resource.location && (
+              <p className="text-white/80 flex items-center gap-2 mt-2">
+                <MapPin className="w-5 h-5" />
+                {resource.location}
+              </p>
+            )}
           </div>
         </div>
       </div>
@@ -193,10 +226,10 @@ export default async function ResourcePage({ params }: Props) {
 
           {/* Sidebar */}
           <div className="space-y-6">
-            {/* Mobile book button */}
+            {/* Book button */}
             <Link
               href={`/resources/${resource.id}/book`}
-              className="btn btn-primary w-full py-4 text-lg md:hidden"
+              className="btn btn-primary w-full py-4 text-lg"
             >
               <Calendar className="w-5 h-5" />
               Book nå
