@@ -14,10 +14,16 @@ function replaceVariables(template: string, variables: Record<string, string | u
 function isEmailTemplateAvailable(): boolean {
   try {
     // Check if prisma.emailTemplate exists and is a function/object
-    return typeof (prisma as any).emailTemplate !== 'undefined' && 
-           (prisma as any).emailTemplate !== null &&
-           typeof (prisma as any).emailTemplate.findUnique === 'function'
-  } catch {
+    const emailTemplate = (prisma as any).emailTemplate
+    if (typeof emailTemplate === 'undefined' || emailTemplate === null) {
+      return false
+    }
+    if (typeof emailTemplate.findUnique !== 'function') {
+      return false
+    }
+    return true
+  } catch (error) {
+    console.warn('Error checking EmailTemplate availability:', error)
     return false
   }
 }
@@ -44,22 +50,31 @@ export async function getEmailTemplate(
     return template
   } catch (error: any) {
     // If table doesn't exist yet (P2021) or other Prisma errors, return null to use defaults
+    const errorMessage = error?.message || String(error)
+    const errorCode = error?.code
+    
     if (
-      error?.code === "P2021" || 
-      error?.code === "P2001" || 
-      error?.code === "P2025" ||
-      error?.message?.includes("does not exist") ||
-      error?.message?.includes("Unknown arg") ||
-      error?.message?.includes("emailTemplate") ||
-      error?.message?.includes("Cannot read property") ||
-      error?.message?.includes("is not a function") ||
-      error?.message?.includes("Cannot find module") ||
+      errorCode === "P2021" || 
+      errorCode === "P2001" || 
+      errorCode === "P2025" ||
+      errorMessage?.includes("does not exist") ||
+      errorMessage?.includes("Unknown arg") ||
+      errorMessage?.includes("emailTemplate") ||
+      errorMessage?.includes("Cannot read property") ||
+      errorMessage?.includes("is not a function") ||
+      errorMessage?.includes("Cannot find module") ||
       error?.name === "TypeError"
     ) {
-      console.warn(`EmailTemplate table/model not found, using default templates. Error: ${error.message || error}`)
+      // Silently use defaults - this is expected if table doesn't exist yet
       return null
     }
-    console.error("Error fetching email template:", error)
+    // Log unexpected errors
+    console.error("Unexpected error fetching email template:", {
+      code: errorCode,
+      message: errorMessage,
+      name: error?.name,
+      stack: error?.stack
+    })
     return null
   }
 }
