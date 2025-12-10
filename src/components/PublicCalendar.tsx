@@ -426,7 +426,7 @@ export function PublicCalendar({ categories, resources, bookings }: Props) {
                   })
                   
                   // Group overlapping bookings
-                  const bookingGroups: typeof bookingsStartingThisHour[][] = []
+                  const bookingGroups: Booking[][] = []
                   bookingsStartingThisHour.forEach(booking => {
                     const bookingStart = parseISO(booking.startTime)
                     const bookingEnd = parseISO(booking.endTime)
