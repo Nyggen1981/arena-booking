@@ -23,7 +23,7 @@ import {
   GanttChart
 } from "lucide-react"
 import { EditBookingModal } from "@/components/EditBookingModal"
-import { format, isToday, isTomorrow, isThisWeek, parseISO, startOfDay, endOfDay, startOfWeek, endOfWeek } from "date-fns"
+import { format, isToday, isTomorrow, isThisWeek, parseISO, startOfDay, endOfDay, addDays, startOfWeek, endOfWeek } from "date-fns"
 import { nb } from "date-fns/locale"
 
 interface Booking {
