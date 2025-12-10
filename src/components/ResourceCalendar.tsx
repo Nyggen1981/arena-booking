@@ -343,12 +343,12 @@ export function ResourceCalendar({ resourceId, resourceName, bookings, parts }: 
                           const marginRight = index < groupSize - 1 ? gapBetweenPx : 0
                           const isSingleBox = groupSize === 1
                           const leftPercent = isSingleBox ? 50 : (index * bookingWidthPercent)
-                          // 1px margin from column lines on each side
+                          // 0.5px margin from column lines on each side
                           const boxWidth = isSingleBox 
-                            ? 'calc(100% - 2px)' 
+                            ? 'calc(100% - 1px)' 
                             : (marginRight > 0 
-                              ? `calc(${bookingWidthPercent}% - ${marginRight}px - 1px)` 
-                              : `calc(${bookingWidthPercent}% - 1px)`)
+                              ? `calc(${bookingWidthPercent}% - ${marginRight}px - 0.5px)` 
+                              : `calc(${bookingWidthPercent}% - 0.5px)`)
 
                           return (
                             <div
@@ -359,7 +359,7 @@ export function ResourceCalendar({ resourceId, resourceName, bookings, parts }: 
                               }`}
                               style={{
                                 top: `${topPx}px`,
-                                left: isSingleBox ? '50%' : `calc(${leftPercent}% + 1px)`,
+                                left: isSingleBox ? '50%' : `calc(${leftPercent}% + 0.5px)`,
                                 transform: isSingleBox ? 'translateX(-50%)' : 'none',
                                 width: boxWidth,
                                 height: `${Math.max(heightPx, 36)}px`,
