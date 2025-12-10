@@ -148,11 +148,14 @@ export default function AdminBookingsPage() {
     setProcessingId(bookingId)
     const booking = bookings.find(b => b.id === bookingId)
     
+    const requestBody = { action, applyToAll: applyToAll && booking?.isRecurring }
+    console.log("Sending request:", { bookingId, action, requestBody })
+    
     try {
       const response = await fetch(`/api/admin/bookings/${bookingId}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action, applyToAll: applyToAll && booking?.isRecurring })
+        body: JSON.stringify(requestBody)
       })
 
       if (!response.ok) {

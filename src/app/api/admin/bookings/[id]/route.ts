@@ -21,20 +21,25 @@ export async function PATCH(
   // Parse request body with error handling
   let body
   try {
-    body = await request.json()
+    const text = await request.text()
+    console.log("Raw request body:", text)
+    body = text ? JSON.parse(text) : {}
   } catch (error) {
     console.error("Error parsing request body:", error)
-    return NextResponse.json({ error: "Invalid request body" }, { status: 400 })
+    return NextResponse.json({ error: "Invalid request body", details: String(error) }, { status: 400 })
   }
 
+  console.log("Parsed body:", body)
   const { action, statusNote, applyToAll } = body
 
   // Validate action
   if (!action || (action !== "approve" && action !== "reject")) {
-    console.error("Invalid action received:", action)
+    console.error("Invalid action received:", action, "Type:", typeof action)
     return NextResponse.json({ 
       error: "Invalid action. Must be 'approve' or 'reject'",
-      received: action 
+      received: action,
+      receivedType: typeof action,
+      fullBody: body
     }, { status: 400 })
   }
 
