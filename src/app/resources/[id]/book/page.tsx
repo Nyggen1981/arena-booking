@@ -496,12 +496,6 @@ export default function BookResourcePage({ params }: Props) {
 
             {/* Submit */}
             <div className="space-y-3 pt-4">
-              {error && (
-                <div className="p-4 rounded-xl bg-red-50 border border-red-200 flex items-start gap-3 text-red-700 animate-in slide-in-from-top-2">
-                  <AlertCircle className="w-5 h-5 flex-shrink-0 mt-0.5" />
-                  <p className="text-sm font-medium">{error}</p>
-                </div>
-              )}
               <div className="flex flex-col sm:flex-row gap-3">
                 <button
                   type="submit"
@@ -527,6 +521,12 @@ export default function BookResourcePage({ params }: Props) {
                   Avbryt
                 </Link>
               </div>
+              {error && (
+                <div className="p-4 rounded-xl bg-red-50 border border-red-200 flex items-start gap-3 text-red-700 animate-in slide-in-from-top-2">
+                  <AlertCircle className="w-5 h-5 flex-shrink-0 mt-0.5" />
+                  <p className="text-sm font-medium">{error}</p>
+                </div>
+              )}
             </div>
 
             {resource.requiresApproval && (
