@@ -17,7 +17,7 @@ export async function GET() {
   try {
     // Get custom templates from database
     // If table doesn't exist yet, return empty array (will use defaults)
-    let customTemplates = []
+    let customTemplates: Array<{ id: string; organizationId: string; templateType: string; subject: string; htmlBody: string; createdAt: Date; updatedAt: Date }> = []
     try {
       customTemplates = await prisma.emailTemplate.findMany({
         where: { organizationId },
