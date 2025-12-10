@@ -146,12 +146,22 @@ export async function POST(request: Request) {
       
       if (!resourcePartId) {
         // Booking whole facility
+        console.log("Booking whole facility, blockWholeWhenPartBooked:", resource.blockWholeWhenPartBooked)
         if (resource.blockWholeWhenPartBooked) {
           // If parts block whole facility, check if ANY booking exists (whole or parts)
+          console.log("Checking for ANY bookings (whole or parts) with filter:", JSON.stringify(baseFilter, null, 2))
           conflictingBookings = await prisma.booking.findMany({
             where: baseFilter,
             include: { resourcePart: true }
           })
+          console.log("Found conflicting bookings:", conflictingBookings.length, conflictingBookings.map(b => ({
+            id: b.id,
+            title: b.title,
+            status: b.status,
+            resourcePart: b.resourcePart?.name || "hele fasiliteten",
+            startTime: b.startTime,
+            endTime: b.endTime
+          })))
         } else {
           // Only check for whole facility bookings (parts don't block whole facility)
           conflictingBookings = await prisma.booking.findMany({
