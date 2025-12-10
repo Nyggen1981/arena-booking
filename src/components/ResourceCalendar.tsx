@@ -60,6 +60,8 @@ export function ResourceCalendar({ resourceId, resourceName, bookings, parts }: 
   const [selectedBooking, setSelectedBooking] = useState<Booking | null>(null)
   const [isProcessing, setIsProcessing] = useState(false)
   const [applyToAll, setApplyToAll] = useState(true)
+  const [rejectingBookingId, setRejectingBookingId] = useState<string | null>(null)
+  const [rejectReason, setRejectReason] = useState("")
   const weekViewScrollRef = useRef<HTMLDivElement>(null)
 
   const weekStart = startOfWeek(currentDate, { weekStartsOn: 1 })
@@ -129,7 +131,7 @@ export function ResourceCalendar({ resourceId, resourceName, bookings, parts }: 
     }
   }, [viewMode, currentDate, selectedPart])
 
-  const handleBookingAction = useCallback(async (bookingId: string, action: "approve" | "reject" | "cancel") => {
+  const handleBookingAction = useCallback(async (bookingId: string, action: "approve" | "reject" | "cancel", statusNote?: string) => {
     setIsProcessing(true)
     const booking = bookings.find(b => b.id === bookingId)
     const shouldApplyToAll = applyToAll && booking?.isRecurring
@@ -143,10 +145,14 @@ export function ResourceCalendar({ resourceId, resourceName, bookings, parts }: 
           body: JSON.stringify({ reason: "Kansellert fra kalender", applyToAll: shouldApplyToAll })
         })
       } else {
+        const body: { action: string; applyToAll?: boolean; statusNote?: string } = { action }
+        if (shouldApplyToAll) body.applyToAll = true
+        if (statusNote) body.statusNote = statusNote
+        
         response = await fetch(`/api/admin/bookings/${bookingId}`, {
           method: "PATCH",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ action, applyToAll: shouldApplyToAll })
+          body: JSON.stringify(body)
         })
       }
 
@@ -586,11 +592,14 @@ export function ResourceCalendar({ resourceId, resourceName, bookings, parts }: 
                           {selectedBooking.isRecurring && applyToAll ? "Godkjenn alle" : "Godkjenn"}
                         </button>
                         <button
-                          onClick={() => handleBookingAction(selectedBooking.id, "reject")}
+                          onClick={() => {
+                            setRejectingBookingId(selectedBooking.id)
+                            setSelectedBooking(null)
+                          }}
                           disabled={isProcessing}
                           className="flex-1 btn btn-danger disabled:opacity-50"
                         >
-                          {isProcessing ? <Loader2 className="w-4 h-4 animate-spin" /> : <XCircle className="w-4 h-4" />}
+                          <XCircle className="w-4 h-4" />
                           {selectedBooking.isRecurring && applyToAll ? "Avslå alle" : "Avslå"}
                         </button>
                       </div>
@@ -653,6 +662,70 @@ export function ResourceCalendar({ resourceId, resourceName, bookings, parts }: 
           </div>
         </div>
       )}
+
+      {/* Reject modal */}
+      {rejectingBookingId && (() => {
+        const booking = bookings.find(b => b.id === rejectingBookingId)
+        const isRecurring = booking?.isRecurring && applyToAll
+        return (
+          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+            <div className="bg-white rounded-xl max-w-md w-full shadow-2xl p-6">
+              <div className="w-12 h-12 rounded-full bg-red-100 flex items-center justify-center mx-auto mb-4">
+                <XCircle className="w-6 h-6 text-red-600" />
+              </div>
+              <h3 className="text-lg font-bold text-gray-900 text-center mb-2">
+                Avslå booking{isRecurring ? "er" : ""}?
+              </h3>
+              <p className="text-gray-600 text-center mb-4">
+                {isRecurring 
+                  ? "Alle gjentakende bookinger vil bli avslått. Brukeren vil bli varslet på e-post."
+                  : "Brukeren vil bli varslet på e-post."}
+              </p>
+              <div className="mb-4">
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Begrunnelse (valgfritt)
+                </label>
+                <textarea
+                  value={rejectReason}
+                  onChange={(e) => setRejectReason(e.target.value)}
+                  placeholder="F.eks. Fasiliteten er allerede booket..."
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500 resize-none"
+                  rows={3}
+                />
+              </div>
+              <div className="flex gap-3">
+                <button
+                  onClick={() => {
+                    setRejectingBookingId(null)
+                    setRejectReason("")
+                  }}
+                  className="flex-1 px-4 py-2.5 border border-gray-300 rounded-lg text-gray-700 font-medium hover:bg-gray-50 transition-colors"
+                >
+                  Avbryt
+                </button>
+                <button
+                  onClick={async () => {
+                    await handleBookingAction(rejectingBookingId, "reject", rejectReason || undefined)
+                    setRejectingBookingId(null)
+                    setRejectReason("")
+                  }}
+                  disabled={isProcessing}
+                  className="flex-1 px-4 py-2.5 bg-red-600 text-white rounded-lg font-medium hover:bg-red-700 disabled:opacity-50 transition-colors flex items-center justify-center gap-2"
+                >
+                  {isProcessing ? (
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                  ) : (
+                    <>
+                      <XCircle className="w-4 h-4" />
+                      Avslå
+                    </>
+                  )}
+                </button>
+              </div>
+            </div>
+          </div>
+        )
+      })()}
     </div>
   )
 }
