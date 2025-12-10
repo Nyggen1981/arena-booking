@@ -19,6 +19,20 @@ export async function PATCH(
   const { id } = await params
   const { action, statusNote, applyToAll } = await request.json()
 
+  // Validate action
+  if (action !== "approve" && action !== "reject") {
+    console.error("Invalid action received:", action)
+    return NextResponse.json({ error: "Invalid action. Must be 'approve' or 'reject'" }, { status: 400 })
+  }
+
+  // Debug logging
+  console.log("=== BOOKING ACTION DEBUG ===")
+  console.log("Booking ID:", id)
+  console.log("Action received:", action)
+  console.log("Status note:", statusNote)
+  console.log("Apply to all:", applyToAll)
+  console.log("============================")
+
   const booking = await prisma.booking.findUnique({
     where: { id },
     include: {
@@ -54,11 +68,16 @@ export async function PATCH(
     bookingIdsToUpdate = relatedBookings.map(b => b.id)
   }
 
+  // Determine the new status
+  const newStatus = action === "approve" ? "approved" : "rejected"
+  console.log("Setting status to:", newStatus)
+  console.log("Updating booking IDs:", bookingIdsToUpdate)
+
   // Update all selected bookings
   await prisma.booking.updateMany({
     where: { id: { in: bookingIdsToUpdate } },
     data: {
-      status: action === "approve" ? "approved" : "rejected",
+      status: newStatus,
       statusNote: statusNote || null,
       approvedAt: action === "approve" ? new Date() : null,
       approvedById: action === "approve" ? session.user.id : null
@@ -69,6 +88,8 @@ export async function PATCH(
   const updatedBooking = await prisma.booking.findUnique({
     where: { id }
   })
+  
+  console.log("Updated booking status:", updatedBooking?.status)
 
   // Send email notification
   const userEmail = booking.contactEmail || booking.user.email
@@ -80,6 +101,7 @@ export async function PATCH(
       : booking.resource.name
 
     if (action === "approve") {
+      console.log("Sending APPROVED email to:", userEmail)
       const count = bookingIdsToUpdate.length
       const emailContent = await getBookingApprovedEmail(
         booking.organizationId,
@@ -88,8 +110,10 @@ export async function PATCH(
         count > 1 ? `${date} (og ${count - 1} andre datoer)` : date, 
         time
       )
+      console.log("Approved email subject:", emailContent.subject)
       await sendEmail(booking.organizationId, { to: userEmail, ...emailContent })
     } else {
+      console.log("Sending REJECTED email to:", userEmail)
       const count = bookingIdsToUpdate.length
       const emailContent = await getBookingRejectedEmail(
         booking.organizationId,
@@ -99,6 +123,7 @@ export async function PATCH(
         time, 
         statusNote
       )
+      console.log("Rejected email subject:", emailContent.subject)
       await sendEmail(booking.organizationId, { to: userEmail, ...emailContent })
     }
   }
