@@ -1,7 +1,7 @@
 "use client"
 
-import { useState, useEffect } from "react"
-import { Mail, Loader2, Save, RotateCcw, AlertCircle, CheckCircle2, Info } from "lucide-react"
+import { useState, useEffect, useRef } from "react"
+import { Mail, Loader2, Save, RotateCcw, AlertCircle, CheckCircle2, Info, Code, Eye, Bold, Italic, Underline, List, AlignLeft } from "lucide-react"
 
 interface EmailTemplate {
   templateType: string
@@ -58,11 +58,20 @@ export function EmailTemplateEditor({ template, onSave, onReset }: EmailTemplate
   const [isResetting, setIsResetting] = useState(false)
   const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null)
   const [showVariables, setShowVariables] = useState(false)
+  const [editorMode, setEditorMode] = useState<"html" | "wysiwyg">("html")
+  const wysiwygRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
     setSubject(template.subject)
     setHtmlBody(template.htmlBody)
   }, [template])
+
+  // Sync WYSIWYG editor with HTML when switching modes
+  useEffect(() => {
+    if (editorMode === "wysiwyg" && wysiwygRef.current) {
+      wysiwygRef.current.innerHTML = htmlBody
+    }
+  }, [editorMode, htmlBody])
 
   const handleSave = async () => {
     setIsSaving(true)
@@ -100,19 +109,69 @@ export function EmailTemplateEditor({ template, onSave, onReset }: EmailTemplate
   }
 
   const insertVariable = (varName: string) => {
-    const textarea = document.getElementById(`htmlBody-${template.templateType}`) as HTMLTextAreaElement
-    if (textarea) {
-      const start = textarea.selectionStart
-      const end = textarea.selectionEnd
-      const text = textarea.value
-      const before = text.substring(0, start)
-      const after = text.substring(end)
-      const variable = `{{${varName}}}`
-      setHtmlBody(before + variable + after)
-      setTimeout(() => {
-        textarea.focus()
-        textarea.setSelectionRange(start + variable.length, start + variable.length)
-      }, 0)
+    if (editorMode === "html") {
+      const textarea = document.getElementById(`htmlBody-${template.templateType}`) as HTMLTextAreaElement
+      if (textarea) {
+        const start = textarea.selectionStart
+        const end = textarea.selectionEnd
+        const text = textarea.value
+        const before = text.substring(0, start)
+        const after = text.substring(end)
+        const variable = `{{${varName}}}`
+        setHtmlBody(before + variable + after)
+        setTimeout(() => {
+          textarea.focus()
+          textarea.setSelectionRange(start + variable.length, start + variable.length)
+        }, 0)
+      }
+    } else {
+      // WYSIWYG mode - insert variable at cursor position
+      if (wysiwygRef.current) {
+        const selection = window.getSelection()
+        if (selection && selection.rangeCount > 0) {
+          const range = selection.getRangeAt(0)
+          range.deleteContents()
+          const variableNode = document.createTextNode(`{{${varName}}}`)
+          range.insertNode(variableNode)
+          range.setStartAfter(variableNode)
+          range.collapse(true)
+          selection.removeAllRanges()
+          selection.addRange(range)
+          
+          // Update HTML body
+          setHtmlBody(wysiwygRef.current.innerHTML)
+        }
+      }
+    }
+  }
+
+  const handleWysiwygChange = () => {
+    if (wysiwygRef.current) {
+      setHtmlBody(wysiwygRef.current.innerHTML)
+    }
+  }
+
+  const applyFormat = (command: string, value?: string) => {
+    document.execCommand(command, false, value)
+    if (wysiwygRef.current) {
+      wysiwygRef.current.focus()
+      setHtmlBody(wysiwygRef.current.innerHTML)
+    }
+  }
+
+  const toggleEditorMode = () => {
+    if (editorMode === "html") {
+      // Switching to WYSIWYG - set content
+      setEditorMode("wysiwyg")
+      if (wysiwygRef.current) {
+        wysiwygRef.current.innerHTML = htmlBody
+      }
+    } else {
+      // Switching to HTML - get content from WYSIWYG
+      if (wysiwygRef.current) {
+        setHtmlBody(wysiwygRef.current.innerHTML)
+      }
+      setEditorMode("html")
     }
   }
 
@@ -189,16 +248,36 @@ export function EmailTemplateEditor({ template, onSave, onReset }: EmailTemplate
         <div>
           <div className="flex items-center justify-between mb-2">
             <label className="block text-sm font-medium text-gray-700">
-              E-post innhold (HTML) *
+              E-post innhold *
             </label>
-            <button
-              type="button"
-              onClick={() => setShowVariables(!showVariables)}
-              className="text-xs text-blue-600 hover:text-blue-700 flex items-center gap-1"
-            >
-              <Info className="w-3 h-3" />
-              {showVariables ? "Skjul" : "Vis"} variabler
-            </button>
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => setShowVariables(!showVariables)}
+                className="text-xs text-blue-600 hover:text-blue-700 flex items-center gap-1"
+              >
+                <Info className="w-3 h-3" />
+                {showVariables ? "Skjul" : "Vis"} variabler
+              </button>
+              <button
+                type="button"
+                onClick={toggleEditorMode}
+                className="text-xs text-gray-600 hover:text-gray-900 flex items-center gap-1 px-2 py-1 rounded hover:bg-gray-100 transition-colors"
+                title={editorMode === "html" ? "Bytt til WYSIWYG" : "Bytt til HTML"}
+              >
+                {editorMode === "html" ? (
+                  <>
+                    <Eye className="w-3 h-3" />
+                    WYSIWYG
+                  </>
+                ) : (
+                  <>
+                    <Code className="w-3 h-3" />
+                    HTML
+                  </>
+                )}
+              </button>
+            </div>
           </div>
 
           {showVariables && (
@@ -223,17 +302,84 @@ export function EmailTemplateEditor({ template, onSave, onReset }: EmailTemplate
             </div>
           )}
 
-          <textarea
-            id={`htmlBody-${template.templateType}`}
-            value={htmlBody}
-            onChange={(e) => setHtmlBody(e.target.value)}
-            className="input w-full font-mono text-sm"
-            rows={15}
-            placeholder="HTML-innhold for e-posten..."
-          />
-          <p className="text-xs text-gray-500 mt-1">
-            HTML-format. Bruk variabler som <code className="bg-gray-100 px-1 rounded">{"{{variableName}}"}</code> for dynamisk innhold
-          </p>
+          {editorMode === "html" ? (
+            <>
+              <textarea
+                id={`htmlBody-${template.templateType}`}
+                value={htmlBody}
+                onChange={(e) => setHtmlBody(e.target.value)}
+                className="input w-full font-mono text-sm"
+                rows={15}
+                placeholder="HTML-innhold for e-posten..."
+              />
+              <p className="text-xs text-gray-500 mt-1">
+                HTML-format. Bruk variabler som <code className="bg-gray-100 px-1 rounded">{"{{variableName}}"}</code> for dynamisk innhold
+              </p>
+            </>
+          ) : (
+            <>
+              {/* WYSIWYG Toolbar */}
+              <div className="flex items-center gap-1 p-2 bg-gray-50 border border-gray-300 rounded-t-lg border-b-0">
+                <button
+                  type="button"
+                  onClick={() => applyFormat("bold")}
+                  className="p-2 hover:bg-gray-200 rounded transition-colors"
+                  title="Fet"
+                >
+                  <Bold className="w-4 h-4" />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => applyFormat("italic")}
+                  className="p-2 hover:bg-gray-200 rounded transition-colors"
+                  title="Kursiv"
+                >
+                  <Italic className="w-4 h-4" />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => applyFormat("underline")}
+                  className="p-2 hover:bg-gray-200 rounded transition-colors"
+                  title="Understreket"
+                >
+                  <Underline className="w-4 h-4" />
+                </button>
+                <div className="w-px h-6 bg-gray-300 mx-1" />
+                <button
+                  type="button"
+                  onClick={() => applyFormat("insertUnorderedList")}
+                  className="p-2 hover:bg-gray-200 rounded transition-colors"
+                  title="Punktliste"
+                >
+                  <List className="w-4 h-4" />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => applyFormat("justifyLeft")}
+                  className="p-2 hover:bg-gray-200 rounded transition-colors"
+                  title="Venstrejuster"
+                >
+                  <AlignLeft className="w-4 h-4" />
+                </button>
+              </div>
+              
+              {/* WYSIWYG Editor */}
+              <div
+                ref={wysiwygRef}
+                contentEditable
+                onInput={handleWysiwygChange}
+                className="input w-full min-h-[300px] p-4 bg-white border border-gray-300 rounded-b-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent prose prose-sm max-w-none"
+                style={{
+                  whiteSpace: "pre-wrap",
+                  wordBreak: "break-word",
+                }}
+                suppressContentEditableWarning
+              />
+              <p className="text-xs text-gray-500 mt-1">
+                WYSIWYG-redigering. Variabler som <code className="bg-gray-100 px-1 rounded">{"{{variableName}}"}</code> vil vises som tekst, men fungerer i e-posten
+              </p>
+            </>
+          )}
         </div>
       </div>
     </div>
