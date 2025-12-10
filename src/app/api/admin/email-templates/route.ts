@@ -3,6 +3,7 @@ import { NextResponse } from "next/server"
 import { getServerSession } from "next-auth"
 import { authOptions } from "@/lib/auth"
 import { getDefaultEmailTemplates } from "@/lib/email-templates"
+import type { EmailTemplate } from "@prisma/client"
 
 // GET all email templates for organization (with defaults)
 export async function GET() {
@@ -17,7 +18,7 @@ export async function GET() {
   try {
     // Get custom templates from database
     // If table doesn't exist yet, return empty array (will use defaults)
-    let customTemplates: Array<{ id: string; organizationId: string; templateType: string; subject: string; htmlBody: string; createdAt: Date; updatedAt: Date }> = []
+    let customTemplates: EmailTemplate[] = []
     try {
       customTemplates = await prisma.emailTemplate.findMany({
         where: { organizationId },
