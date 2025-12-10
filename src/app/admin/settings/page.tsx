@@ -610,7 +610,7 @@ export default function AdminSettingsPage() {
 
             <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
               <p className="text-sm text-blue-800">
-                <strong>Tips:</strong> Hvis du ikke setter opp organisasjonsspesifikke innstillinger, vil systemet bruke globale SMTP-innstillinger fra Vercel. Dette er nyttig for å teste, men for produksjon bør hver organisasjon ha sine egne innstillinger.
+                <strong>Tips:</strong> Hvis du ikke setter opp organisasjonsspesifikke innstillinger, vil systemet bruke globale SMTP-innstillinger. Dette er nyttig for å teste, men for produksjon bør hver organisasjon ha sine egne innstillinger.
               </p>
             </div>
           </div>
