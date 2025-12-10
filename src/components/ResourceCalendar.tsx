@@ -1,7 +1,8 @@
 "use client"
 
 import { useState, useMemo } from "react"
-import { ChevronLeft, ChevronRight } from "lucide-react"
+import { useSession } from "next-auth/react"
+import { ChevronLeft, ChevronRight, X, Calendar, Clock, User, Repeat, CheckCircle2, XCircle, Trash2, Pencil, Loader2 } from "lucide-react"
 import { 
   format, 
   startOfWeek, 
@@ -29,6 +30,11 @@ interface Booking {
   endTime: string
   status: string
   resourcePartName?: string | null
+  userId?: string | null
+  userName?: string | null
+  userEmail?: string | null
+  isRecurring?: boolean
+  parentBookingId?: string | null
 }
 
 interface Part {
@@ -38,14 +44,22 @@ interface Part {
 
 interface Props {
   resourceId: string
+  resourceName: string
   bookings: Booking[]
   parts: Part[]
 }
 
-export function ResourceCalendar({ bookings, parts }: Props) {
+export function ResourceCalendar({ resourceId, resourceName, bookings, parts }: Props) {
+  const { data: session } = useSession()
+  const isAdmin = session?.user?.role === "admin"
+  const isLoggedIn = session?.user !== undefined
+  
   const [currentDate, setCurrentDate] = useState(new Date())
   const [selectedPart, setSelectedPart] = useState<string | null>(null)
   const [viewMode, setViewMode] = useState<ViewMode>("week")
+  const [selectedBooking, setSelectedBooking] = useState<Booking | null>(null)
+  const [isProcessing, setIsProcessing] = useState(false)
+  const [applyToAll, setApplyToAll] = useState(true)
 
   const weekStart = startOfWeek(currentDate, { weekStartsOn: 1 })
   const weekDays = Array.from({ length: 7 }, (_, i) => addDays(weekStart, i))
@@ -100,6 +114,36 @@ export function ResourceCalendar({ bookings, parts }: Props) {
       
       return hour >= startHour && hour < endHour
     })
+  }
+
+  const handleBookingAction = async (bookingId: string, action: "approve" | "reject" | "cancel") => {
+    setIsProcessing(true)
+    const booking = bookings.find(b => b.id === bookingId)
+    const shouldApplyToAll = applyToAll && booking?.isRecurring
+    
+    let response
+    if (action === "cancel") {
+      response = await fetch(`/api/bookings/${bookingId}/cancel`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ reason: "Kansellert fra kalender", applyToAll: shouldApplyToAll })
+      })
+    } else {
+      response = await fetch(`/api/admin/bookings/${bookingId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action, applyToAll: shouldApplyToAll })
+      })
+    }
+
+    if (response.ok) {
+      // Refresh the page to get updated bookings
+      window.location.reload()
+    } else {
+      const error = await response.json()
+      alert(error.error || "En feil oppstod")
+      setIsProcessing(false)
+    }
   }
 
   return (
@@ -278,7 +322,8 @@ export function ResourceCalendar({ bookings, parts }: Props) {
                           return (
                             <div
                               key={booking.id}
-                              className={`absolute rounded-md px-2 py-1 text-xs overflow-hidden pointer-events-auto cursor-default ${
+                              onClick={() => setSelectedBooking(booking)}
+                              className={`absolute rounded-md px-2 py-1 text-xs overflow-hidden pointer-events-auto cursor-pointer ${
                                 isPending ? 'border-2 border-dashed' : ''
                               }`}
                               style={{
@@ -354,7 +399,8 @@ export function ResourceCalendar({ bookings, parts }: Props) {
                       return (
                         <div
                           key={booking.id}
-                          className={`px-1.5 py-0.5 rounded text-xs truncate ${
+                          onClick={() => setSelectedBooking(booking)}
+                          className={`px-1.5 py-0.5 rounded text-xs truncate cursor-pointer ${
                             isPending 
                               ? "bg-green-50 text-green-700 border border-dashed border-green-400" 
                               : "bg-green-500 text-white"
@@ -389,6 +435,175 @@ export function ResourceCalendar({ bookings, parts }: Props) {
           <span className="text-gray-600">Venter på godkjenning</span>
         </div>
       </div>
+
+      {/* Booking Info Modal */}
+      {selectedBooking && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl max-w-md w-full shadow-2xl">
+            {/* Header */}
+            <div className="flex items-center justify-between p-4 border-b">
+              <h3 className="text-lg font-bold text-gray-900">
+                {isAdmin ? "Behandle booking" : "Booking-detaljer"}
+              </h3>
+              <button
+                onClick={() => setSelectedBooking(null)}
+                className="p-1 rounded hover:bg-gray-100"
+              >
+                <X className="w-5 h-5 text-gray-500" />
+              </button>
+            </div>
+            
+            {/* Content */}
+            <div className="p-4 space-y-4">
+              <div>
+                <h4 className="font-semibold text-gray-900 text-lg">{selectedBooking.title}</h4>
+                <div className="flex items-center gap-2 mt-1 flex-wrap">
+                  <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium ${
+                    selectedBooking.status === "pending" 
+                      ? "bg-amber-100 text-amber-700" 
+                      : "bg-green-100 text-green-700"
+                  }`}>
+                    {selectedBooking.status === "pending" ? "Venter på godkjenning" : "Godkjent"}
+                  </span>
+                  {selectedBooking.isRecurring && (
+                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-700">
+                      <Repeat className="w-3 h-3" />
+                      Gjentakende
+                    </span>
+                  )}
+                </div>
+              </div>
+              
+              <div className="space-y-2 text-sm">
+                <div className="flex items-center gap-2 text-gray-600">
+                  <div 
+                    className="w-3 h-3 rounded-full"
+                    style={{ backgroundColor: '#22c55e' }}
+                  />
+                  <span>
+                    {resourceName}
+                    {selectedBooking.resourcePartName && ` → ${selectedBooking.resourcePartName}`}
+                  </span>
+                </div>
+                <div className="flex items-center gap-2 text-gray-600">
+                  <Calendar className="w-4 h-4 text-gray-400" />
+                  {format(parseISO(selectedBooking.startTime), "EEEE d. MMMM yyyy", { locale: nb })}
+                </div>
+                <div className="flex items-center gap-2 text-gray-600">
+                  <Clock className="w-4 h-4 text-gray-400" />
+                  {format(parseISO(selectedBooking.startTime), "HH:mm")} - {format(parseISO(selectedBooking.endTime), "HH:mm")}
+                </div>
+                {selectedBooking.userName && (
+                  <div className="flex items-center gap-2 text-gray-600">
+                    <User className="w-4 h-4 text-gray-400" />
+                    {selectedBooking.userName}
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Actions */}
+            {(() => {
+              const isOwner = selectedBooking.userId === session?.user?.id
+              const canCancel = isOwner && (selectedBooking.status === "pending" || selectedBooking.status === "approved")
+              const isPast = new Date(selectedBooking.startTime) < new Date()
+
+              if (isAdmin) {
+                return (
+                  <div className="p-4 border-t bg-gray-50 rounded-b-xl space-y-3">
+                    {/* Recurring booking checkbox */}
+                    {selectedBooking.isRecurring && selectedBooking.status === "pending" && (
+                      <label className="flex items-center gap-2 p-2 bg-blue-50 rounded-lg cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={applyToAll}
+                          onChange={(e) => setApplyToAll(e.target.checked)}
+                          className="rounded"
+                        />
+                        <span className="text-sm text-gray-700">
+                          Gjelder for alle gjentakende bookinger
+                        </span>
+                      </label>
+                    )}
+
+                    {selectedBooking.status === "pending" && (
+                      <div className="flex gap-2">
+                        <button
+                          onClick={() => handleBookingAction(selectedBooking.id, "approve")}
+                          disabled={isProcessing}
+                          className="flex-1 btn btn-success disabled:opacity-50"
+                        >
+                          {isProcessing ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCircle2 className="w-4 h-4" />}
+                          {selectedBooking.isRecurring && applyToAll ? "Godkjenn alle" : "Godkjenn"}
+                        </button>
+                        <button
+                          onClick={() => handleBookingAction(selectedBooking.id, "reject")}
+                          disabled={isProcessing}
+                          className="flex-1 btn btn-danger disabled:opacity-50"
+                        >
+                          {isProcessing ? <Loader2 className="w-4 h-4 animate-spin" /> : <XCircle className="w-4 h-4" />}
+                          {selectedBooking.isRecurring && applyToAll ? "Avslå alle" : "Avslå"}
+                        </button>
+                      </div>
+                    )}
+                    
+                    {canCancel && !isPast && (
+                      <button
+                        onClick={() => handleBookingAction(selectedBooking.id, "cancel")}
+                        disabled={isProcessing}
+                        className="w-full btn btn-secondary text-red-600 hover:bg-red-50 disabled:opacity-50"
+                      >
+                        {isProcessing ? <Loader2 className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4" />}
+                        Kanseller
+                      </button>
+                    )}
+
+                    <button
+                      onClick={() => setSelectedBooking(null)}
+                      className="w-full btn btn-secondary"
+                    >
+                      Lukk
+                    </button>
+                  </div>
+                )
+              } else if (isLoggedIn) {
+                return (
+                  <div className="p-4 border-t bg-gray-50 rounded-b-xl space-y-3">
+                    {canCancel && !isPast && (
+                      <button
+                        onClick={() => handleBookingAction(selectedBooking.id, "cancel")}
+                        disabled={isProcessing}
+                        className="w-full btn btn-secondary text-red-600 hover:bg-red-50 disabled:opacity-50"
+                      >
+                        {isProcessing ? <Loader2 className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4" />}
+                        Kanseller
+                      </button>
+                    )}
+
+                    <button
+                      onClick={() => setSelectedBooking(null)}
+                      className="w-full btn btn-secondary"
+                    >
+                      Lukk
+                    </button>
+                  </div>
+                )
+              } else {
+                return (
+                  <div className="p-4 border-t bg-gray-50 rounded-b-xl">
+                    <button
+                      onClick={() => setSelectedBooking(null)}
+                      className="w-full btn btn-secondary"
+                    >
+                      Lukk
+                    </button>
+                  </div>
+                )
+              }
+            })()}
+          </div>
+        </div>
+      )}
     </div>
   )
 }

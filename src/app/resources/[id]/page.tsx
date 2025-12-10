@@ -36,7 +36,14 @@ async function getResource(id: string) {
             startTime: { gte: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000) }
           },
           include: {
-            resourcePart: true
+            resourcePart: true,
+            user: {
+              select: {
+                id: true,
+                name: true,
+                email: true
+              }
+            }
           },
           orderBy: { startTime: "asc" }
         }
@@ -165,13 +172,19 @@ export default async function ResourcePage({ params }: Props) {
               </h2>
               <ResourceCalendar 
                 resourceId={resource.id}
+                resourceName={resource.name}
                 bookings={resource.bookings.map(b => ({
                   id: b.id,
                   title: b.title,
                   startTime: (b.startTime instanceof Date ? b.startTime : new Date(b.startTime)).toISOString(),
                   endTime: (b.endTime instanceof Date ? b.endTime : new Date(b.endTime)).toISOString(),
                   status: b.status,
-                  resourcePartName: b.resourcePart?.name
+                  resourcePartName: b.resourcePart?.name,
+                  userId: b.userId,
+                  userName: b.user?.name,
+                  userEmail: b.user?.email,
+                  isRecurring: b.isRecurring || false,
+                  parentBookingId: b.parentBookingId
                 }))}
                 parts={resource.parts.map(p => ({ id: p.id, name: p.name }))}
               />
