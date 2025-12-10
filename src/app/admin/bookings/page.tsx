@@ -416,17 +416,12 @@ export default function AdminBookingsPage() {
                               {booking.resourcePart && ` → ${booking.resourcePart.name}`}
                             </p>
                             {isGrouped && (
-                                <span className="px-2 py-0.5 text-xs font-medium rounded-full bg-blue-100 text-blue-700 flex items-center gap-1">
-                                  <Repeat className="w-3 h-3" />
-                                  {booking._groupCount} ganger
-                                  {pendingInGroup > 0 && activeTab !== "pending" && ` (${pendingInGroup} venter)`}
-                                </span>
-                              )}
-                            </div>
-                            <p className="text-sm text-gray-500 truncate">
-                              {booking.resource.name}
-                              {booking.resourcePart && ` → ${booking.resourcePart.name}`}
-                            </p>
+                              <span className="px-2 py-0.5 text-xs font-medium rounded-full bg-blue-100 text-blue-700 flex items-center gap-1">
+                                <Repeat className="w-3 h-3" />
+                                {booking._groupCount} ganger
+                                {pendingInGroup > 0 && activeTab !== "pending" && ` (${pendingInGroup} venter)`}
+                              </span>
+                            )}
                             <p className="text-xs text-gray-400 md:hidden mt-1">
                               {formatDateLabel(booking.startTime)} • {format(parseISO(booking.startTime), "HH:mm")}
                             </p>
