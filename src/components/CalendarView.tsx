@@ -424,12 +424,12 @@ export function CalendarView({ resources, bookings: initialBookings }: Props) {
                           const marginRight = index < groupSize - 1 ? gapBetweenPx : 0
                           const isSingleBox = groupSize === 1
                           const leftPercent = isSingleBox ? 50 : (index * bookingWidthPercent)
-                          // 0.5px margin from column lines on each side
+                          // No margin from column lines - boxes fill the column
                           const boxWidth = isSingleBox 
-                            ? 'calc(100% - 1px)' 
+                            ? '100%' 
                             : (marginRight > 0 
-                              ? `calc(${bookingWidthPercent}% - ${marginRight}px - 0.5px)` 
-                              : `calc(${bookingWidthPercent}% - 0.5px)`)
+                              ? `calc(${bookingWidthPercent}% - ${marginRight}px)` 
+                              : `${bookingWidthPercent}%`)
 
                           return (
                             <div
@@ -440,7 +440,7 @@ export function CalendarView({ resources, bookings: initialBookings }: Props) {
                               }`}
                               style={{
                                 top: `${topPx}px`,
-                                left: isSingleBox ? '50%' : `calc(${leftPercent}% + 0.5px)`,
+                                left: isSingleBox ? '50%' : `${leftPercent}%`,
                                 transform: isSingleBox ? 'translateX(-50%)' : 'none',
                                 width: boxWidth,
                                 height: `${Math.max(heightPx, 36)}px`,
