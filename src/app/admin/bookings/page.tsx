@@ -148,32 +148,31 @@ export default function AdminBookingsPage() {
     setProcessingId(bookingId)
     const booking = bookings.find(b => b.id === bookingId)
     
-    const response = await fetch(`/api/admin/bookings/${bookingId}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ action, applyToAll: applyToAll && booking?.isRecurring })
-    })
+    try {
+      const response = await fetch(`/api/admin/bookings/${bookingId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action, applyToAll: applyToAll && booking?.isRecurring })
+      })
 
-    if (response.ok) {
-      if (applyToAll && booking?.isRecurring) {
-        const parentId = booking.parentBookingId || booking.id
-        if (action === "approve") {
-          setBookings(bookings.map(b => 
-            (b.id === parentId || b.parentBookingId === parentId) && b.status === "pending"
-              ? { ...b, status: "approved" } : b
-          ))
-        } else {
-          setBookings(bookings.filter(b => !(b.id === parentId || b.parentBookingId === parentId)))
-        }
-      } else {
-        if (action === "approve") {
-          setBookings(bookings.map(b => b.id === bookingId ? { ...b, status: "approved" } : b))
-        } else {
-          setBookings(bookings.filter(b => b.id !== bookingId))
-        }
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({ error: "Ukjent feil" }))
+        console.error("Error approving/rejecting booking:", errorData)
+        alert(`Feil: ${errorData.error || "Kunne ikke ${action === "approve" ? "godkjenne" : "avslå"} booking"}`)
+        setProcessingId(null)
+        return
       }
+
+      const result = await response.json()
+      
+      // Refresh bookings from server to get accurate state
+      await fetchBookings()
+    } catch (error) {
+      console.error("Error in handleAction:", error)
+      alert(`Feil: ${error instanceof Error ? error.message : "Noe gikk galt"}`)
+    } finally {
+      setProcessingId(null)
     }
-    setProcessingId(null)
   }
 
   const handleCancel = async (bookingId: string) => {

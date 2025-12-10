@@ -17,12 +17,25 @@ export async function PATCH(
   }
 
   const { id } = await params
-  const { action, statusNote, applyToAll } = await request.json()
+  
+  // Parse request body with error handling
+  let body
+  try {
+    body = await request.json()
+  } catch (error) {
+    console.error("Error parsing request body:", error)
+    return NextResponse.json({ error: "Invalid request body" }, { status: 400 })
+  }
+
+  const { action, statusNote, applyToAll } = body
 
   // Validate action
-  if (action !== "approve" && action !== "reject") {
+  if (!action || (action !== "approve" && action !== "reject")) {
     console.error("Invalid action received:", action)
-    return NextResponse.json({ error: "Invalid action. Must be 'approve' or 'reject'" }, { status: 400 })
+    return NextResponse.json({ 
+      error: "Invalid action. Must be 'approve' or 'reject'",
+      received: action 
+    }, { status: 400 })
   }
 
   // Debug logging
