@@ -71,6 +71,7 @@ export function CalendarView({ resources, bookings: initialBookings }: Props) {
   const [preferencesLoaded, setPreferencesLoaded] = useState(false)
   const [savingPreferences, setSavingPreferences] = useState(false)
   const [showSaveSuccess, setShowSaveSuccess] = useState(false)
+  const weekViewScrollRef = useRef<HTMLDivElement>(null)
 
   // Load user preferences on mount
   useEffect(() => {
