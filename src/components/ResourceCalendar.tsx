@@ -341,7 +341,6 @@ export function ResourceCalendar({ resourceId, resourceName, bookings, parts }: 
                           const gapBetweenPx = hasOverlap ? gapPx : 0 // Same gap as vertical (1px)
                           const bookingWidthPercent = 100 / groupSize
                           const leftPercent = index * bookingWidthPercent
-                          const marginLeft = index > 0 ? gapBetweenPx : 0
                           const marginRight = index < groupSize - 1 ? gapBetweenPx : 0
 
                           return (
@@ -354,7 +353,7 @@ export function ResourceCalendar({ resourceId, resourceName, bookings, parts }: 
                               style={{
                                 top: `${topPx}px`,
                                 left: `${leftPercent}%`,
-                                width: `${bookingWidthPercent}%`,
+                                width: marginRight > 0 ? `calc(${bookingWidthPercent}% - ${marginRight}px)` : `${bookingWidthPercent}%`,
                                 height: `${Math.max(heightPx, 36)}px`,
                                 backgroundColor: isPending ? '#dcfce7' : '#22c55e',
                                 borderColor: isPending ? '#22c55e' : undefined,
@@ -365,9 +364,7 @@ export function ResourceCalendar({ resourceId, resourceName, bookings, parts }: 
                                 flexDirection: 'column',
                                 justifyContent: 'flex-start',
                                 alignItems: 'flex-start',
-                                marginLeft: `${marginLeft}px`,
-                                marginRight: `${marginRight}px`,
-                                boxSizing: 'border-box'
+                                marginRight: `${marginRight}px`
                               }}
                               title={`${booking.title}${booking.resourcePartName ? ` (${booking.resourcePartName})` : ''}${isPending ? ' (venter på godkjenning)' : ''}`}
                             >

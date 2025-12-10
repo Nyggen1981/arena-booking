@@ -359,7 +359,6 @@ export function PublicCalendar({ categories, resources, bookings }: Props) {
                           const gapBetweenPx = hasOverlap ? gapPx : 0 // Same gap as vertical (1px)
                           const bookingWidthPercent = 100 / groupSize
                           const leftPercent = index * bookingWidthPercent
-                          const marginLeft = index > 0 ? gapBetweenPx : 0
                           const marginRight = index < groupSize - 1 ? gapBetweenPx : 0
 
                           return (
@@ -370,7 +369,7 @@ export function PublicCalendar({ categories, resources, bookings }: Props) {
                               style={{
                                 top: `${topPx}px`,
                                 left: `${leftPercent}%`,
-                                width: `${bookingWidthPercent}%`,
+                                width: marginRight > 0 ? `calc(${bookingWidthPercent}% - ${marginRight}px)` : `${bookingWidthPercent}%`,
                                 height: `${Math.max(heightPx, 36)}px`,
                                 backgroundColor: resourceColor,
                                 color: 'white',
@@ -379,9 +378,7 @@ export function PublicCalendar({ categories, resources, bookings }: Props) {
                                 flexDirection: 'column',
                                 justifyContent: 'flex-start',
                                 alignItems: 'flex-start',
-                                marginLeft: `${marginLeft}px`,
-                                marginRight: `${marginRight}px`,
-                                boxSizing: 'border-box'
+                                marginRight: `${marginRight}px`
                               }}
                             >
                               <p className="font-semibold truncate text-[11px]">{booking.title}</p>
