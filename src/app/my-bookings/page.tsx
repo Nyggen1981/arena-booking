@@ -51,6 +51,7 @@ export default function MyBookingsPage() {
   const [isLoading, setIsLoading] = useState(true)
   const [activeTab, setActiveTab] = useState<Tab>("upcoming")
   const [cancellingId, setCancellingId] = useState<string | null>(null)
+  const [deletingId, setDeletingId] = useState<string | null>(null)
   const [editingBooking, setEditingBooking] = useState<Booking | null>(null)
   const [isProcessing, setIsProcessing] = useState(false)
   const [selectedResourceId, setSelectedResourceId] = useState<string | null>(null)
@@ -107,6 +108,23 @@ export default function MyBookingsPage() {
     } finally {
       setIsProcessing(false)
       setCancellingId(null)
+    }
+  }, [])
+
+  const handleDelete = useCallback(async (bookingId: string) => {
+    setIsProcessing(true)
+    try {
+      const response = await fetch(`/api/bookings/${bookingId}`, {
+        method: "DELETE"
+      })
+      if (response.ok) {
+        setBookings(prev => prev.filter(b => b.id !== bookingId))
+      }
+    } catch (error) {
+      console.error("Failed to delete booking:", error)
+    } finally {
+      setIsProcessing(false)
+      setDeletingId(null)
     }
   }, [])
 
@@ -363,6 +381,16 @@ export default function MyBookingsPage() {
                                     </button>
                                   </>
                                 )}
+                                {/* Delete button for historical bookings */}
+                                {activeTab === "history" && (
+                                  <button
+                                    onClick={() => setDeletingId(booking.id)}
+                                    className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                                    title="Slett"
+                                  >
+                                    <Trash2 className="w-5 h-5" />
+                                  </button>
+                                )}
                                 <Link
                                   href={`/resources/${booking.resource.id}/book`}
                                   className="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
@@ -414,6 +442,43 @@ export default function MyBookingsPage() {
                   <>
                     <Trash2 className="w-4 h-4" />
                     Ja, kanseller
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Delete modal */}
+      {deletingId && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl max-w-md w-full shadow-2xl p-6 animate-fadeIn">
+            <div className="w-12 h-12 rounded-full bg-red-100 flex items-center justify-center mx-auto mb-4">
+              <Trash2 className="w-6 h-6 text-red-600" />
+            </div>
+            <h3 className="text-lg font-bold text-gray-900 text-center mb-2">Slett booking?</h3>
+            <p className="text-gray-600 text-center mb-6">
+              Er du sikker på at du vil slette denne bookingen permanent? Denne handlingen kan ikke angres.
+            </p>
+            <div className="flex gap-3">
+              <button
+                onClick={() => setDeletingId(null)}
+                className="flex-1 px-4 py-2.5 border border-gray-300 rounded-lg text-gray-700 font-medium hover:bg-gray-50 transition-colors"
+              >
+                Avbryt
+              </button>
+              <button
+                onClick={() => handleDelete(deletingId)}
+                disabled={isProcessing}
+                className="flex-1 px-4 py-2.5 bg-red-600 text-white rounded-lg font-medium hover:bg-red-700 disabled:opacity-50 transition-colors flex items-center justify-center gap-2"
+              >
+                {isProcessing ? (
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                ) : (
+                  <>
+                    <Trash2 className="w-4 h-4" />
+                    Ja, slett
                   </>
                 )}
               </button>
