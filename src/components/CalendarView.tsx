@@ -302,7 +302,7 @@ export function CalendarView({ resources, bookings: initialBookings }: Props) {
           {/* Time grid with sticky header */}
           <div className="max-h-[600px] overflow-y-auto">
             {/* Header - sticky */}
-            <div className="grid grid-cols-8 bg-gray-50 border-b border-gray-200 sticky top-0 z-10">
+            <div className="grid bg-gray-50 border-b border-gray-200 sticky top-0 z-10" style={{ gridTemplateColumns: '60px repeat(7, 1fr)' }}>
               <div className="p-3 text-center text-sm font-medium text-gray-500" />
               {weekDays.map((day) => (
                 <div 
@@ -325,7 +325,7 @@ export function CalendarView({ resources, bookings: initialBookings }: Props) {
 
             {/* Time rows */}
             {hours.map((hour) => (
-              <div key={hour} className="grid grid-cols-8 border-b border-gray-100 last:border-b-0">
+              <div key={hour} className="grid border-b border-gray-100 last:border-b-0" style={{ gridTemplateColumns: '60px repeat(7, 1fr)' }}>
                 <div className="p-2 text-right text-xs text-gray-400 pr-3">
                   {hour.toString().padStart(2, "0")}:00
                 </div>
