@@ -21,7 +21,10 @@ export function Footer() {
 
           {/* Links and Copyright */}
           <div className="text-center sm:text-right">
-            <div className="flex flex-wrap items-center justify-center sm:justify-end gap-4 mb-2">
+            <p className="text-xs text-slate-600 mb-2">
+              v{VERSION}
+            </p>
+            <div className="flex flex-wrap items-center justify-center sm:justify-end gap-4">
               <Link 
                 href="/personvern" 
                 className="text-xs text-slate-400 hover:text-slate-300 transition-colors"
@@ -29,9 +32,6 @@ export function Footer() {
                 Personvernpolicy
               </Link>
             </div>
-            <p className="text-xs text-slate-600">
-              v{VERSION}
-            </p>
             <p className="text-xs text-slate-500 mt-1">
               © {new Date().getFullYear()} Arena Booking. Alle rettigheter reservert.
             </p>

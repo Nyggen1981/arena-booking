@@ -361,9 +361,9 @@ export function ResourceCalendar({ resourceId, resourceName, bookings, parts }: 
                           const marginRight = index < groupSize - 1 ? gapBetweenPx : 0
                           const isSingleBox = groupSize === 1
                           const leftPercent = isSingleBox ? 50 : (index * bookingWidthPercent)
-                          // No margin from column lines - boxes fill the column
+                          // Center single boxes with small margin from edges
                           const boxWidth = isSingleBox 
-                            ? '100%' 
+                            ? 'calc(100% - 4px)' 
                             : (marginRight > 0 
                               ? `calc(${bookingWidthPercent}% - ${marginRight}px)` 
                               : `${bookingWidthPercent}%`)
