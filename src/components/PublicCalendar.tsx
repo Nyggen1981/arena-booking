@@ -335,18 +335,28 @@ export function PublicCalendar({ categories, resources, bookings }: Props) {
                         group.map((booking, index) => {
                           const start = parseISO(booking.startTime)
                           const end = parseISO(booking.endTime)
+                          const bookingStart = start
+                          const bookingEnd = end
                           const duration = (end.getTime() - start.getTime()) / (1000 * 60 * 60)
                           const resourceColor = getResourceColor(booking.resourceId)
 
-                          // Add 2px gap between bookings
-                          const gapPx = 2
+                          // Add minimal gap between bookings vertically
+                          const gapPx = 1
                           const cellHeight = 48 // min-h-[48px]
                           const topPx = (start.getMinutes() / 60) * cellHeight + gapPx
                           const heightPx = duration * cellHeight - (gapPx * 2)
                           
                           // Calculate width and position for overlapping bookings
                           const groupSize = group.length
-                          const gapBetween = groupSize > 1 ? 1 : 0 // Small gap between overlapping bookings in %
+                          // Only add gap if bookings actually overlap (not just same start time)
+                          const hasOverlap = group.some((b, i) => {
+                            if (i === index) return false
+                            const bStart = parseISO(b.startTime)
+                            const bEnd = parseISO(b.endTime)
+                            return (bookingStart < bEnd && bookingEnd > bStart && 
+                                    (bookingStart.getTime() !== bStart.getTime() || bookingEnd.getTime() !== bEnd.getTime()))
+                          })
+                          const gapBetween = hasOverlap ? 2 : 0 // More gap between overlapping bookings in %
                           const bookingWidthPercent = (100 - (gapBetween * (groupSize - 1))) / groupSize
                           const leftPercent = index * (bookingWidthPercent + gapBetween)
 
@@ -362,7 +372,11 @@ export function PublicCalendar({ categories, resources, bookings }: Props) {
                                 height: `${Math.max(heightPx, 36)}px`,
                                 backgroundColor: resourceColor,
                                 color: 'white',
-                                boxShadow: '0 1px 3px rgba(0,0,0,0.2)'
+                                boxShadow: '0 1px 3px rgba(0,0,0,0.2)',
+                                display: 'flex',
+                                flexDirection: 'column',
+                                justifyContent: 'flex-start',
+                                alignItems: 'flex-start'
                               }}
                             >
                               <p className="font-semibold truncate text-[11px]">{booking.title}</p>

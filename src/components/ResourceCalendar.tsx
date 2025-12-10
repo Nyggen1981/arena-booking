@@ -60,6 +60,7 @@ export function ResourceCalendar({ resourceId, resourceName, bookings, parts }: 
   const [selectedBooking, setSelectedBooking] = useState<Booking | null>(null)
   const [isProcessing, setIsProcessing] = useState(false)
   const [applyToAll, setApplyToAll] = useState(true)
+  const weekViewScrollRef = useRef<HTMLDivElement>(null)
 
   const weekStart = startOfWeek(currentDate, { weekStartsOn: 1 })
   const weekDays = Array.from({ length: 7 }, (_, i) => addDays(weekStart, i))
@@ -319,15 +320,25 @@ export function ResourceCalendar({ resourceId, resourceName, bookings, parts }: 
                           const durationHours = (end.getTime() - start.getTime()) / (1000 * 60 * 60)
                           const isPending = booking.status === "pending"
                           
-                          // Add gap for visual separation
-                          const gapPx = 3
+                          // Add minimal gap between bookings vertically
+                          const gapPx = 1
                           const cellHeight = 48
                           const topPx = (start.getMinutes() / 60) * cellHeight + gapPx
                           const heightPx = durationHours * cellHeight - (gapPx * 2)
                           
                           // Calculate width and position for overlapping bookings
                           const groupSize = group.length
-                          const gapBetween = groupSize > 1 ? 1 : 0 // Small gap between overlapping bookings in %
+                          const bookingStart = start
+                          const bookingEnd = end
+                          // Only add gap if bookings actually overlap (not just same start time)
+                          const hasOverlap = group.some((b, i) => {
+                            if (i === index) return false
+                            const bStart = parseISO(b.startTime)
+                            const bEnd = parseISO(b.endTime)
+                            return (bookingStart < bEnd && bookingEnd > bStart && 
+                                    (bookingStart.getTime() !== bStart.getTime() || bookingEnd.getTime() !== bEnd.getTime()))
+                          })
+                          const gapBetween = hasOverlap ? 2 : 0 // More gap between overlapping bookings in %
                           const bookingWidthPercent = (100 - (gapBetween * (groupSize - 1))) / groupSize
                           const leftPercent = index * (bookingWidthPercent + gapBetween)
 
@@ -347,7 +358,11 @@ export function ResourceCalendar({ resourceId, resourceName, bookings, parts }: 
                                 borderColor: isPending ? '#22c55e' : undefined,
                                 color: isPending ? '#15803d' : 'white',
                                 boxShadow: '0 1px 3px rgba(0,0,0,0.2)',
-                                zIndex: 10
+                                zIndex: 10,
+                                display: 'flex',
+                                flexDirection: 'column',
+                                justifyContent: 'flex-start',
+                                alignItems: 'flex-start'
                               }}
                               title={`${booking.title}${booking.resourcePartName ? ` (${booking.resourcePartName})` : ''}${isPending ? ' (venter på godkjenning)' : ''}`}
                             >

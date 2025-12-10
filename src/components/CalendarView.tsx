@@ -401,15 +401,25 @@ export function CalendarView({ resources, bookings: initialBookings }: Props) {
                           const isPending = booking.status === "pending"
                           const resourceColor = getResourceColor(booking.resourceId)
 
-                          // Add gap between bookings for visual separation
-                          const gapPx = 3
+                          // Add minimal gap between bookings vertically
+                          const gapPx = 1
                           const cellHeight = 48 // min-h-[48px]
                           const topPx = (start.getMinutes() / 60) * cellHeight + gapPx
                           const heightPx = duration * cellHeight - (gapPx * 2)
                           
                           // Calculate width and position for overlapping bookings
                           const groupSize = group.length
-                          const gapBetween = groupSize > 1 ? 1 : 0 // Small gap between overlapping bookings in %
+                          const bookingStart = start
+                          const bookingEnd = end
+                          // Only add gap if bookings actually overlap (not just same start time)
+                          const hasOverlap = group.some((b, i) => {
+                            if (i === index) return false
+                            const bStart = parseISO(b.startTime)
+                            const bEnd = parseISO(b.endTime)
+                            return (bookingStart < bEnd && bookingEnd > bStart && 
+                                    (bookingStart.getTime() !== bStart.getTime() || bookingEnd.getTime() !== bEnd.getTime()))
+                          })
+                          const gapBetween = hasOverlap ? 2 : 0 // More gap between overlapping bookings in %
                           const bookingWidthPercent = (100 - (gapBetween * (groupSize - 1))) / groupSize
                           const leftPercent = index * (bookingWidthPercent + gapBetween)
 
@@ -431,7 +441,11 @@ export function CalendarView({ resources, bookings: initialBookings }: Props) {
                                 borderColor: isPending ? resourceColor : undefined,
                                 color: isPending ? resourceColor : 'white',
                                 boxShadow: '0 1px 3px rgba(0,0,0,0.2)',
-                                zIndex: 10
+                                zIndex: 10,
+                                display: 'flex',
+                                flexDirection: 'column',
+                                justifyContent: 'flex-start',
+                                alignItems: 'flex-start'
                               }}
                               title={`${format(start, "HH:mm")}-${format(end, "HH:mm")} ${booking.title} - ${booking.resourceName}${booking.resourcePartName ? ` (${booking.resourcePartName})` : ''}${isPending ? ' (venter på godkjenning)' : ''} - Klikk for mer info`}
                             >
