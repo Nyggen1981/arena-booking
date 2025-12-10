@@ -3,7 +3,17 @@ import { NextResponse } from "next/server"
 import { getServerSession } from "next-auth"
 import { authOptions } from "@/lib/auth"
 import { getDefaultEmailTemplates } from "@/lib/email-templates"
-import type { EmailTemplate } from "@prisma/client"
+
+// Define EmailTemplate type locally to avoid import issues if Prisma Client not generated
+type EmailTemplate = {
+  id: string
+  organizationId: string
+  templateType: string
+  subject: string
+  htmlBody: string
+  createdAt: Date
+  updatedAt: Date
+}
 
 // GET all email templates for organization (with defaults)
 export async function GET() {
