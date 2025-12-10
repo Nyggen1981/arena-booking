@@ -7,7 +7,7 @@ import { Navbar } from "@/components/Navbar"
 import { Footer } from "@/components/Footer"
 import { format, parseISO, startOfDay, addDays, isSameDay, addHours, setHours, setMinutes } from "date-fns"
 import { nb } from "date-fns/locale"
-import { Calendar, ChevronLeft, ChevronRight, GanttChart, Clock } from "lucide-react"
+import { Calendar, ChevronLeft, ChevronRight, GanttChart, Clock, Filter } from "lucide-react"
 
 interface Booking {
   id: string
@@ -67,6 +67,8 @@ export default function TimelinePage() {
   const [selectedDate, setSelectedDate] = useState(new Date())
   const [timelineData, setTimelineData] = useState<TimelineData | null>(null)
   const [isLoading, setIsLoading] = useState(true)
+  const [selectedResources, setSelectedResources] = useState<Set<string>>(new Set())
+  const [showFilter, setShowFilter] = useState(false)
 
   useEffect(() => {
     if (status === "unauthenticated") {
@@ -79,6 +81,20 @@ export default function TimelinePage() {
       fetchTimelineData()
     }
   }, [session, selectedDate])
+
+  // Initialize selected resources when data loads (select all by default)
+  useEffect(() => {
+    if (timelineData && timelineData.resources.length > 0) {
+      const allResourceIds = new Set(timelineData.resources.map(r => r.id))
+      // Only initialize if no resources are selected yet, or if selected resources don't match available resources
+      const hasValidSelection = selectedResources.size > 0 && 
+        Array.from(selectedResources).every(id => allResourceIds.has(id))
+      
+      if (!hasValidSelection) {
+        setSelectedResources(allResourceIds)
+      }
+    }
+  }, [timelineData])
 
   const fetchTimelineData = async () => {
     setIsLoading(true)
@@ -105,7 +121,7 @@ export default function TimelinePage() {
     return slots
   }, [selectedDate])
 
-  // Group resources with their parts and bookings
+  // Group resources with their parts and bookings (filtered by selected resources)
   const groupedData = useMemo(() => {
     if (!timelineData) return []
 
@@ -117,7 +133,9 @@ export default function TimelinePage() {
       }>
     }> = []
 
-    timelineData.resources.forEach(resource => {
+    timelineData.resources
+      .filter(resource => selectedResources.has(resource.id))
+      .forEach(resource => {
       // Get all bookings for this resource
       const resourceBookings = timelineData.bookings.filter(b => b.resource.id === resource.id)
 
@@ -168,7 +186,53 @@ export default function TimelinePage() {
     })
 
     return grouped
+  }, [timelineData, selectedResources])
+
+  // Group resources by category for filter
+  const resourcesByCategory = useMemo(() => {
+    if (!timelineData) return []
+    
+    const categoryMap = new Map<string, Resource[]>()
+    
+    timelineData.resources.forEach(resource => {
+      const categoryId = resource.category?.id || "uncategorized"
+      const categoryName = resource.category?.name || "Uten kategori"
+      
+      if (!categoryMap.has(categoryId)) {
+        categoryMap.set(categoryId, [])
+      }
+      categoryMap.get(categoryId)!.push(resource)
+    })
+    
+    return Array.from(categoryMap.entries()).map(([categoryId, resources]) => ({
+      id: categoryId,
+      name: resources[0].category?.name || "Uten kategori",
+      color: resources[0].category?.color || null,
+      resources: resources.sort((a, b) => a.name.localeCompare(b.name))
+    }))
   }, [timelineData])
+
+  const toggleResource = (resourceId: string) => {
+    setSelectedResources(prev => {
+      const newSet = new Set(prev)
+      if (newSet.has(resourceId)) {
+        newSet.delete(resourceId)
+      } else {
+        newSet.add(resourceId)
+      }
+      return newSet
+    })
+  }
+
+  const selectAll = () => {
+    if (!timelineData) return
+    const allResourceIds = new Set(timelineData.resources.map(r => r.id))
+    setSelectedResources(allResourceIds)
+  }
+
+  const deselectAll = () => {
+    setSelectedResources(new Set())
+  }
 
   // Calculate booking position and width
   const getBookingStyle = (booking: Booking) => {
@@ -228,6 +292,22 @@ export default function TimelinePage() {
               {/* Date Navigation */}
               <div className="flex items-center gap-4">
                 <button
+                  onClick={() => setShowFilter(!showFilter)}
+                  className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-colors ${
+                    showFilter
+                      ? "bg-blue-600 text-white"
+                      : "bg-white text-gray-700 border border-gray-300 hover:bg-gray-50"
+                  }`}
+                >
+                  <Filter className="w-4 h-4" />
+                  Filter
+                  {selectedResources.size > 0 && (
+                    <span className="px-2 py-0.5 text-xs rounded-full bg-blue-100 text-blue-700">
+                      {selectedResources.size}
+                    </span>
+                  )}
+                </button>
+                <button
                   onClick={() => changeDate(-1)}
                   className="p-2 rounded-lg hover:bg-gray-100 transition-colors"
                 >
@@ -264,6 +344,67 @@ export default function TimelinePage() {
               {format(selectedDate, "EEEE d. MMMM yyyy", { locale: nb })}
             </p>
           </div>
+
+          {/* Filter Panel */}
+          {showFilter && (
+            <div className="mb-6 bg-white rounded-xl border border-gray-200 shadow-sm p-4">
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
+                  <Filter className="w-5 h-5" />
+                  Filtrer fasiliteter
+                </h2>
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={selectAll}
+                    className="px-3 py-1.5 text-sm text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                  >
+                    Velg alle
+                  </button>
+                  <button
+                    onClick={deselectAll}
+                    className="px-3 py-1.5 text-sm text-gray-600 hover:bg-gray-50 rounded-lg transition-colors"
+                  >
+                    Fjern alle
+                  </button>
+                </div>
+              </div>
+              
+              <div className="space-y-4 max-h-96 overflow-y-auto">
+                {resourcesByCategory.map((category) => (
+                  <div key={category.id} className="border-b border-gray-100 last:border-b-0 pb-4 last:pb-0">
+                    <div className="flex items-center gap-2 mb-2">
+                      {category.color && (
+                        <div
+                          className="w-3 h-3 rounded-full"
+                          style={{ backgroundColor: category.color }}
+                        />
+                      )}
+                      <h3 className="font-medium text-gray-900">{category.name}</h3>
+                      <span className="text-xs text-gray-500">
+                        ({category.resources.length})
+                      </span>
+                    </div>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-2 ml-5">
+                      {category.resources.map((resource) => (
+                        <label
+                          key={resource.id}
+                          className="flex items-center gap-2 p-2 rounded-lg hover:bg-gray-50 cursor-pointer"
+                        >
+                          <input
+                            type="checkbox"
+                            checked={selectedResources.has(resource.id)}
+                            onChange={() => toggleResource(resource.id)}
+                            className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                          />
+                          <span className="text-sm text-gray-700">{resource.name}</span>
+                        </label>
+                      ))}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
 
           {/* Timeline */}
           {groupedData.length === 0 ? (
