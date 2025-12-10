@@ -18,18 +18,34 @@ export async function PATCH(
 
   const { id } = await params
   
+  // Log request details
+  console.log("=== REQUEST DETAILS ===")
+  console.log("Method:", request.method)
+  console.log("URL:", request.url)
+  console.log("Content-Type:", request.headers.get("content-type"))
+  console.log("Has body:", request.body !== null)
+  
   // Parse request body with error handling
   let body: { action?: string; statusNote?: string; applyToAll?: boolean } = {}
   try {
-    body = await request.json()
-    console.log("Parsed body:", body)
+    const bodyText = await request.text()
+    console.log("Raw body text:", bodyText)
+    if (bodyText) {
+      body = JSON.parse(bodyText)
+      console.log("Parsed body:", body)
+    } else {
+      console.log("Body is empty")
+    }
   } catch (error) {
     console.error("Error parsing request body:", error)
-    // If body is empty or invalid, try to continue with empty body
-    // This might happen if no body is sent
+    return NextResponse.json({ 
+      error: "Invalid request body", 
+      details: String(error) 
+    }, { status: 400 })
   }
 
   const { action, statusNote, applyToAll } = body
+  console.log("Extracted values:", { action, statusNote, applyToAll })
 
   // Validate action
   if (!action || (action !== "approve" && action !== "reject")) {
