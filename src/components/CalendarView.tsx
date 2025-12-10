@@ -315,12 +315,12 @@ export function CalendarView({ resources, bookings: initialBookings }: Props) {
           {/* Time grid with sticky header */}
           <div ref={weekViewScrollRef} className="max-h-[600px] overflow-y-auto pr-[17px]">
             {/* Header - sticky */}
-            <div className="grid bg-gray-50 border-b border-gray-200 sticky top-0 z-10" style={{ gridTemplateColumns: '60px repeat(7, 1fr)' }}>
+            <div className="grid bg-gray-50 border-b border-gray-200 sticky top-0 z-10 gap-x-2" style={{ gridTemplateColumns: '60px repeat(7, 1fr)' }}>
               <div className="p-3 text-center text-sm font-medium text-gray-500" />
               {weekDays.map((day) => (
                 <div 
                   key={day.toISOString()} 
-                  className={`p-3 text-center border-l border-gray-200 ${
+                  className={`p-3 text-center border-l-2 border-gray-300 ${
                     isToday(day) ? 'bg-blue-50' : 'bg-gray-50'
                   }`}
                 >
@@ -338,7 +338,7 @@ export function CalendarView({ resources, bookings: initialBookings }: Props) {
 
             {/* Time rows */}
             {hours.map((hour) => (
-              <div key={hour} className="grid border-b border-gray-100 last:border-b-0" style={{ gridTemplateColumns: '60px repeat(7, 1fr)' }}>
+              <div key={hour} className="grid border-b border-gray-100 last:border-b-0 gap-x-2" style={{ gridTemplateColumns: '60px repeat(7, 1fr)' }}>
                 <div className="p-2 text-right text-xs text-gray-400 pr-3">
                   {hour.toString().padStart(2, "0")}:00
                 </div>
@@ -389,7 +389,7 @@ export function CalendarView({ resources, bookings: initialBookings }: Props) {
                   return (
                     <div 
                       key={`${day.toISOString()}-${hour}`} 
-                      className={`relative min-h-[48px] border-l border-gray-100 pointer-events-none ${
+                      className={`relative min-h-[48px] border-l-2 border-gray-300 pointer-events-none ${
                         isToday(day) ? 'bg-blue-50/30' : ''
                       }`}
                     >
@@ -419,7 +419,7 @@ export function CalendarView({ resources, bookings: initialBookings }: Props) {
                             return (bookingStart < bEnd && bookingEnd > bStart && 
                                     (bookingStart.getTime() !== bStart.getTime() || bookingEnd.getTime() !== bEnd.getTime()))
                           })
-                          const gapBetweenPx = hasOverlap ? gapPx : 0 // Same gap as vertical (1px)
+                          const gapBetweenPx = hasOverlap ? 3 : 0 // More gap horizontally (3px) vs vertical (1px)
                           const bookingWidthPercent = 100 / groupSize
                           const leftPercent = index * bookingWidthPercent
                           const marginRight = index < groupSize - 1 ? gapBetweenPx : 0
