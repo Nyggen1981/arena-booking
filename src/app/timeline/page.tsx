@@ -316,13 +316,25 @@ export default function TimelinePage() {
                 
                 <div className="flex items-center gap-2">
                   <Calendar className="w-4 h-4 text-gray-500" />
-                  <input
-                    type="date"
-                    lang="no"
-                    value={format(selectedDate, "yyyy-MM-dd")}
-                    onChange={(e) => setSelectedDate(new Date(e.target.value))}
-                    className="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  />
+                  <div className="relative group">
+                    <div className="px-3 py-2 border border-gray-300 rounded-lg bg-white text-sm text-gray-700 min-w-[140px] cursor-pointer flex items-center justify-between"
+                      onClick={() => {
+                        const input = document.getElementById('timeline-date-input')
+                        input?.showPicker?.() || input?.click()
+                      }}
+                    >
+                      <span>{format(selectedDate, "d. MMM yyyy", { locale: nb })}</span>
+                      <Calendar className="w-4 h-4 text-gray-400" />
+                    </div>
+                    <input
+                      id="timeline-date-input"
+                      type="date"
+                      lang="no"
+                      value={format(selectedDate, "yyyy-MM-dd")}
+                      onChange={(e) => setSelectedDate(new Date(e.target.value))}
+                      className="absolute inset-0 opacity-0 cursor-pointer"
+                    />
+                  </div>
                 </div>
                 
                 <button
