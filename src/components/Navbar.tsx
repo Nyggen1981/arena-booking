@@ -130,6 +130,7 @@ export function Navbar() {
                   <Calendar className="w-4 h-4" />
                   Kalender
                 </Link>
+              </>
             ) : null}
 
             {session ? (
