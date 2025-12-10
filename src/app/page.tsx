@@ -117,11 +117,8 @@ export default async function PublicHomePage() {
     redirect("/register")
   }
   
-  // Only redirect logged-in users to resources page if there are resources
-  // If no resources but logged in, keep them on public calendar (they can set up facilities)
-  if (session && hasData) {
-    redirect("/resources")
-  }
+  // Note: Removed automatic redirect to /resources to prevent redirect loops
+  // Users can navigate to /resources manually via the navbar
 
   return (
     <div className="min-h-screen bg-slate-50 flex flex-col">
