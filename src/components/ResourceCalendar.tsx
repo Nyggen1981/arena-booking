@@ -205,7 +205,7 @@ export function ResourceCalendar({ bookings, parts }: Props) {
           </div>
 
           {/* Time slots */}
-          <div className="max-h-[600px] overflow-y-auto">
+          <div className="max-h-[600px] overflow-y-auto pr-[17px]">
             {hours.map((hour) => (
               <div key={hour} className="grid border-b border-gray-100 last:border-b-0" style={{ gridTemplateColumns: '60px repeat(7, 1fr)' }}>
                 <div className="p-2 text-right text-xs text-gray-400 pr-3">

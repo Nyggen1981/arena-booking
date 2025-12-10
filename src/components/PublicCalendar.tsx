@@ -382,7 +382,7 @@ export function PublicCalendar({ categories, resources, bookings }: Props) {
       {viewMode === "week" && (
         <div className="bg-white rounded-xl border border-gray-200 overflow-hidden shadow-sm">
           {/* Time grid with sticky header */}
-          <div className="max-h-[650px] overflow-y-auto">
+          <div className="max-h-[650px] overflow-y-auto pr-[17px]">
             {/* Header - sticky */}
             <div className="grid bg-gray-50 border-b border-gray-200 sticky top-0 z-10" style={{ gridTemplateColumns: '60px repeat(7, 1fr)' }}>
               <div className="p-3 text-center text-sm font-medium text-gray-500" />
