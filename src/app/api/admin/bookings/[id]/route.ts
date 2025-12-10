@@ -95,13 +95,7 @@ export async function PATCH(
     include: {
       user: true,
       resource: true,
-      resourcePart: {
-        select: {
-          id: true,
-          name: true,
-          adminNote: true
-        }
-      }
+      resourcePart: true
     }
   })
 
@@ -167,7 +161,8 @@ export async function PATCH(
       console.log("Sending APPROVED email to:", userEmail)
       const count = bookingIdsToUpdate.length
       // Get admin note from resource part if booking is for a specific part
-      const adminNote = booking.resourcePart?.adminNote || null
+      // Use optional chaining and type safety for backwards compatibility
+      const adminNote = (booking.resourcePart as any)?.adminNote || null
       const emailContent = await getBookingApprovedEmail(
         booking.organizationId,
         booking.title, 

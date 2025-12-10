@@ -107,12 +107,13 @@ export default function EditResourcePage({ params }: Props) {
       setShowOnPublicCalendar(resource.showOnPublicCalendar ?? true)
       setAllowWholeBooking(resource.allowWholeBooking ?? true)
       setMapImage(resource.mapImage || null)
-      setParts(resource.parts?.map((p: { id: string; name: string; description?: string; capacity?: number; mapCoordinates?: string; parentId?: string }) => ({
+      setParts(resource.parts?.map((p: { id: string; name: string; description?: string; capacity?: number; mapCoordinates?: string; adminNote?: string; parentId?: string }) => ({
         id: p.id,
         name: p.name,
         description: p.description || "",
         capacity: p.capacity ? String(p.capacity) : "",
         mapCoordinates: p.mapCoordinates || null,
+        adminNote: p.adminNote || null,
         parentId: p.parentId || null
       })) || [])
       
