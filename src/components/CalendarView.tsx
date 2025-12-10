@@ -380,21 +380,20 @@ export function CalendarView({ categories, resources, bookings: initialBookings 
               <button
                 onClick={savePreferences}
                 disabled={savingPreferences}
-                className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all flex items-center gap-1 ${
+                className={`p-2 rounded-lg transition-all ${
                   showSaveSuccess 
                     ? "bg-green-100 text-green-700" 
                     : "bg-amber-50 text-amber-700 hover:bg-amber-100"
                 }`}
-                title="Lagre dette som din standardvisning"
+                title={showSaveSuccess ? "Lagret!" : "Sett som standardvisning"}
               >
                 {savingPreferences ? (
-                  <Loader2 className="w-4 h-4 animate-spin" />
+                  <Loader2 className="w-5 h-5 animate-spin" />
                 ) : showSaveSuccess ? (
-                  <CheckCircle2 className="w-4 h-4" />
+                  <CheckCircle2 className="w-5 h-5" />
                 ) : (
-                  <Star className="w-4 h-4" />
+                  <Star className="w-5 h-5" />
                 )}
-                {showSaveSuccess ? "Lagret!" : "Sett som standardvisning"}
               </button>
             )}
           </div>
@@ -639,30 +638,9 @@ export function CalendarView({ categories, resources, bookings: initialBookings 
         </div>
       )}
 
-      {/* Legend - only show resources that have bookings in the filtered view */}
+      {/* Legend - only show pending status */}
       <div className="flex flex-wrap items-center gap-4 text-sm">
-        <span className="text-gray-500">Fasiliteter:</span>
-        {(() => {
-          // Get unique resource IDs from filtered bookings
-          const visibleResourceIds = new Set(filteredBookings.map(b => b.resourceId))
-          
-          // If a specific resource is selected, only show that one
-          // Otherwise, show all resources that have bookings in the current view
-          const resourcesToShow = selectedResourceId
-            ? resources.filter(r => r.id === selectedResourceId)
-            : resources.filter(r => visibleResourceIds.has(r.id))
-          
-          return resourcesToShow.map((resource) => (
-            <div key={resource.id} className="flex items-center gap-2">
-              <div 
-                className="w-3 h-3 rounded" 
-                style={{ backgroundColor: resource.color }}
-              />
-              <span className="text-gray-600">{resource.name}</span>
-            </div>
-          ))
-        })()}
-        <div className="flex items-center gap-2 ml-4 pl-4 border-l border-gray-200">
+        <div className="flex items-center gap-2">
           <div className="w-4 h-3 rounded border-2 border-dashed border-gray-400 bg-gray-100" />
           <span className="text-gray-600">Venter på godkjenning</span>
         </div>
