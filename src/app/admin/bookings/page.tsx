@@ -158,7 +158,8 @@ export default function AdminBookingsPage() {
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({ error: "Ukjent feil" }))
         console.error("Error approving/rejecting booking:", errorData)
-        alert(`Feil: ${errorData.error || "Kunne ikke ${action === "approve" ? "godkjenne" : "avslå"} booking"}`)
+        const actionText = action === "approve" ? "godkjenne" : "avslå"
+        alert(`Feil: ${errorData.error || `Kunne ikke ${actionText} booking`}`)
         setProcessingId(null)
         return
       }
