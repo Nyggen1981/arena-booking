@@ -425,6 +425,34 @@ export function PublicCalendar({ categories, resources, bookings }: Props) {
                     return start.getHours() === hour
                   })
                   
+                  // Group overlapping bookings
+                  const bookingGroups: typeof bookingsStartingThisHour[][] = []
+                  bookingsStartingThisHour.forEach(booking => {
+                    const bookingStart = parseISO(booking.startTime)
+                    const bookingEnd = parseISO(booking.endTime)
+                    
+                    // Find a group this booking overlaps with
+                    let addedToGroup = false
+                    for (const group of bookingGroups) {
+                      const overlaps = group.some(b => {
+                        const bStart = parseISO(b.startTime)
+                        const bEnd = parseISO(b.endTime)
+                        return (bookingStart < bEnd && bookingEnd > bStart)
+                      })
+                      
+                      if (overlaps) {
+                        group.push(booking)
+                        addedToGroup = true
+                        break
+                      }
+                    }
+                    
+                    // If no overlap found, create new group
+                    if (!addedToGroup) {
+                      bookingGroups.push([booking])
+                    }
+                  })
+                  
                   return (
                     <div 
                       key={`${day.toISOString()}-${hour}`} 
@@ -432,38 +460,48 @@ export function PublicCalendar({ categories, resources, bookings }: Props) {
                         isToday(day) ? 'bg-blue-50/30' : ''
                       }`}
                     >
-                      {bookingsStartingThisHour.map((booking) => {
-                        const start = parseISO(booking.startTime)
-                        const end = parseISO(booking.endTime)
-                        const duration = (end.getTime() - start.getTime()) / (1000 * 60 * 60)
-                        const resourceColor = getResourceColor(booking.resourceId)
+                      {bookingGroups.flatMap((group) =>
+                        group.map((booking, index) => {
+                          const start = parseISO(booking.startTime)
+                          const end = parseISO(booking.endTime)
+                          const duration = (end.getTime() - start.getTime()) / (1000 * 60 * 60)
+                          const resourceColor = getResourceColor(booking.resourceId)
 
-                        // Add 2px gap between bookings
-                        const gapPx = 2
-                        const cellHeight = 48 // min-h-[48px]
-                        const topPx = (start.getMinutes() / 60) * cellHeight + gapPx
-                        const heightPx = duration * cellHeight - (gapPx * 2)
+                          // Add 2px gap between bookings
+                          const gapPx = 2
+                          const cellHeight = 48 // min-h-[48px]
+                          const topPx = (start.getMinutes() / 60) * cellHeight + gapPx
+                          const heightPx = duration * cellHeight - (gapPx * 2)
+                          
+                          // Calculate width and position for overlapping bookings
+                          const groupSize = group.length
+                          const gapBetween = groupSize > 1 ? 1 : 0 // Small gap between overlapping bookings in %
+                          const bookingWidthPercent = (100 - (gapBetween * (groupSize - 1))) / groupSize
+                          const leftPercent = index * (bookingWidthPercent + gapBetween)
 
-                        return (
-                          <button
-                            key={booking.id}
-                            onClick={() => setSelectedBooking(booking)}
-                            className="absolute left-0.5 right-0.5 rounded px-1.5 py-1 text-xs overflow-hidden cursor-pointer z-10 pointer-events-auto text-left booking-event"
-                            style={{
-                              top: `${topPx}px`,
-                              height: `${Math.max(heightPx, 36)}px`,
-                              backgroundColor: resourceColor,
-                              color: 'white',
-                              boxShadow: '0 1px 3px rgba(0,0,0,0.2)'
-                            }}
-                          >
-                            <p className="font-semibold truncate text-[11px]">{booking.title}</p>
-                            <p className="truncate text-[9px] opacity-80">
-                              {format(start, "HH:mm")}-{format(end, "HH:mm")}
-                            </p>
-                          </button>
-                        )
-                      })}
+                          return (
+                            <button
+                              key={booking.id}
+                              onClick={() => setSelectedBooking(booking)}
+                              className="absolute rounded px-1.5 py-1 text-xs overflow-hidden cursor-pointer z-10 pointer-events-auto text-left booking-event"
+                              style={{
+                                top: `${topPx}px`,
+                                left: `${leftPercent}%`,
+                                width: `${bookingWidthPercent}%`,
+                                height: `${Math.max(heightPx, 36)}px`,
+                                backgroundColor: resourceColor,
+                                color: 'white',
+                                boxShadow: '0 1px 3px rgba(0,0,0,0.2)'
+                              }}
+                            >
+                              <p className="font-semibold truncate text-[11px]">{booking.title}</p>
+                              <p className="truncate text-[9px] opacity-80">
+                                {format(start, "HH:mm")}-{format(end, "HH:mm")}
+                              </p>
+                            </button>
+                          )
+                        })
+                      )}
                     </div>
                   )
                 })}
