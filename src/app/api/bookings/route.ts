@@ -146,14 +146,14 @@ export async function POST(request: Request) {
       
       if (!resourcePartId) {
         // Booking whole facility
-        if (resource.blockPartsWhenWholeBooked) {
-          // Check if ANY booking exists (whole or parts)
+        if (resource.blockWholeWhenPartBooked) {
+          // If parts block whole facility, check if ANY booking exists (whole or parts)
           conflictingBookings = await prisma.booking.findMany({
             where: baseFilter,
             include: { resourcePart: true }
           })
         } else {
-          // Only check for whole facility bookings
+          // Only check for whole facility bookings (parts don't block whole facility)
           conflictingBookings = await prisma.booking.findMany({
             where: {
               ...baseFilter,
