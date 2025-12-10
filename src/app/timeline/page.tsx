@@ -1,13 +1,13 @@
 "use client"
 
 import { useSession } from "next-auth/react"
-import { useEffect, useState, useMemo } from "react"
+import { useEffect, useState, useMemo, useCallback } from "react"
 import { useRouter } from "next/navigation"
 import { Navbar } from "@/components/Navbar"
 import { Footer } from "@/components/Footer"
-import { format, parseISO, startOfDay, addDays, isSameDay, addHours, setHours, setMinutes } from "date-fns"
+import { format, parseISO, startOfDay, addDays, setHours } from "date-fns"
 import { nb } from "date-fns/locale"
-import { Calendar, ChevronLeft, ChevronRight, GanttChart, Clock, Filter } from "lucide-react"
+import { Calendar, ChevronLeft, ChevronRight, GanttChart, Filter } from "lucide-react"
 
 interface Booking {
   id: string
@@ -76,27 +76,7 @@ export default function TimelinePage() {
     }
   }, [status, router])
 
-  useEffect(() => {
-    if (session) {
-      fetchTimelineData()
-    }
-  }, [session, selectedDate])
-
-  // Initialize selected resources when data loads (select all by default)
-  useEffect(() => {
-    if (timelineData && timelineData.resources.length > 0) {
-      const allResourceIds = new Set(timelineData.resources.map(r => r.id))
-      // Only initialize if no resources are selected yet, or if selected resources don't match available resources
-      const hasValidSelection = selectedResources.size > 0 && 
-        Array.from(selectedResources).every(id => allResourceIds.has(id))
-      
-      if (!hasValidSelection) {
-        setSelectedResources(allResourceIds)
-      }
-    }
-  }, [timelineData])
-
-  const fetchTimelineData = async () => {
+  const fetchTimelineData = useCallback(async () => {
     setIsLoading(true)
     try {
       const dateStr = format(selectedDate, "yyyy-MM-dd")
@@ -110,7 +90,27 @@ export default function TimelinePage() {
     } finally {
       setIsLoading(false)
     }
-  }
+  }, [selectedDate])
+
+  useEffect(() => {
+    if (session) {
+      fetchTimelineData()
+    }
+  }, [session, fetchTimelineData])
+
+  // Initialize selected resources when data loads (select all by default)
+  useEffect(() => {
+    if (timelineData && timelineData.resources.length > 0) {
+      const allResourceIds = new Set(timelineData.resources.map(r => r.id))
+      // Only initialize if no resources are selected yet, or if selected resources don't match available resources
+      const hasValidSelection = selectedResources.size > 0 && 
+        Array.from(selectedResources).every(id => allResourceIds.has(id))
+      
+      if (!hasValidSelection) {
+        setSelectedResources(allResourceIds)
+      }
+    }
+  }, [timelineData, selectedResources])
 
   // Generate time slots (00:00 to 23:00, hourly)
   const timeSlots = useMemo(() => {
@@ -212,7 +212,7 @@ export default function TimelinePage() {
     }))
   }, [timelineData])
 
-  const toggleResource = (resourceId: string) => {
+  const toggleResource = useCallback((resourceId: string) => {
     setSelectedResources(prev => {
       const newSet = new Set(prev)
       if (newSet.has(resourceId)) {
@@ -222,30 +222,36 @@ export default function TimelinePage() {
       }
       return newSet
     })
-  }
+  }, [])
 
-  const selectAll = () => {
+  const selectAll = useCallback(() => {
     if (!timelineData) return
     const allResourceIds = new Set(timelineData.resources.map(r => r.id))
     setSelectedResources(allResourceIds)
-  }
+  }, [timelineData])
 
-  const deselectAll = () => {
+  const deselectAll = useCallback(() => {
     setSelectedResources(new Set())
-  }
+  }, [])
 
-  // Calculate booking position and width
-  const getBookingStyle = (booking: Booking) => {
-    const bookingStart = parseISO(booking.startTime)
-    const bookingEnd = parseISO(booking.endTime)
+  // Memoize day boundaries
+  const dayBoundaries = useMemo(() => {
     const dayStart = startOfDay(selectedDate)
     const dayEnd = addDays(dayStart, 1)
+    const dayDuration = 24 * 60 * 60 * 1000
+    return { dayStart, dayEnd, dayDuration }
+  }, [selectedDate])
+
+  // Calculate booking position and width - memoized
+  const getBookingStyle = useCallback((booking: Booking) => {
+    const bookingStart = parseISO(booking.startTime)
+    const bookingEnd = parseISO(booking.endTime)
+    const { dayStart, dayEnd, dayDuration } = dayBoundaries
 
     // Clamp booking times to the day
     const startTime = bookingStart < dayStart ? dayStart : bookingStart
     const endTime = bookingEnd > dayEnd ? dayEnd : bookingEnd
 
-    const dayDuration = 24 * 60 * 60 * 1000 // 24 hours in milliseconds
     const startOffset = startTime.getTime() - dayStart.getTime()
     const duration = endTime.getTime() - startTime.getTime()
 
@@ -257,11 +263,27 @@ export default function TimelinePage() {
       width: `${widthPercent}%`,
       minWidth: '20px'
     }
-  }
+  }, [dayBoundaries])
 
-  const changeDate = (days: number) => {
-    setSelectedDate(addDays(selectedDate, days))
-  }
+  const changeDate = useCallback((days: number) => {
+    setSelectedDate(prev => addDays(prev, days))
+  }, [])
+
+  const handleDatePickerClick = useCallback(() => {
+    const input = document.getElementById('timeline-date-input') as HTMLInputElement
+    if (input) {
+      if ('showPicker' in input && typeof input.showPicker === 'function') {
+        input.showPicker()
+      } else {
+        input.click()
+      }
+    }
+  }, [])
+
+  // Memoize formatted dates
+  const formattedDate = useMemo(() => format(selectedDate, "d. MMM yyyy", { locale: nb }), [selectedDate])
+  const formattedDateLong = useMemo(() => format(selectedDate, "EEEE d. MMMM yyyy", { locale: nb }), [selectedDate])
+  const dateInputValue = useMemo(() => format(selectedDate, "yyyy-MM-dd"), [selectedDate])
 
   if (status === "loading" || isLoading) {
     return (
@@ -283,28 +305,26 @@ export default function TimelinePage() {
         <div className="w-full px-4 sm:px-6 lg:px-8 py-6">
           {/* Header */}
           <div className="mb-6">
-            <div className="flex items-center justify-between mb-4">
-              <div className="flex items-center gap-4">
-                <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
-                  <GanttChart className="w-6 h-6" />
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-4">
+              <div className="flex items-center gap-2 sm:gap-4 flex-wrap">
+                <h1 className="text-xl sm:text-2xl font-bold text-gray-900 flex items-center gap-2">
+                  <GanttChart className="w-5 h-5 sm:w-6 sm:h-6" />
                   Tidslinje
                 </h1>
                 
                 {/* Filter Button */}
                 <button
                   onClick={() => setShowFilter(!showFilter)}
-                  className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-colors ${
+                  className={`flex items-center gap-2 px-3 sm:px-4 py-2 rounded-lg transition-colors text-sm ${
                     showFilter
                       ? "bg-blue-600 text-white"
                       : "bg-white text-gray-700 border border-gray-300 hover:bg-gray-50"
                   }`}
                 >
                   <Filter className="w-4 h-4" />
-                  Filter
+                  <span className="hidden sm:inline">Filter</span>
                   {selectedResources.size > 0 && (
-                    <span className={`px-2 py-0.5 text-xs rounded-full ${
-                      showFilter ? "bg-blue-100 text-blue-700" : "bg-blue-100 text-blue-700"
-                    }`}>
+                    <span className="px-2 py-0.5 text-xs rounded-full bg-blue-100 text-blue-700">
                       {selectedResources.size}
                     </span>
                   )}
@@ -312,37 +332,29 @@ export default function TimelinePage() {
               </div>
               
               {/* Date Navigation */}
-              <div className="flex items-center gap-4">
+              <div className="flex items-center gap-2 sm:gap-4 flex-wrap">
                 <button
                   onClick={() => changeDate(-1)}
                   className="p-2 rounded-lg hover:bg-gray-100 transition-colors"
+                  aria-label="Forrige dag"
                 >
                   <ChevronLeft className="w-5 h-5" />
                 </button>
                 
                 <div className="flex items-center gap-2">
-                  <Calendar className="w-4 h-4 text-gray-500" />
+                  <Calendar className="w-4 h-4 text-gray-500 hidden sm:block" />
                   <div className="relative group">
-                    <div className="px-3 py-2 border border-gray-300 rounded-lg bg-white text-sm text-gray-700 min-w-[140px] cursor-pointer flex items-center justify-between"
-                      onClick={() => {
-                        const input = document.getElementById('timeline-date-input') as HTMLInputElement
-                        if (input) {
-                          if ('showPicker' in input && typeof input.showPicker === 'function') {
-                            input.showPicker()
-                          } else {
-                            input.click()
-                          }
-                        }
-                      }}
+                    <div className="px-3 py-2 border border-gray-300 rounded-lg bg-white text-sm text-gray-700 min-w-[120px] sm:min-w-[140px] cursor-pointer flex items-center justify-between"
+                      onClick={handleDatePickerClick}
                     >
-                      <span>{format(selectedDate, "d. MMM yyyy", { locale: nb })}</span>
+                      <span>{formattedDate}</span>
                       <Calendar className="w-4 h-4 text-gray-400" />
                     </div>
                     <input
                       id="timeline-date-input"
                       type="date"
                       lang="no"
-                      value={format(selectedDate, "yyyy-MM-dd")}
+                      value={dateInputValue}
                       onChange={(e) => setSelectedDate(new Date(e.target.value))}
                       className="absolute inset-0 opacity-0 cursor-pointer"
                     />
@@ -352,13 +364,14 @@ export default function TimelinePage() {
                 <button
                   onClick={() => changeDate(1)}
                   className="p-2 rounded-lg hover:bg-gray-100 transition-colors"
+                  aria-label="Neste dag"
                 >
                   <ChevronRight className="w-5 h-5" />
                 </button>
                 
                 <button
                   onClick={() => setSelectedDate(new Date())}
-                  className="px-4 py-2 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                  className="px-3 sm:px-4 py-2 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
                 >
                   I dag
                 </button>
@@ -366,7 +379,7 @@ export default function TimelinePage() {
             </div>
             
             <p className="text-gray-600">
-              {format(selectedDate, "EEEE d. MMMM yyyy", { locale: nb })}
+              {formattedDateLong}
             </p>
           </div>
 
@@ -443,16 +456,17 @@ export default function TimelinePage() {
                 <div className="min-w-full">
                   {/* Time Header */}
                   <div className="flex border-b border-gray-200 bg-gray-50 sticky top-0 z-20">
-                    <div className="w-64 flex-shrink-0 p-3 font-medium text-gray-700 text-sm border-r border-gray-200">
-                      Fasilitet / Del
+                    <div className="w-48 sm:w-64 flex-shrink-0 p-2 sm:p-3 font-medium text-gray-700 text-xs sm:text-sm border-r border-gray-200">
+                      <span className="hidden sm:inline">Fasilitet / Del</span>
+                      <span className="sm:hidden">Fasilitet</span>
                     </div>
-                    <div className="flex-1 flex">
+                    <div className="flex-1 flex min-w-0">
                       {timeSlots.map((time, index) => (
                         <div
                           key={index}
-                          className="flex-1 border-r border-gray-200 last:border-r-0 p-2 text-center"
+                          className="flex-1 border-r border-gray-200 last:border-r-0 p-1 sm:p-2 text-center min-w-0"
                         >
-                          <div className="text-xs font-medium text-gray-600">
+                          <div className="text-[10px] sm:text-xs font-medium text-gray-600 truncate">
                             {format(time, "HH:mm")}
                           </div>
                         </div>
@@ -467,18 +481,18 @@ export default function TimelinePage() {
                         {/* Resource Header */}
                         <div className="bg-gray-50 border-b border-gray-200">
                           <div className="flex">
-                            <div className="w-64 flex-shrink-0 p-3 border-r border-gray-200">
-                              <div className="font-semibold text-gray-900 flex items-center gap-2">
+                            <div className="w-48 sm:w-64 flex-shrink-0 p-2 sm:p-3 border-r border-gray-200">
+                              <div className="font-semibold text-gray-900 flex items-center gap-2 text-sm sm:text-base">
                                 {resource.category && (
                                   <div
-                                    className="w-3 h-3 rounded-full"
+                                    className="w-2.5 h-2.5 sm:w-3 sm:h-3 rounded-full flex-shrink-0"
                                     style={{ backgroundColor: resource.category.color || "#6b7280" }}
                                   />
                                 )}
-                                {resource.name}
+                                <span className="truncate">{resource.name}</span>
                               </div>
                               {resource.category && (
-                                <div className="text-xs text-gray-500 mt-1">
+                                <div className="text-[10px] sm:text-xs text-gray-500 mt-0.5 sm:mt-1 truncate">
                                   {resource.category.name}
                                 </div>
                               )}
@@ -488,16 +502,16 @@ export default function TimelinePage() {
                         </div>
 
                         {/* Part Rows */}
-                        {parts.map(({ part, bookings }, partIndex) => (
+                        {parts.map(({ part, bookings }) => (
                           <div
                             key={part ? part.id : `whole-${resource.id}`}
                             className="flex border-b border-gray-100 hover:bg-gray-50 transition-colors"
                           >
                             {/* Part Label */}
-                            <div className="w-64 flex-shrink-0 p-3 border-r border-gray-200">
-                              <div className="text-sm text-gray-700">
+                            <div className="w-48 sm:w-64 flex-shrink-0 p-2 sm:p-3 border-r border-gray-200">
+                              <div className="text-xs sm:text-sm text-gray-700">
                                 {part ? (
-                                  <span className="text-gray-600">{part.name}</span>
+                                  <span className="text-gray-600 truncate block">{part.name}</span>
                                 ) : (
                                   <span className="font-medium text-gray-900">Hele fasiliteten</span>
                                 )}
@@ -520,6 +534,9 @@ export default function TimelinePage() {
                                 const style = getBookingStyle(booking)
                                 const isPending = booking.status === "pending"
                                 const color = resource.color || resource.category?.color || "#3b82f6"
+                                const startTime = parseISO(booking.startTime)
+                                const endTime = parseISO(booking.endTime)
+                                const timeStr = `${format(startTime, "HH:mm")} - ${format(endTime, "HH:mm")}`
                                 
                                 return (
                                   <div
@@ -530,11 +547,11 @@ export default function TimelinePage() {
                                       backgroundColor: isPending ? `${color}80` : color,
                                       border: isPending ? `2px dashed ${color}` : 'none',
                                     }}
-                                    title={`${booking.title}\n${format(parseISO(booking.startTime), "HH:mm")} - ${format(parseISO(booking.endTime), "HH:mm")}\n${booking.user.name || booking.user.email}\n${isPending ? "Venter på godkjenning" : "Godkjent"}`}
+                                    title={`${booking.title}\n${timeStr}\n${booking.user.name || booking.user.email}\n${isPending ? "Venter på godkjenning" : "Godkjent"}`}
                                   >
                                     <div className="truncate font-semibold">{booking.title}</div>
                                     <div className="truncate text-[10px] opacity-90">
-                                      {format(parseISO(booking.startTime), "HH:mm")} - {format(parseISO(booking.endTime), "HH:mm")}
+                                      {timeStr}
                                     </div>
                                     {booking.user.name && (
                                       <div className="truncate text-[10px] opacity-75">
