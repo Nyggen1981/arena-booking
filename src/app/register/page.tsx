@@ -96,7 +96,7 @@ function RegisterForm() {
         })
 
         if (!result?.error) {
-          router.push("/")
+          router.push("/resources")
           router.refresh()
           return
         }
