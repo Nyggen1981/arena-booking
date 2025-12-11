@@ -309,7 +309,7 @@ export function ResourceCalendar({ resourceId, resourceName, bookings, parts }: 
           {/* Time grid with sticky header */}
           <div ref={weekViewScrollRef} className="max-h-[600px] overflow-y-auto pr-[17px]">
             {/* Header - sticky */}
-            <div className="grid bg-gray-50 border-b border-gray-200 sticky top-0 z-10 gap-x-2" style={{ gridTemplateColumns: '60px repeat(7, 1fr)' }}>
+            <div className="grid bg-gray-50 border-b border-gray-200 sticky top-0 z-20 gap-x-2" style={{ gridTemplateColumns: '60px repeat(7, 1fr)' }}>
               <div className="p-3 text-center text-sm font-medium text-gray-500" />
               {weekDays.map((day) => (
                 <div 
