@@ -1,49 +1,44 @@
 import { PageLayout } from "@/components/PageLayout"
 import { ResourceFilter } from "@/components/ResourceFilter"
 import { prisma } from "@/lib/prisma"
-import { unstable_cache } from "next/cache"
-import { redirect } from "next/navigation"
 
 // Revalidate every 60 seconds
 export const revalidate = 60
 
-// Cache resources for 60 seconds
-const getResources = unstable_cache(
-  async () => {
-    try {
-      return await prisma.resource.findMany({
-        where: { isActive: true },
-        include: {
-          category: true,
-          parts: true,
+// Fetch resources directly (cache removed temporarily to debug)
+async function getResources() {
+  try {
+    return await prisma.resource.findMany({
+      where: { isActive: true },
+      include: {
+        category: true,
+        parts: {
+          where: { isActive: true },
+          orderBy: { name: "asc" }
         },
-        orderBy: [
-          { category: { name: "asc" } },
-          { name: "asc" }
-        ]
-      })
-    } catch {
-      return []
-    }
-  },
-  ["resources-list"],
-  { revalidate: 60 }
-)
+      },
+      orderBy: [
+        { category: { name: "asc" } },
+        { name: "asc" }
+      ]
+    })
+  } catch (error) {
+    console.error("Error fetching resources:", error)
+    return []
+  }
+}
 
-// Cache categories for 5 minutes (rarely changes)
-const getCategories = unstable_cache(
-  async () => {
-    try {
-      return await prisma.resourceCategory.findMany({
-        orderBy: { name: "asc" }
-      })
-    } catch {
-      return []
-    }
-  },
-  ["categories"],
-  { revalidate: 300 }
-)
+// Fetch categories directly (cache removed temporarily to debug)
+async function getCategories() {
+  try {
+    return await prisma.resourceCategory.findMany({
+      orderBy: { name: "asc" }
+    })
+  } catch (error) {
+    console.error("Error fetching categories:", error)
+    return []
+  }
+}
 
 export default async function ResourcesPage() {
   const [resources, categories] = await Promise.all([
