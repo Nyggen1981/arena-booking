@@ -282,7 +282,6 @@ export default function TimelinePage() {
 
   // Memoize formatted dates
   const formattedDate = useMemo(() => format(selectedDate, "d. MMM yyyy", { locale: nb }), [selectedDate])
-  const formattedDateLong = useMemo(() => format(selectedDate, "EEEE d. MMMM yyyy", { locale: nb }), [selectedDate])
   const dateInputValue = useMemo(() => format(selectedDate, "yyyy-MM-dd"), [selectedDate])
 
   if (status === "loading" || isLoading) {
@@ -377,10 +376,6 @@ export default function TimelinePage() {
                 </button>
               </div>
             </div>
-            
-            <p className="text-gray-600">
-              {formattedDateLong}
-            </p>
           </div>
 
           {/* Filter Panel - Compact */}
