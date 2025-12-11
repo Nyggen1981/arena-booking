@@ -132,6 +132,17 @@ export default function FacilityDetailScreen() {
             )}
           </View>
 
+          {/* Price info */}
+          {resource.visPrisInfo && resource.prisInfo && (
+            <View style={styles.priceInfo}>
+              <View style={styles.priceInfoHeader}>
+                <Ionicons name="cash-outline" size={20} color="#2563eb" />
+                <Text style={styles.priceInfoTitle}>Prisinfo</Text>
+              </View>
+              <Text style={styles.priceInfoText}>{resource.prisInfo}</Text>
+            </View>
+          )}
+
           {/* Parts selection */}
           {resource.parts.length > 0 && (
             <View style={styles.partsSection}>
@@ -294,6 +305,30 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '500',
     color: '#1e293b',
+  },
+  priceInfo: {
+    backgroundColor: '#fff',
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 24,
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+  },
+  priceInfoHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 12,
+  },
+  priceInfoTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#1e293b',
+  },
+  priceInfoText: {
+    fontSize: 14,
+    color: '#475569',
+    lineHeight: 20,
   },
   partsSection: {
     marginTop: 8,

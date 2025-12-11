@@ -47,6 +47,8 @@ export interface Resource {
   minBookingMinutes?: number | null
   maxBookingMinutes?: number | null
   requiresApproval: boolean
+  prisInfo?: string | null
+  visPrisInfo?: boolean
   categoryId?: string | null
   category?: ResourceCategory | null
   parts: ResourcePart[]
