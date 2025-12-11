@@ -109,6 +109,10 @@ model Resource {
   requiresApproval   Boolean @default(true)
   advanceBookingDays Int?    @default(30)
 
+  // Price info
+  prisInfo    String? // Price information text
+  visPrisInfo Boolean @default(false) // Whether to show price info
+
   // Opening hours (stored as JSON string)
   openingHours String?
 
