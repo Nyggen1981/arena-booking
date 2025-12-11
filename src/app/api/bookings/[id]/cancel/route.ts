@@ -68,49 +68,40 @@ export async function POST(
       ? `${booking.resource.name} → ${booking.resourcePart.name}`
       : booking.resource.name
 
-    // Send email notification
-    if (isAdmin) {
-      // Admin cancelled - notify the booker
-      const userEmail = booking.contactEmail || booking.user.email
-      if (userEmail) {
-        const emailContent = await getBookingCancelledByAdminEmail(
-          booking.resource.organizationId,
-          booking.title,
-          resourceName,
-          date,
-          time,
-          reason
-        )
-        await sendEmail(booking.resource.organizationId, {
-          to: userEmail,
-          ...emailContent
-        })
-      }
-    } else {
-      // User cancelled - notify admin(s)
-      const admins = await prisma.user.findMany({
-        where: {
-          organizationId: booking.resource.organizationId,
-          role: "admin"
+    // Send email notification (non-blocking)
+    const orgId = booking.resource.organizationId
+    const sendEmailsAsync = async () => {
+      try {
+        if (isAdmin) {
+          // Admin cancelled - notify the booker
+          const userEmail = booking.contactEmail || booking.user.email
+          if (userEmail) {
+            const emailContent = await getBookingCancelledByAdminEmail(
+              orgId, booking.title, resourceName, date, time, reason
+            )
+            await sendEmail(orgId, { to: userEmail, ...emailContent })
+          }
+        } else {
+          // User cancelled - notify admin(s) in parallel
+          const admins = await prisma.user.findMany({
+            where: { organizationId: orgId, role: "admin" },
+            select: { email: true }
+          })
+          
+          const userName = booking.user.name || booking.contactName || "Ukjent"
+          await Promise.all(admins.map(async (admin) => {
+            const emailContent = await getBookingCancelledByUserEmail(
+              orgId, booking.title, resourceName, date, time, userName, booking.user.email
+            )
+            await sendEmail(orgId, { to: admin.email, ...emailContent })
+          }))
         }
-      })
-
-      for (const admin of admins) {
-        const emailContent = await getBookingCancelledByUserEmail(
-          booking.resource.organizationId,
-          booking.title,
-          resourceName,
-          date,
-          time,
-          booking.user.name || booking.contactName || "Ukjent",
-          booking.user.email
-        )
-        await sendEmail(booking.resource.organizationId, {
-          to: admin.email,
-          ...emailContent
-        })
+      } catch (error) {
+        console.error("Failed to send cancellation emails:", error)
       }
     }
+    
+    void sendEmailsAsync()
 
     return NextResponse.json({ success: true })
   } catch (error) {
