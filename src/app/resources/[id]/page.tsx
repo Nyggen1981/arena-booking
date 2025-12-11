@@ -309,10 +309,7 @@ export default async function ResourcePage({ params }: Props) {
             {/* Price info */}
             {resource.visPrisInfo && resource.prisInfo && (
               <div className="card p-6">
-                <h3 className="font-semibold text-gray-900 mb-4 flex items-center gap-2">
-                  <DollarSign className="w-5 h-5 text-blue-600" />
-                  Prisinfo
-                </h3>
+                <h3 className="font-semibold text-gray-900 mb-4">Prisinfo</h3>
                 <div className="text-sm text-gray-600 whitespace-pre-wrap">{resource.prisInfo}</div>
               </div>
             )}

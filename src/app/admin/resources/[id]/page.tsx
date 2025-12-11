@@ -557,29 +557,14 @@ export default function EditResourcePage({ params }: Props) {
                   <label className="block text-sm font-medium text-gray-700 mb-2">
                     Prisinformasjon
                   </label>
-                  {/* Preview box matching the display on facility page */}
-                  <div className="card p-6 mb-4 bg-gray-50">
-                    <h3 className="font-semibold text-gray-900 mb-4 flex items-center gap-2">
-                      <span className="text-blue-600">$</span>
-                      Prisinfo
-                    </h3>
-                    <div className="text-sm text-gray-600 whitespace-pre-wrap min-h-[60px]">
-                      {prisInfo || <span className="text-gray-400 italic">Forhåndsvisning vises her...</span>}
-                    </div>
-                  </div>
                   <textarea
                     value={prisInfo}
                     onChange={(e) => setPrisInfo(e.target.value)}
-                    className="input text-sm whitespace-pre-wrap font-mono min-h-[150px]"
+                    className="input min-h-[100px]"
                     placeholder="F.eks. 500 kr/time, 300 kr/time for medlemmer..."
-                    style={{ 
-                      fontFamily: 'inherit',
-                      lineHeight: '1.5',
-                      resize: 'vertical'
-                    }}
                   />
                   <p className="text-xs text-gray-500 mt-1">
-                    Denne informasjonen vises under "Booking-info" på fasilitetssiden. Linjeskift, mellomrom og tabulering bevares.
+                    Denne informasjonen vises under "Booking-info" på fasilitetssiden
                   </p>
                 </div>
               )}
