@@ -22,7 +22,7 @@ export async function PATCH(
   let body: { action?: string; status?: string; statusNote?: string; applyToAll?: boolean } = {}
   try {
     body = await request.json()
-  } catch (jsonError) {
+  } catch {
     try {
       const bodyText = await request.text()
       if (bodyText && bodyText.trim()) {
@@ -120,45 +120,16 @@ export async function PATCH(
       : booking.resource.name
     const count = bookingIdsToUpdate.length
 
-<<<<<<< Updated upstream
-    if (action === "approve") {
-      console.log("Sending APPROVED email to:", userEmail)
-      const count = bookingIdsToUpdate.length
-      const emailContent = await getBookingApprovedEmail(
-        booking.organizationId,
-        booking.title, 
-        resourceName, 
-        count > 1 ? `${date} (og ${count - 1} andre datoer)` : date, 
-        time
-      )
-      console.log("Approved email subject:", emailContent.subject)
-      await sendEmail(booking.organizationId, { to: userEmail, ...emailContent })
-    } else {
-      console.log("Sending REJECTED email to:", userEmail)
-      const count = bookingIdsToUpdate.length
-      const emailContent = await getBookingRejectedEmail(
-        booking.organizationId,
-        booking.title, 
-        resourceName, 
-        count > 1 ? `${date} (og ${count - 1} andre datoer)` : date, 
-        time, 
-        statusNote
-      )
-      console.log("Rejected email subject:", emailContent.subject)
-      await sendEmail(booking.organizationId, { to: userEmail, ...emailContent })
-=======
     // Fire and forget - don't block the response
     const sendEmailAsync = async () => {
       try {
         if (action === "approve") {
-          const adminNote = (booking.resourcePart as any)?.adminNote || null
           const emailContent = await getBookingApprovedEmail(
             booking.organizationId,
             booking.title, 
             resourceName, 
             count > 1 ? `${date} (og ${count - 1} andre datoer)` : date, 
-            time,
-            adminNote
+            time
           )
           await sendEmail(booking.organizationId, { to: userEmail, ...emailContent })
         } else {
@@ -175,7 +146,6 @@ export async function PATCH(
       } catch (error) {
         console.error("Failed to send email:", error)
       }
->>>>>>> Stashed changes
     }
     
     // Don't await - let it run in background

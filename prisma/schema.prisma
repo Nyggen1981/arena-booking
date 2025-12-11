@@ -207,9 +207,7 @@ model Booking {
   @@index([organizationId])
   @@index([startTime])
   @@index([status])
-  @@index([userSeenAt]) // For unread notifications
   @@index([parentBookingId]) // For recurring bookings
-  @@index([userId, userSeenAt, status]) // For user notification counts
 }
 
 // Email templates for customizing automated emails
