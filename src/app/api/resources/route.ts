@@ -7,11 +7,34 @@ export async function GET() {
       where: {
         isActive: true,
       },
-      include: {
-        category: true,
+      select: {
+        id: true,
+        name: true,
+        description: true,
+        location: true,
+        image: true,
+        color: true,
+        minBookingMinutes: true,
+        maxBookingMinutes: true,
+        requiresApproval: true,
+        category: {
+          select: {
+            id: true,
+            name: true,
+            color: true
+          }
+        },
         parts: {
           where: {
             isActive: true,
+          },
+          select: {
+            id: true,
+            name: true,
+            description: true,
+            capacity: true,
+            mapCoordinates: true
+            // Excluding adminNote since it doesn't exist in database yet
           },
           orderBy: {
             name: 'asc',
