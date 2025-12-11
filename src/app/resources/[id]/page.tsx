@@ -313,9 +313,7 @@ export default async function ResourcePage({ params }: Props) {
                   <DollarSign className="w-5 h-5 text-blue-600" />
                   Prisinfo
                 </h3>
-                <div className="text-sm text-gray-600 whitespace-pre-line">
-                  {resource.prisInfo}
-                </div>
+                <div className="text-sm text-gray-600 whitespace-pre-wrap">{resource.prisInfo}</div>
               </div>
             )}
 
