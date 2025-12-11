@@ -33,7 +33,30 @@ async function getResource(id: string) {
 
     return await prisma.resource.findUnique({
       where: { id },
-      include: {
+      select: {
+        id: true,
+        name: true,
+        description: true,
+        location: true,
+        image: true,
+        mapImage: true,
+        color: true,
+        isActive: true,
+        showOnPublicCalendar: true,
+        blockPartsWhenWholeBooked: true,
+        blockWholeWhenPartBooked: true,
+        allowWholeBooking: true,
+        minBookingMinutes: true,
+        maxBookingMinutes: true,
+        requiresApproval: true,
+        advanceBookingDays: true,
+        openingHours: true,
+        prisInfo: true,
+        visPrisInfo: true,
+        createdAt: true,
+        updatedAt: true,
+        organizationId: true,
+        categoryId: true,
         category: {
           select: {
             id: true,
@@ -49,6 +72,7 @@ async function getResource(id: string) {
             description: true,
             capacity: true,
             mapCoordinates: true
+            // Excluding adminNote since it doesn't exist in database yet
           },
           orderBy: { name: "asc" }
         },

@@ -95,27 +95,35 @@ export async function GET(request: Request) {
         organizationId,
         isActive: true
       },
-    include: {
-      category: {
-        select: {
-          id: true,
-          name: true,
-          color: true
+      select: {
+        id: true,
+        name: true,
+        description: true,
+        location: true,
+        image: true,
+        color: true,
+        isActive: true,
+        categoryId: true,
+        category: {
+          select: {
+            id: true,
+            name: true,
+            color: true
+          }
+        },
+        parts: {
+          where: { isActive: true },
+          select: {
+            id: true,
+            name: true
+          },
+          orderBy: { name: "asc" }
         }
       },
-      parts: {
-        where: { isActive: true },
-        select: {
-          id: true,
-          name: true
-        },
-        orderBy: { name: "asc" }
-      }
-    },
-    orderBy: [
-      { category: { name: "asc" } },
-      { name: "asc" }
-    ]
+      orderBy: [
+        { category: { name: "asc" } },
+        { name: "asc" }
+      ]
     })
   ])
 
