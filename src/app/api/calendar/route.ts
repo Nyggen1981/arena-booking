@@ -30,9 +30,35 @@ export async function GET(request: Request) {
           in: ['approved', 'pending'],
         },
       },
-      include: {
-        resource: true,
-        resourcePart: true,
+      select: {
+        id: true,
+        title: true,
+        startTime: true,
+        endTime: true,
+        status: true,
+        isRecurring: true,
+        parentBookingId: true,
+        userId: true,
+        resource: {
+          select: {
+            id: true,
+            name: true,
+            color: true,
+            category: {
+              select: {
+                id: true,
+                name: true,
+                color: true
+              }
+            }
+          }
+        },
+        resourcePart: {
+          select: {
+            id: true,
+            name: true
+          }
+        },
         user: {
           select: {
             id: true,
