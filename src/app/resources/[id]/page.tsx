@@ -11,8 +11,7 @@ import {
   ArrowLeft,
   CheckCircle2,
   AlertCircle,
-  Users,
-  DollarSign
+  Users
 } from "lucide-react"
 import { ResourceCalendar } from "@/components/ResourceCalendar"
 import { MapViewer } from "@/components/MapViewer"
