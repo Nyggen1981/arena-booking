@@ -512,27 +512,19 @@ export function CalendarView({ categories, resources, bookings: initialBookings 
                           
                           // Calculate width and position for overlapping bookings
                           const groupSize = group.length
-                          const bookingStart = start
-                          const bookingEnd = end
-                          // Only add gap if bookings actually overlap (not just same start time)
-                          const hasOverlap = group.some((b, i) => {
-                            if (i === index) return false
-                            const bStart = parseISO(b.startTime)
-                            const bEnd = parseISO(b.endTime)
-                            return (bookingStart < bEnd && bookingEnd > bStart && 
-                                    (bookingStart.getTime() !== bStart.getTime() || bookingEnd.getTime() !== bEnd.getTime()))
-                          })
-                          const gapBetweenPx = hasOverlap ? 3 : 0 // More gap horizontally (3px) vs vertical (1px)
-                          const bookingWidthPercent = 100 / groupSize
-                          const marginRight = index < groupSize - 1 ? gapBetweenPx : 0
                           const isSingleBox = groupSize === 1
-                          const leftPercent = isSingleBox ? 50 : (index * bookingWidthPercent)
-                          // Center single boxes with small margin from edges
+                          
+                          // Side by side layout for multiple bookings
+                          const gapPxHorizontal = 2 // Gap between side-by-side bookings
+                          const totalGaps = groupSize - 1
+                          const availableWidth = 100 // percent
+                          const bookingWidthPercent = (availableWidth - (totalGaps * gapPxHorizontal / 0.48)) / groupSize // approx conversion
+                          const leftPercent = index * (100 / groupSize)
+                          
+                          // For single box: centered with margin. For multiple: side by side
                           const boxWidth = isSingleBox 
                             ? 'calc(100% - 4px)' 
-                            : (marginRight > 0 
-                              ? `calc(${bookingWidthPercent}% - ${marginRight}px)` 
-                              : `${bookingWidthPercent}%`)
+                            : `calc(${100 / groupSize}% - ${gapPxHorizontal}px)`
 
                           return (
                             <div
@@ -543,8 +535,7 @@ export function CalendarView({ categories, resources, bookings: initialBookings 
                               }`}
                               style={{
                                 top: `${topPx}px`,
-                                left: isSingleBox ? '50%' : `${leftPercent}%`,
-                                transform: isSingleBox ? 'translateX(-50%)' : 'none',
+                                left: isSingleBox ? '2px' : `calc(${leftPercent}% + ${index * gapPxHorizontal}px)`,
                                 width: boxWidth,
                                 height: `${Math.max(heightPx, 36)}px`,
                                 backgroundColor: isPending 
@@ -557,8 +548,7 @@ export function CalendarView({ categories, resources, bookings: initialBookings 
                                 display: 'flex',
                                 flexDirection: 'column',
                                 justifyContent: 'flex-start',
-                                alignItems: 'flex-start',
-                                marginRight: `${marginRight}px`
+                                alignItems: 'flex-start'
                               }}
                               title={`${format(start, "HH:mm")}-${format(end, "HH:mm")} ${booking.title} - ${booking.resourceName}${booking.resourcePartName ? ` (${booking.resourcePartName})` : ''}${isPending ? ' (venter på godkjenning)' : ''} - Klikk for mer info`}
                             >
