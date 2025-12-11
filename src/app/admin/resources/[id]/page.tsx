@@ -33,6 +33,7 @@ interface Part {
   description: string
   capacity: string
   mapCoordinates?: string | null
+  adminNote?: string | null
   parentId?: string | null
   isNew?: boolean
 }
@@ -70,6 +71,8 @@ export default function EditResourcePage({ params }: Props) {
   const [allowWholeBooking, setAllowWholeBooking] = useState(true)
   const [mapImage, setMapImage] = useState<string | null>(null)
   const [parts, setParts] = useState<Part[]>([])
+  const [prisInfo, setPrisInfo] = useState("")
+  const [visPrisInfo, setVisPrisInfo] = useState(false)
 
   useEffect(() => {
     if (status === "unauthenticated") {
@@ -106,12 +109,15 @@ export default function EditResourcePage({ params }: Props) {
       setShowOnPublicCalendar(resource.showOnPublicCalendar ?? true)
       setAllowWholeBooking(resource.allowWholeBooking ?? true)
       setMapImage(resource.mapImage || null)
-      setParts(resource.parts?.map((p: { id: string; name: string; description?: string; capacity?: number; mapCoordinates?: string; parentId?: string }) => ({
+      setPrisInfo(resource.prisInfo || "")
+      setVisPrisInfo(resource.visPrisInfo ?? false)
+      setParts(resource.parts?.map((p: { id: string; name: string; description?: string; capacity?: number; mapCoordinates?: string; adminNote?: string; parentId?: string }) => ({
         id: p.id,
         name: p.name,
         description: p.description || "",
         capacity: p.capacity ? String(p.capacity) : "",
         mapCoordinates: p.mapCoordinates || null,
+        adminNote: p.adminNote || null,
         parentId: p.parentId || null
       })) || [])
       
@@ -174,6 +180,8 @@ export default function EditResourcePage({ params }: Props) {
           advanceBookingDays: limitAdvanceBooking ? parseInt(advanceBookingDays) : null,
           showOnPublicCalendar,
           allowWholeBooking,
+          prisInfo: visPrisInfo ? prisInfo : null,
+          visPrisInfo,
           parts: parts.filter(p => p.name.trim()).map(p => ({
             id: p.id,
             tempId: p.tempId,
@@ -200,6 +208,8 @@ export default function EditResourcePage({ params }: Props) {
       setLimitDuration(hasLimit)
       setMinBookingMinutes(String(updatedResource.minBookingMinutes || 60))
       setMaxBookingMinutes(String(updatedResource.maxBookingMinutes || 240))
+      setPrisInfo(updatedResource.prisInfo || "")
+      setVisPrisInfo(updatedResource.visPrisInfo ?? false)
       setParts(updatedResource.parts?.map((p: { id: string; name: string; description?: string; capacity?: number; mapCoordinates?: string; parentId?: string }) => ({
         id: p.id,
         name: p.name,
@@ -523,6 +533,41 @@ export default function EditResourcePage({ params }: Props) {
                   Vis fasiliteten på offentlig kalender (forsiden)
                 </label>
               </div>
+            </div>
+
+            {/* Price info */}
+            <div className="space-y-4">
+              <h2 className="font-semibold text-gray-900 border-b pb-2">Prisinfo</h2>
+              
+              <div className="flex items-center gap-3">
+                <input
+                  type="checkbox"
+                  id="visPrisInfo"
+                  checked={visPrisInfo}
+                  onChange={(e) => setVisPrisInfo(e.target.checked)}
+                  className="w-5 h-5 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                />
+                <label htmlFor="visPrisInfo" className="text-sm font-medium text-gray-700">
+                  Vis prisinfo på fasilitetssiden
+                </label>
+              </div>
+
+              {visPrisInfo && (
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Prisinformasjon
+                  </label>
+                  <textarea
+                    value={prisInfo}
+                    onChange={(e) => setPrisInfo(e.target.value)}
+                    className="input min-h-[100px]"
+                    placeholder="F.eks. 500 kr/time, 300 kr/time for medlemmer..."
+                  />
+                  <p className="text-xs text-gray-500 mt-1">
+                    Denne informasjonen vises under "Booking-info" på fasilitetssiden
+                  </p>
+                </div>
+              )}
             </div>
 
             {/* Parts - Hierarchical */}

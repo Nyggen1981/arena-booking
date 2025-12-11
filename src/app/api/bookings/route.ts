@@ -385,7 +385,10 @@ export async function GET() {
         }
       },
       resourcePart: {
-        select: { name: true }
+        select: { 
+          id: true,
+          name: true 
+        }
       }
     },
     orderBy: { startTime: "desc" }

@@ -106,7 +106,8 @@ export async function PATCH(
       status: newStatus,
       statusNote: statusNote || null,
       approvedAt: action === "approve" ? new Date() : null,
-      approvedById: action === "approve" ? session.user.id : null
+      approvedById: action === "approve" ? session.user.id : null,
+      userSeenAt: null // Reset so user sees the notification
     }
   })
 
@@ -124,12 +125,14 @@ export async function PATCH(
     const sendEmailAsync = async () => {
       try {
         if (action === "approve") {
+          const adminNote = (booking.resourcePart as any)?.adminNote || null
           const emailContent = await getBookingApprovedEmail(
             booking.organizationId,
             booking.title, 
             resourceName, 
             count > 1 ? `${date} (og ${count - 1} andre datoer)` : date, 
-            time
+            time,
+            adminNote
           )
           await sendEmail(booking.organizationId, { to: userEmail, ...emailContent })
         } else {

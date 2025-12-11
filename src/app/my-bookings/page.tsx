@@ -1,7 +1,7 @@
 "use client"
 
 import { useSession } from "next-auth/react"
-import { useEffect, useState, useMemo } from "react"
+import { useEffect, useState, useMemo, useCallback } from "react"
 import { useRouter } from "next/navigation"
 import { Navbar } from "@/components/Navbar"
 import { Footer } from "@/components/Footer"
@@ -39,7 +39,7 @@ interface Booking {
     location: string | null
     color?: string
   }
-  resourcePart: { name: string } | null
+  resourcePart: { id: string; name: string } | null
 }
 
 type Tab = "upcoming" | "history"
@@ -51,9 +51,13 @@ export default function MyBookingsPage() {
   const [isLoading, setIsLoading] = useState(true)
   const [activeTab, setActiveTab] = useState<Tab>("upcoming")
   const [cancellingId, setCancellingId] = useState<string | null>(null)
+  const [deletingId, setDeletingId] = useState<string | null>(null)
   const [editingBooking, setEditingBooking] = useState<Booking | null>(null)
   const [isProcessing, setIsProcessing] = useState(false)
   const [selectedResourceId, setSelectedResourceId] = useState<string | null>(null)
+  const [unreadCounts, setUnreadCounts] = useState({ upcoming: 0, history: 0 })
+  const [selectedForDelete, setSelectedForDelete] = useState<Set<string>>(new Set())
+  const [showBulkDeleteModal, setShowBulkDeleteModal] = useState(false)
 
   // Get unique resources from bookings
   const resources = useMemo(() => {
@@ -72,30 +76,148 @@ export default function MyBookingsPage() {
     }
   }, [status, router])
 
-  useEffect(() => {
-    if (session) {
-      fetch("/api/bookings")
-        .then(res => res.json())
-        .then(data => {
-          setBookings(data)
-          setIsLoading(false)
-        })
+  const fetchBookings = useCallback(async () => {
+    if (!session) return
+    try {
+      const res = await fetch("/api/bookings")
+      const data = await res.json()
+      setBookings(data)
+    } catch (error) {
+      console.error("Failed to fetch bookings:", error)
+    } finally {
+      setIsLoading(false)
     }
   }, [session])
 
-  const handleCancel = async (bookingId: string) => {
-    setIsProcessing(true)
-    const response = await fetch(`/api/bookings/${bookingId}/cancel`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({})
-    })
-    if (response.ok) {
-      setBookings(bookings.map(b => b.id === bookingId ? { ...b, status: "cancelled" } : b))
+  useEffect(() => {
+    if (session) {
+      fetchBookings()
     }
-    setIsProcessing(false)
-    setCancellingId(null)
-  }
+  }, [session, fetchBookings])
+
+  // Fetch unread counts
+  const fetchUnreadCounts = useCallback(async () => {
+    try {
+      const res = await fetch("/api/bookings/unread")
+      if (res.ok) {
+        const data = await res.json()
+        setUnreadCounts({ upcoming: data.upcoming, history: data.history })
+      }
+    } catch (error) {
+      console.error("Failed to fetch unread counts:", error)
+    }
+  }, [])
+
+  useEffect(() => {
+    if (session) {
+      fetchUnreadCounts()
+    }
+  }, [session, fetchUnreadCounts])
+
+  // Mark bookings as seen when switching tabs
+  const handleTabChange = useCallback(async (tab: Tab) => {
+    setActiveTab(tab)
+    setSelectedForDelete(new Set()) // Clear selection when switching tabs
+    
+    // Mark bookings as seen for this tab
+    if ((tab === "upcoming" && unreadCounts.upcoming > 0) || 
+        (tab === "history" && unreadCounts.history > 0)) {
+      try {
+        await fetch("/api/bookings/mark-seen", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ type: tab })
+        })
+        // Update local state
+        setUnreadCounts(prev => ({
+          ...prev,
+          [tab]: 0
+        }))
+      } catch (error) {
+        console.error("Failed to mark bookings as seen:", error)
+      }
+    }
+  }, [unreadCounts])
+
+  const handleCancel = useCallback(async (bookingId: string) => {
+    setIsProcessing(true)
+    try {
+      const response = await fetch(`/api/bookings/${bookingId}/cancel`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({})
+      })
+      if (response.ok) {
+        setBookings(prev => prev.map(b => b.id === bookingId ? { ...b, status: "cancelled" } : b))
+      }
+    } catch (error) {
+      console.error("Failed to cancel booking:", error)
+    } finally {
+      setIsProcessing(false)
+      setCancellingId(null)
+    }
+  }, [])
+
+  const handleDelete = useCallback(async (bookingId: string) => {
+    setIsProcessing(true)
+    try {
+      const response = await fetch(`/api/bookings/${bookingId}`, {
+        method: "DELETE"
+      })
+      if (response.ok) {
+        setBookings(prev => prev.filter(b => b.id !== bookingId))
+      }
+    } catch (error) {
+      console.error("Failed to delete booking:", error)
+    } finally {
+      setIsProcessing(false)
+      setDeletingId(null)
+    }
+  }, [])
+
+  const handleBulkDelete = useCallback(async () => {
+    if (selectedForDelete.size === 0) return
+    setIsProcessing(true)
+    try {
+      // Delete all selected bookings in parallel
+      const deletePromises = Array.from(selectedForDelete).map(id =>
+        fetch(`/api/bookings/${id}`, { method: "DELETE" })
+      )
+      await Promise.all(deletePromises)
+      setBookings(prev => prev.filter(b => !selectedForDelete.has(b.id)))
+      setSelectedForDelete(new Set())
+    } catch (error) {
+      console.error("Failed to delete bookings:", error)
+    } finally {
+      setIsProcessing(false)
+      setShowBulkDeleteModal(false)
+    }
+  }, [selectedForDelete])
+
+  const toggleSelectBooking = useCallback((bookingId: string) => {
+    setSelectedForDelete(prev => {
+      const newSet = new Set(prev)
+      if (newSet.has(bookingId)) {
+        newSet.delete(bookingId)
+      } else {
+        newSet.add(bookingId)
+      }
+      return newSet
+    })
+  }, [])
+
+  const toggleSelectAll = useCallback((bookingIds: string[]) => {
+    setSelectedForDelete(prev => {
+      const allSelected = bookingIds.every(id => prev.has(id))
+      if (allSelected) {
+        // Deselect all
+        return new Set()
+      } else {
+        // Select all
+        return new Set(bookingIds)
+      }
+    })
+  }, [])
 
   // Categorize and filter bookings
   const { upcoming, history } = useMemo(() => {
@@ -118,15 +240,15 @@ export default function MyBookingsPage() {
 
   const activeBookings = activeTab === "upcoming" ? upcoming : history
 
-  const formatDateLabel = (dateStr: string) => {
+  const formatDateLabel = useCallback((dateStr: string) => {
     const date = parseISO(dateStr)
     if (isToday(date)) return "I dag"
     if (isTomorrow(date)) return "I morgen"
     if (isThisWeek(date, { weekStartsOn: 1 })) return format(date, "EEEE", { locale: nb })
     return format(date, "EEEE d. MMMM", { locale: nb })
-  }
+  }, [])
 
-  const getStatusInfo = (status: string) => {
+  const getStatusInfo = useCallback((status: string) => {
     switch (status) {
       case "pending": return { label: "Venter på godkjenning", color: "bg-amber-100 text-amber-700", icon: Hourglass }
       case "approved": return { label: "Godkjent", color: "bg-green-100 text-green-700", icon: CheckCircle2 }
@@ -134,7 +256,16 @@ export default function MyBookingsPage() {
       case "cancelled": return { label: "Kansellert", color: "bg-gray-100 text-gray-600", icon: XCircle }
       default: return { label: status, color: "bg-gray-100 text-gray-600", icon: AlertCircle }
     }
-  }
+  }, [])
+
+  const handleBookingSaved = useCallback((updatedBooking: any) => {
+    setBookings(prev => prev.map(b => 
+      b.id === updatedBooking.id 
+        ? { ...b, title: updatedBooking.title, status: updatedBooking.status, startTime: updatedBooking.startTime, endTime: updatedBooking.endTime } 
+        : b
+    ))
+    setEditingBooking(null)
+  }, [])
 
   if (status === "loading" || isLoading) {
     return (
@@ -155,14 +286,14 @@ export default function MyBookingsPage() {
       <main className="flex-1">
         <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
           {/* Header */}
-          <div className="flex items-center justify-between mb-6">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
             <div>
-              <h1 className="text-2xl font-bold text-gray-900">Mine bookinger</h1>
-              <p className="text-gray-500">Oversikt over dine reservasjoner</p>
+              <h1 className="text-xl sm:text-2xl font-bold text-gray-900">Mine bookinger</h1>
+              <p className="text-sm sm:text-base text-gray-500">Oversikt over dine reservasjoner</p>
             </div>
             <Link 
               href="/resources" 
-              className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 transition-colors"
+              className="flex items-center justify-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 transition-colors text-sm sm:text-base"
             >
               <Plus className="w-4 h-4" />
               Ny booking
@@ -202,8 +333,8 @@ export default function MyBookingsPage() {
                 {/* Tabs */}
                 <div className="flex gap-1 p-1 bg-gray-100 rounded-xl flex-1 sm:flex-initial">
                   <button
-                    onClick={() => setActiveTab("upcoming")}
-                    className={`flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg font-medium transition-all ${
+                    onClick={() => handleTabChange("upcoming")}
+                    className={`relative flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg font-medium transition-all ${
                       activeTab === "upcoming"
                         ? "bg-white text-gray-900 shadow-sm"
                         : "text-gray-600 hover:text-gray-900"
@@ -218,10 +349,15 @@ export default function MyBookingsPage() {
                       {upcoming.length}
                     </span>
                   )}
+                  {unreadCounts.upcoming > 0 && (
+                    <span className="absolute -top-1 -right-1 flex items-center justify-center min-w-[18px] h-[18px] px-1 bg-green-500 text-white text-[10px] font-bold rounded-full animate-pulse">
+                      {unreadCounts.upcoming}
+                    </span>
+                  )}
                 </button>
                 <button
-                  onClick={() => setActiveTab("history")}
-                  className={`flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg font-medium transition-all ${
+                  onClick={() => handleTabChange("history")}
+                  className={`relative flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg font-medium transition-all ${
                     activeTab === "history"
                       ? "bg-white text-gray-900 shadow-sm"
                       : "text-gray-600 hover:text-gray-900"
@@ -236,11 +372,39 @@ export default function MyBookingsPage() {
                       {history.length}
                     </span>
                   )}
+                  {unreadCounts.history > 0 && (
+                    <span className="absolute -top-1 -right-1 flex items-center justify-center min-w-[18px] h-[18px] px-1 bg-red-500 text-white text-[10px] font-bold rounded-full animate-pulse">
+                      {unreadCounts.history}
+                    </span>
+                  )}
                 </button>
                 </div>
               </div>
 
-              {/* Bookings list */}
+              {/* Bulk delete controls for history tab */}
+              {activeTab === "history" && history.length > 0 && (
+                <div className="flex items-center justify-between mb-4 p-3 bg-gray-50 rounded-lg">
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={history.length > 0 && history.every(b => selectedForDelete.has(b.id))}
+                      onChange={() => toggleSelectAll(history.map(b => b.id))}
+                      className="w-4 h-4 rounded border-gray-300 text-red-600 focus:ring-red-500"
+                    />
+                    <span className="text-sm text-gray-600">Velg alle ({history.length})</span>
+                  </label>
+                  {selectedForDelete.size > 0 && (
+                    <button
+                      onClick={() => setShowBulkDeleteModal(true)}
+                      className="flex items-center gap-2 px-3 py-1.5 bg-red-600 text-white text-sm font-medium rounded-lg hover:bg-red-700 transition-colors"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                      Slett valgte ({selectedForDelete.size})
+                    </button>
+                  )}
+                </div>
+              )}
+
               {activeBookings.length === 0 ? (
                 <div className="card p-8 text-center">
                   {activeTab === "upcoming" ? (
@@ -271,6 +435,18 @@ export default function MyBookingsPage() {
                         }`}
                       >
                         <div className="flex">
+                          {/* Checkbox for history tab */}
+                          {activeTab === "history" && (
+                            <div className="flex items-center px-3 border-r border-gray-100">
+                              <input
+                                type="checkbox"
+                                checked={selectedForDelete.has(booking.id)}
+                                onChange={() => toggleSelectBooking(booking.id)}
+                                className="w-4 h-4 rounded border-gray-300 text-red-600 focus:ring-red-500"
+                              />
+                            </div>
+                          )}
+                          
                           {/* Color bar */}
                           <div 
                             className="w-1.5 flex-shrink-0"
@@ -342,6 +518,16 @@ export default function MyBookingsPage() {
                                     </button>
                                   </>
                                 )}
+                                {/* Delete button for historical bookings */}
+                                {activeTab === "history" && (
+                                  <button
+                                    onClick={() => setDeletingId(booking.id)}
+                                    className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                                    title="Slett"
+                                  >
+                                    <Trash2 className="w-5 h-5" />
+                                  </button>
+                                )}
                                 <Link
                                   href={`/resources/${booking.resource.id}/book`}
                                   className="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
@@ -401,6 +587,82 @@ export default function MyBookingsPage() {
         </div>
       )}
 
+      {/* Delete modal */}
+      {deletingId && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl max-w-md w-full shadow-2xl p-6 animate-fadeIn">
+            <div className="w-12 h-12 rounded-full bg-red-100 flex items-center justify-center mx-auto mb-4">
+              <Trash2 className="w-6 h-6 text-red-600" />
+            </div>
+            <h3 className="text-lg font-bold text-gray-900 text-center mb-2">Slett booking?</h3>
+            <p className="text-gray-600 text-center mb-6">
+              Er du sikker på at du vil slette denne bookingen permanent? Denne handlingen kan ikke angres.
+            </p>
+            <div className="flex gap-3">
+              <button
+                onClick={() => setDeletingId(null)}
+                className="flex-1 px-4 py-2.5 border border-gray-300 rounded-lg text-gray-700 font-medium hover:bg-gray-50 transition-colors"
+              >
+                Avbryt
+              </button>
+              <button
+                onClick={() => handleDelete(deletingId)}
+                disabled={isProcessing}
+                className="flex-1 px-4 py-2.5 bg-red-600 text-white rounded-lg font-medium hover:bg-red-700 disabled:opacity-50 transition-colors flex items-center justify-center gap-2"
+              >
+                {isProcessing ? (
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                ) : (
+                  <>
+                    <Trash2 className="w-4 h-4" />
+                    Ja, slett
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Bulk Delete modal */}
+      {showBulkDeleteModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl max-w-md w-full shadow-2xl p-6 animate-fadeIn">
+            <div className="w-12 h-12 rounded-full bg-red-100 flex items-center justify-center mx-auto mb-4">
+              <Trash2 className="w-6 h-6 text-red-600" />
+            </div>
+            <h3 className="text-lg font-bold text-gray-900 text-center mb-2">
+              Slett {selectedForDelete.size} bookinger?
+            </h3>
+            <p className="text-gray-600 text-center mb-6">
+              Er du sikker på at du vil slette {selectedForDelete.size} bookinger permanent? Denne handlingen kan ikke angres.
+            </p>
+            <div className="flex gap-3">
+              <button
+                onClick={() => setShowBulkDeleteModal(false)}
+                className="flex-1 px-4 py-2.5 border border-gray-300 rounded-lg text-gray-700 font-medium hover:bg-gray-50 transition-colors"
+              >
+                Avbryt
+              </button>
+              <button
+                onClick={handleBulkDelete}
+                disabled={isProcessing}
+                className="flex-1 px-4 py-2.5 bg-red-600 text-white rounded-lg font-medium hover:bg-red-700 disabled:opacity-50 transition-colors flex items-center justify-center gap-2"
+              >
+                {isProcessing ? (
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                ) : (
+                  <>
+                    <Trash2 className="w-4 h-4" />
+                    Ja, slett alle
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Edit Booking Modal */}
       {editingBooking && (
         <EditBookingModal
@@ -418,14 +680,7 @@ export default function MyBookingsPage() {
           }}
           isAdmin={false}
           onClose={() => setEditingBooking(null)}
-          onSaved={(updatedBooking) => {
-            setBookings(bookings.map(b => 
-              b.id === updatedBooking.id 
-                ? { ...b, title: updatedBooking.title, status: updatedBooking.status, startTime: updatedBooking.startTime, endTime: updatedBooking.endTime } 
-                : b
-            ))
-            setEditingBooking(null)
-          }}
+          onSaved={handleBookingSaved}
         />
       )}
     </div>

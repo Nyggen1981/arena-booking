@@ -20,29 +20,32 @@ export async function GET(request: Request) {
   const endOfDay = new Date(targetDate)
   endOfDay.setHours(23, 59, 59, 999)
 
-  // Get all bookings for the organization on this date
-  const bookings = await prisma.booking.findMany({
-    where: {
-      organizationId: session.user.organizationId,
-      status: { in: ["approved", "pending"] },
-      OR: [
-        {
-          // Bookings that start on this day
-          startTime: { gte: startOfDay, lte: endOfDay }
-        },
-        {
-          // Bookings that end on this day
-          endTime: { gte: startOfDay, lte: endOfDay }
-        },
-        {
-          // Bookings that span this day
-          AND: [
-            { startTime: { lte: startOfDay } },
-            { endTime: { gte: endOfDay } }
-          ]
-        }
-      ]
-    },
+  const organizationId = session.user.organizationId
+
+  // Get all bookings and resources in parallel for better performance
+  const [bookings, resources] = await Promise.all([
+    prisma.booking.findMany({
+      where: {
+        organizationId,
+        status: { in: ["approved", "pending"] },
+        OR: [
+          {
+            // Bookings that start on this day
+            startTime: { gte: startOfDay, lte: endOfDay }
+          },
+          {
+            // Bookings that end on this day
+            endTime: { gte: startOfDay, lte: endOfDay }
+          },
+          {
+            // Bookings that span this day
+            AND: [
+              { startTime: { lte: startOfDay } },
+              { endTime: { gte: endOfDay } }
+            ]
+          }
+        ]
+      },
     include: {
       resource: {
         select: {
@@ -80,15 +83,13 @@ export async function GET(request: Request) {
         }
       }
     },
-    orderBy: { startTime: "asc" }
-  })
-
-  // Get all resources with their parts for the organization
-  const resources = await prisma.resource.findMany({
-    where: {
-      organizationId: session.user.organizationId,
-      isActive: true
-    },
+      orderBy: { startTime: "asc" }
+    }),
+    prisma.resource.findMany({
+      where: {
+        organizationId,
+        isActive: true
+      },
     include: {
       category: {
         select: {
@@ -110,7 +111,8 @@ export async function GET(request: Request) {
       { category: { name: "asc" } },
       { name: "asc" }
     ]
-  })
+    })
+  ])
 
   return NextResponse.json({
     bookings,

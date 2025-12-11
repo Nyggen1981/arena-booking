@@ -215,3 +215,59 @@ export async function PATCH(
   }
 }
 
+// DELETE - Permanently delete a booking (only past/cancelled/rejected bookings)
+export async function DELETE(
+  request: Request,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  try {
+    const session = await getServerSession(authOptions)
+
+    if (!session?.user) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+    }
+
+    const { id } = await params
+
+    const booking = await prisma.booking.findUnique({
+      where: { id },
+      include: {
+        resource: true
+      }
+    })
+
+    if (!booking) {
+      return NextResponse.json({ error: "Booking not found" }, { status: 404 })
+    }
+
+    const isAdmin = session.user.role === "admin"
+    const isOwner = booking.userId === session.user.id
+    const isPast = new Date(booking.startTime) < new Date()
+    const isInactive = booking.status === "cancelled" || booking.status === "rejected"
+
+    // Only owner can delete their own bookings
+    if (!isOwner && !isAdmin) {
+      return NextResponse.json({ error: "Ikke tilgang" }, { status: 403 })
+    }
+
+    // Can only delete past bookings or cancelled/rejected bookings
+    if (!isPast && !isInactive) {
+      return NextResponse.json(
+        { error: "Kan kun slette tidligere bookinger eller kansellerte/avslåtte bookinger" },
+        { status: 400 }
+      )
+    }
+
+    await prisma.booking.delete({
+      where: { id }
+    })
+
+    return NextResponse.json({ success: true })
+  } catch (error) {
+    console.error("Error deleting booking:", error)
+    return NextResponse.json(
+      { error: "Kunne ikke slette booking" },
+      { status: 500 }
+    )
+  }
+}

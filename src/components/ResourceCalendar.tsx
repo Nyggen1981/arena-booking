@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useMemo, useEffect, useRef } from "react"
+import { useState, useMemo, useEffect, useRef, useCallback } from "react"
 import { useSession } from "next-auth/react"
 import { ChevronLeft, ChevronRight, X, Calendar, Clock, User, Repeat, CheckCircle2, XCircle, Trash2, Pencil, Loader2 } from "lucide-react"
 import { 
@@ -60,6 +60,8 @@ export function ResourceCalendar({ resourceId, resourceName, bookings, parts }: 
   const [selectedBooking, setSelectedBooking] = useState<Booking | null>(null)
   const [isProcessing, setIsProcessing] = useState(false)
   const [applyToAll, setApplyToAll] = useState(true)
+  const [rejectingBookingId, setRejectingBookingId] = useState<string | null>(null)
+  const [rejectReason, setRejectReason] = useState("")
   const weekViewScrollRef = useRef<HTMLDivElement>(null)
 
   const weekStart = startOfWeek(currentDate, { weekStartsOn: 1 })
@@ -96,14 +98,14 @@ export function ResourceCalendar({ resourceId, resourceName, bookings, parts }: 
     })
   }, [bookings, selectedPart, weekDays, monthDays, viewMode])
 
-  const getBookingsForDay = (day: Date) => {
+  const getBookingsForDay = useCallback((day: Date) => {
     return filteredBookings.filter(booking => {
       const start = parseISO(booking.startTime)
       return isSameDay(day, start)
     })
-  }
+  }, [filteredBookings])
 
-  const getBookingsForDayAndHour = (day: Date, hour: number) => {
+  const getBookingsForDayAndHour = useCallback((day: Date, hour: number) => {
     return filteredBookings.filter(booking => {
       const start = parseISO(booking.startTime)
       const end = parseISO(booking.endTime)
@@ -115,7 +117,62 @@ export function ResourceCalendar({ resourceId, resourceName, bookings, parts }: 
       
       return hour >= startHour && hour < endHour
     })
-  }
+  }, [filteredBookings])
+
+  // Calculate overlap columns for all bookings in a day
+  const getBookingColumns = useCallback((dayBookings: Booking[]) => {
+    if (dayBookings.length === 0) return new Map<string, { column: number; totalColumns: number }>()
+    
+    // Sort by start time
+    const sorted = [...dayBookings].sort((a, b) => 
+      parseISO(a.startTime).getTime() - parseISO(b.startTime).getTime()
+    )
+    
+    // Track column assignments: bookingId -> { column, totalColumns }
+    const columns = new Map<string, { column: number; totalColumns: number }>()
+    
+    // Track active bookings in each column (column index -> end time)
+    const columnEndTimes: Date[] = []
+    
+    sorted.forEach(booking => {
+      const start = parseISO(booking.startTime)
+      const end = parseISO(booking.endTime)
+      
+      // Find first available column (where the booking has ended)
+      let column = 0
+      while (column < columnEndTimes.length && columnEndTimes[column] > start) {
+        column++
+      }
+      
+      // Assign column
+      columnEndTimes[column] = end
+      columns.set(booking.id, { column, totalColumns: 1 })
+    })
+    
+    // Calculate totalColumns for each booking by finding overlapping bookings
+    sorted.forEach(booking => {
+      const start = parseISO(booking.startTime)
+      const end = parseISO(booking.endTime)
+      
+      const overlapping = sorted.filter(b => {
+        const bStart = parseISO(b.startTime)
+        const bEnd = parseISO(b.endTime)
+        return start < bEnd && end > bStart
+      })
+      
+      const maxColumn = Math.max(...overlapping.map(b => columns.get(b.id)?.column || 0))
+      const totalColumns = maxColumn + 1
+      
+      overlapping.forEach(b => {
+        const current = columns.get(b.id)
+        if (current) {
+          columns.set(b.id, { ...current, totalColumns: Math.max(current.totalColumns, totalColumns) })
+        }
+      })
+    })
+    
+    return columns
+  }, [])
 
   // Scroll to bottom of week view on mount and when viewMode/date/part changes
   useEffect(() => {
@@ -129,35 +186,45 @@ export function ResourceCalendar({ resourceId, resourceName, bookings, parts }: 
     }
   }, [viewMode, currentDate, selectedPart])
 
-  const handleBookingAction = async (bookingId: string, action: "approve" | "reject" | "cancel") => {
+  const handleBookingAction = useCallback(async (bookingId: string, action: "approve" | "reject" | "cancel", statusNote?: string) => {
     setIsProcessing(true)
     const booking = bookings.find(b => b.id === bookingId)
     const shouldApplyToAll = applyToAll && booking?.isRecurring
     
-    let response
-    if (action === "cancel") {
-      response = await fetch(`/api/bookings/${bookingId}/cancel`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ reason: "Kansellert fra kalender", applyToAll: shouldApplyToAll })
-      })
-    } else {
-      response = await fetch(`/api/admin/bookings/${bookingId}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action, applyToAll: shouldApplyToAll })
-      })
-    }
+    try {
+      let response
+      if (action === "cancel") {
+        response = await fetch(`/api/bookings/${bookingId}/cancel`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ reason: "Kansellert fra kalender", applyToAll: shouldApplyToAll })
+        })
+      } else {
+        const body: { action: string; applyToAll?: boolean; statusNote?: string } = { action }
+        if (shouldApplyToAll) body.applyToAll = true
+        if (statusNote) body.statusNote = statusNote
+        
+        response = await fetch(`/api/admin/bookings/${bookingId}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(body)
+        })
+      }
 
-    if (response.ok) {
-      // Refresh the page to get updated bookings
-      window.location.reload()
-    } else {
-      const error = await response.json()
-      alert(error.error || "En feil oppstod")
+      if (response.ok) {
+        // Refresh the page to get updated bookings
+        window.location.reload()
+      } else {
+        const error = await response.json()
+        alert(error.error || "En feil oppstod")
+        setIsProcessing(false)
+      }
+    } catch (error) {
+      console.error("Failed to perform booking action:", error)
+      alert("En feil oppstod")
       setIsProcessing(false)
     }
-  }
+  }, [bookings, applyToAll])
 
   return (
     <div>
@@ -242,7 +309,7 @@ export function ResourceCalendar({ resourceId, resourceName, bookings, parts }: 
           {/* Time grid with sticky header */}
           <div ref={weekViewScrollRef} className="max-h-[600px] overflow-y-auto pr-[17px]">
             {/* Header - sticky */}
-            <div className="grid bg-gray-50 border-b border-gray-200 sticky top-0 z-10 gap-x-2" style={{ gridTemplateColumns: '60px repeat(7, 1fr)' }}>
+            <div className="grid bg-gray-50 border-b border-gray-200 sticky top-0 z-20 gap-x-2" style={{ gridTemplateColumns: '60px repeat(7, 1fr)' }}>
               <div className="p-3 text-center text-sm font-medium text-gray-500" />
               {weekDays.map((day) => (
                 <div 
@@ -270,40 +337,14 @@ export function ResourceCalendar({ resourceId, resourceName, bookings, parts }: 
                   {hour.toString().padStart(2, "0")}:00
                 </div>
                 {weekDays.map((day) => {
-                  const dayBookings = getBookingsForDayAndHour(day, hour)
+                  // Get all bookings for this day and calculate columns
+                  const allDayBookings = getBookingsForDay(day)
+                  const bookingColumns = getBookingColumns(allDayBookings)
                   
-                  // Filter to only bookings that start in this hour
-                  const bookingsStartingThisHour = dayBookings.filter(booking => {
+                  // Only render bookings that START in this hour (to avoid duplicates)
+                  const bookingsStartingThisHour = allDayBookings.filter(booking => {
                     const start = parseISO(booking.startTime)
                     return start.getHours() === hour
-                  })
-                  
-                  // Group overlapping bookings
-                  const bookingGroups: Booking[][] = []
-                  bookingsStartingThisHour.forEach(booking => {
-                    const bookingStart = parseISO(booking.startTime)
-                    const bookingEnd = parseISO(booking.endTime)
-                    
-                    // Find a group this booking overlaps with
-                    let addedToGroup = false
-                    for (const group of bookingGroups) {
-                      const overlaps = group.some(b => {
-                        const bStart = parseISO(b.startTime)
-                        const bEnd = parseISO(b.endTime)
-                        return (bookingStart < bEnd && bookingEnd > bStart)
-                      })
-                      
-                      if (overlaps) {
-                        group.push(booking)
-                        addedToGroup = true
-                        break
-                      }
-                    }
-                    
-                    // If no overlap found, create new group
-                    if (!addedToGroup) {
-                      bookingGroups.push([booking])
-                    }
                   })
                   
                   return (
@@ -313,11 +354,16 @@ export function ResourceCalendar({ resourceId, resourceName, bookings, parts }: 
                         isToday(day) ? 'bg-blue-50/30' : ''
                       }`}
                     >
-                      {bookingGroups.flatMap((group) =>
-                        group.map((booking, index) => {
+                      {bookingsStartingThisHour.map((booking) => {
                           const start = parseISO(booking.startTime)
                           const end = parseISO(booking.endTime)
-                          const durationHours = (end.getTime() - start.getTime()) / (1000 * 60 * 60)
+                          
+                          // Cap the end time to midnight of the same day to prevent overflow
+                          const endOfDay = new Date(start)
+                          endOfDay.setHours(23, 59, 59, 999)
+                          const cappedEnd = end > endOfDay ? endOfDay : end
+                          
+                          const durationHours = (cappedEnd.getTime() - start.getTime()) / (1000 * 60 * 60)
                           const isPending = booking.status === "pending"
                           
                           // Add minimal gap between bookings vertically
@@ -326,29 +372,20 @@ export function ResourceCalendar({ resourceId, resourceName, bookings, parts }: 
                           const topPx = (start.getMinutes() / 60) * cellHeight + gapPx
                           const heightPx = durationHours * cellHeight - (gapPx * 2)
                           
-                          // Calculate width and position for overlapping bookings
-                          const groupSize = group.length
-                          const bookingStart = start
-                          const bookingEnd = end
-                          // Only add gap if bookings actually overlap (not just same start time)
-                          const hasOverlap = group.some((b, i) => {
-                            if (i === index) return false
-                            const bStart = parseISO(b.startTime)
-                            const bEnd = parseISO(b.endTime)
-                            return (bookingStart < bEnd && bookingEnd > bStart && 
-                                    (bookingStart.getTime() !== bStart.getTime() || bookingEnd.getTime() !== bEnd.getTime()))
-                          })
-                          const gapBetweenPx = hasOverlap ? 3 : 0 // More gap horizontally (3px) vs vertical (1px)
-                          const bookingWidthPercent = 100 / groupSize
-                          const marginRight = index < groupSize - 1 ? gapBetweenPx : 0
-                          const isSingleBox = groupSize === 1
-                          const leftPercent = isSingleBox ? 50 : (index * bookingWidthPercent)
-                          // No margin from column lines - boxes fill the column
+                          // Get column info for this booking
+                          const columnInfo = bookingColumns.get(booking.id) || { column: 0, totalColumns: 1 }
+                          const { column, totalColumns } = columnInfo
+                          const isSingleBox = totalColumns === 1
+                          
+                          // Side by side layout for multiple bookings
+                          const gapPxHorizontal = 2
+                          const widthPercent = 100 / totalColumns
+                          const leftPercent = column * widthPercent
+                          
+                          // For single box: full width with margin. For multiple: side by side
                           const boxWidth = isSingleBox 
-                            ? '100%' 
-                            : (marginRight > 0 
-                              ? `calc(${bookingWidthPercent}% - ${marginRight}px)` 
-                              : `${bookingWidthPercent}%`)
+                            ? 'calc(100% - 4px)' 
+                            : `calc(${widthPercent}% - ${gapPxHorizontal}px)`
 
                           return (
                             <div
@@ -359,8 +396,7 @@ export function ResourceCalendar({ resourceId, resourceName, bookings, parts }: 
                               }`}
                               style={{
                                 top: `${topPx}px`,
-                                left: isSingleBox ? '50%' : `${leftPercent}%`,
-                                transform: isSingleBox ? 'translateX(-50%)' : 'none',
+                                left: isSingleBox ? '2px' : `calc(${leftPercent}% + ${gapPxHorizontal / 2}px)`,
                                 width: boxWidth,
                                 height: `${Math.max(heightPx, 36)}px`,
                                 backgroundColor: isPending ? '#dcfce7' : '#22c55e',
@@ -371,8 +407,7 @@ export function ResourceCalendar({ resourceId, resourceName, bookings, parts }: 
                                 display: 'flex',
                                 flexDirection: 'column',
                                 justifyContent: 'flex-start',
-                                alignItems: 'flex-start',
-                                marginRight: `${marginRight}px`
+                                alignItems: 'flex-start'
                               }}
                               title={`${booking.title}${booking.resourcePartName ? ` (${booking.resourcePartName})` : ''}${isPending ? ' (venter på godkjenning)' : ''}`}
                             >
@@ -382,8 +417,7 @@ export function ResourceCalendar({ resourceId, resourceName, bookings, parts }: 
                               )}
                             </div>
                           )
-                        })
-                      )}
+                        })}
                     </div>
                   )
                 })}
@@ -580,11 +614,14 @@ export function ResourceCalendar({ resourceId, resourceName, bookings, parts }: 
                           {selectedBooking.isRecurring && applyToAll ? "Godkjenn alle" : "Godkjenn"}
                         </button>
                         <button
-                          onClick={() => handleBookingAction(selectedBooking.id, "reject")}
+                          onClick={() => {
+                            setRejectingBookingId(selectedBooking.id)
+                            setSelectedBooking(null)
+                          }}
                           disabled={isProcessing}
                           className="flex-1 btn btn-danger disabled:opacity-50"
                         >
-                          {isProcessing ? <Loader2 className="w-4 h-4 animate-spin" /> : <XCircle className="w-4 h-4" />}
+                          <XCircle className="w-4 h-4" />
                           {selectedBooking.isRecurring && applyToAll ? "Avslå alle" : "Avslå"}
                         </button>
                       </div>
@@ -647,6 +684,70 @@ export function ResourceCalendar({ resourceId, resourceName, bookings, parts }: 
           </div>
         </div>
       )}
+
+      {/* Reject modal */}
+      {rejectingBookingId && (() => {
+        const booking = bookings.find(b => b.id === rejectingBookingId)
+        const isRecurring = booking?.isRecurring && applyToAll
+        return (
+          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+            <div className="bg-white rounded-xl max-w-md w-full shadow-2xl p-6">
+              <div className="w-12 h-12 rounded-full bg-red-100 flex items-center justify-center mx-auto mb-4">
+                <XCircle className="w-6 h-6 text-red-600" />
+              </div>
+              <h3 className="text-lg font-bold text-gray-900 text-center mb-2">
+                Avslå booking{isRecurring ? "er" : ""}?
+              </h3>
+              <p className="text-gray-600 text-center mb-4">
+                {isRecurring 
+                  ? "Alle gjentakende bookinger vil bli avslått. Brukeren vil bli varslet på e-post."
+                  : "Brukeren vil bli varslet på e-post."}
+              </p>
+              <div className="mb-4">
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Begrunnelse (valgfritt)
+                </label>
+                <textarea
+                  value={rejectReason}
+                  onChange={(e) => setRejectReason(e.target.value)}
+                  placeholder="F.eks. Fasiliteten er allerede booket..."
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500 resize-none"
+                  rows={3}
+                />
+              </div>
+              <div className="flex gap-3">
+                <button
+                  onClick={() => {
+                    setRejectingBookingId(null)
+                    setRejectReason("")
+                  }}
+                  className="flex-1 px-4 py-2.5 border border-gray-300 rounded-lg text-gray-700 font-medium hover:bg-gray-50 transition-colors"
+                >
+                  Avbryt
+                </button>
+                <button
+                  onClick={async () => {
+                    await handleBookingAction(rejectingBookingId, "reject", rejectReason || undefined)
+                    setRejectingBookingId(null)
+                    setRejectReason("")
+                  }}
+                  disabled={isProcessing}
+                  className="flex-1 px-4 py-2.5 bg-red-600 text-white rounded-lg font-medium hover:bg-red-700 disabled:opacity-50 transition-colors flex items-center justify-center gap-2"
+                >
+                  {isProcessing ? (
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                  ) : (
+                    <>
+                      <XCircle className="w-4 h-4" />
+                      Avslå
+                    </>
+                  )}
+                </button>
+              </div>
+            </div>
+          </div>
+        )
+      })()}
     </div>
   )
 }

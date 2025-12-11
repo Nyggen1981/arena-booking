@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect, use } from "react"
+import { useState, useEffect, use, useCallback, useMemo } from "react"
 import { useSession } from "next-auth/react"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
@@ -18,6 +18,7 @@ import {
   MapPin
 } from "lucide-react"
 import { MapViewer } from "@/components/MapViewer"
+import { TimePicker } from "@/components/TimePicker"
 
 interface ResourcePart {
   id: string
@@ -72,18 +73,21 @@ export default function BookResourcePage({ params }: Props) {
   const [recurringType, setRecurringType] = useState<"weekly" | "biweekly" | "monthly">("weekly")
   const [recurringEndDate, setRecurringEndDate] = useState("")
 
-  useEffect(() => {
-    fetch(`/api/resources/${id}`)
-      .then(res => res.json())
-      .then(data => {
-        setResource(data)
-        setIsLoading(false)
-      })
-      .catch(() => {
-        setError("Kunne ikke laste ressursen")
-        setIsLoading(false)
-      })
+  const fetchResource = useCallback(async () => {
+    try {
+      const res = await fetch(`/api/resources/${id}`)
+      const data = await res.json()
+      setResource(data)
+    } catch {
+      setError("Kunne ikke laste ressursen")
+    } finally {
+      setIsLoading(false)
+    }
   }, [id])
+
+  useEffect(() => {
+    fetchResource()
+  }, [fetchResource])
 
   useEffect(() => {
     if (session?.user) {
@@ -99,7 +103,7 @@ export default function BookResourcePage({ params }: Props) {
     }
   }, [status, router, id])
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = useCallback(async (e: React.FormEvent) => {
     e.preventDefault()
     setIsSubmitting(true)
     setError("")
@@ -147,7 +151,7 @@ export default function BookResourcePage({ params }: Props) {
     } finally {
       setIsSubmitting(false)
     }
-  }
+  }, [resource, selectedPart, id, date, startTime, endTime, title, description, contactName, contactEmail, contactPhone, isRecurring, recurringType, recurringEndDate])
 
   if (status === "loading" || isLoading) {
     return (
@@ -347,46 +351,19 @@ export default function BookResourcePage({ params }: Props) {
                   required
                 />
               </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  <Clock className="w-4 h-4 inline mr-1" />
-                  Fra kl. *
-                </label>
-                <select
-                  value={startTime}
-                  onChange={(e) => setStartTime(e.target.value)}
-                  className="input"
-                  required
-                >
-                  <option value="">Velg tid</option>
-                  {Array.from({ length: 24 * 4 }, (_, i) => {
-                    const hour = Math.floor(i / 4)
-                    const minute = (i % 4) * 15
-                    const time = `${hour.toString().padStart(2, '0')}:${minute.toString().padStart(2, '0')}`
-                    return <option key={time} value={time}>{time}</option>
-                  })}
-                </select>
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  <Clock className="w-4 h-4 inline mr-1" />
-                  Til kl. *
-                </label>
-                <select
-                  value={endTime}
-                  onChange={(e) => setEndTime(e.target.value)}
-                  className="input"
-                  required
-                >
-                  <option value="">Velg tid</option>
-                  {Array.from({ length: 24 * 4 }, (_, i) => {
-                    const hour = Math.floor(i / 4)
-                    const minute = (i % 4) * 15
-                    const time = `${hour.toString().padStart(2, '0')}:${minute.toString().padStart(2, '0')}`
-                    return <option key={time} value={time}>{time}</option>
-                  })}
-                </select>
-              </div>
+              <TimePicker
+                value={startTime}
+                onChange={setStartTime}
+                label="Fra kl."
+                required
+              />
+              <TimePicker
+                value={endTime}
+                onChange={setEndTime}
+                label="Til kl."
+                required
+                minTime={startTime}
+              />
             </div>
 
             <p className="text-sm text-gray-500">
