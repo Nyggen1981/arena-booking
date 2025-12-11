@@ -46,43 +46,48 @@ export async function GET(request: Request) {
           }
         ]
       },
-    include: {
-      resource: {
-        select: {
-          id: true,
-          name: true,
-          color: true,
-          category: {
-            select: {
-              id: true,
-              name: true,
-              color: true
-            }
-          },
-          parts: {
-            where: { isActive: true },
-            select: {
-              id: true,
-              name: true
+      select: {
+        id: true,
+        title: true,
+        startTime: true,
+        endTime: true,
+        status: true,
+        resource: {
+          select: {
+            id: true,
+            name: true,
+            color: true,
+            category: {
+              select: {
+                id: true,
+                name: true,
+                color: true
+              }
             },
-            orderBy: { name: "asc" }
+            parts: {
+              where: { isActive: true },
+              select: {
+                id: true,
+                name: true
+              },
+              orderBy: { name: "asc" }
+            }
+          }
+        },
+        resourcePart: {
+          select: {
+            id: true,
+            name: true
+          }
+        },
+        user: {
+          select: {
+            id: true,
+            name: true,
+            email: true
           }
         }
       },
-      resourcePart: {
-        select: {
-          id: true,
-          name: true
-        }
-      },
-      user: {
-        select: {
-          id: true,
-          name: true,
-          email: true
-        }
-      }
-    },
       orderBy: { startTime: "asc" }
     }),
     prisma.resource.findMany({
