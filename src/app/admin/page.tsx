@@ -41,10 +41,32 @@ async function getStats(organizationId: string) {
 async function getPendingBookings(organizationId: string) {
   return prisma.booking.findMany({
     where: { organizationId, status: "pending" },
-    include: {
-      resource: true,
-      resourcePart: true,
-      user: true
+    select: {
+      id: true,
+      title: true,
+      startTime: true,
+      endTime: true,
+      createdAt: true,
+      resource: {
+        select: {
+          id: true,
+          name: true,
+          color: true
+        }
+      },
+      resourcePart: {
+        select: {
+          id: true,
+          name: true
+        }
+      },
+      user: {
+        select: {
+          id: true,
+          name: true,
+          email: true
+        }
+      }
     },
     orderBy: { createdAt: "asc" },
     take: 5
@@ -52,16 +74,21 @@ async function getPendingBookings(organizationId: string) {
 }
 
 export default async function AdminPage() {
-  const session = await getServerSession(authOptions)
+  try {
+    const session = await getServerSession(authOptions)
 
-  if (!session?.user || session.user.role !== "admin") {
-    redirect("/")
-  }
+    if (!session?.user || session.user.role !== "admin") {
+      redirect("/")
+    }
 
-  const [stats, pendingBookings] = await Promise.all([
-    getStats(session.user.organizationId),
-    getPendingBookings(session.user.organizationId)
-  ])
+    if (!session.user.organizationId) {
+      redirect("/")
+    }
+
+    const [stats, pendingBookings] = await Promise.all([
+      getStats(session.user.organizationId),
+      getPendingBookings(session.user.organizationId)
+    ])
 
   return (
     <div className="min-h-screen bg-slate-50 flex flex-col">
@@ -233,6 +260,21 @@ export default async function AdminPage() {
       </main>
       <Footer />
     </div>
-  )
+    )
+  } catch (error) {
+    console.error("Admin page error:", error)
+    return (
+      <div className="min-h-screen bg-slate-50 flex flex-col">
+        <Navbar />
+        <main className="flex-1 flex items-center justify-center">
+          <div className="text-center">
+            <h1 className="text-2xl font-bold text-gray-900 mb-2">Feil oppstod</h1>
+            <p className="text-gray-500">Kunne ikke laste admin dashboard. Prøv å oppdatere siden.</p>
+          </div>
+        </main>
+        <Footer />
+      </div>
+    )
+  }
 }
 
