@@ -84,6 +84,7 @@ const getBookings = unstable_cache(
           isRecurring: true,
           parentBookingId: true,
           userId: true,
+          resourceId: true,
           resource: {
             select: {
               id: true,
