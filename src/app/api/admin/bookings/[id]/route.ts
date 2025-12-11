@@ -18,38 +18,23 @@ export async function PATCH(
 
   const { id } = await params
   
-  // Log request details
-  console.log("=== REQUEST DETAILS ===")
-  console.log("Method:", request.method)
-  console.log("URL:", request.url)
-  console.log("Content-Type:", request.headers.get("content-type"))
-  
-  // Parse request body - try request.json() first, fallback to text parsing
+  // Parse request body
   let body: { action?: string; status?: string; statusNote?: string; applyToAll?: boolean } = {}
   try {
-    // Try to get body as JSON directly
     body = await request.json()
-    console.log("Parsed body (from json):", body)
-  } catch (jsonError) {
-    // If JSON parsing fails, try text parsing
+  } catch {
     try {
       const bodyText = await request.text()
-      console.log("Raw body text:", bodyText)
       if (bodyText && bodyText.trim()) {
         body = JSON.parse(bodyText)
-        console.log("Parsed body (from text):", body)
       } else {
-        console.log("Body is empty or whitespace")
         return NextResponse.json({ 
-          error: "Request body is required",
-          details: "No body was sent with the request"
+          error: "Request body is required"
         }, { status: 400 })
       }
-    } catch (textError) {
-      console.error("Error parsing request body:", { jsonError, textError })
+    } catch {
       return NextResponse.json({ 
-        error: "Invalid request body", 
-        details: String(textError || jsonError)
+        error: "Invalid request body"
       }, { status: 400 })
     }
   }
@@ -65,30 +50,16 @@ export async function PATCH(
     } else if (status === "rejected") {
       action = "reject"
     }
-    console.log("Converted status to action:", { status, action })
   }
   
   const { statusNote, applyToAll } = body
-  console.log("Extracted values:", { action, status, statusNote, applyToAll, actionType: typeof action })
 
   // Validate action
   if (!action || (action !== "approve" && action !== "reject")) {
-    console.error("Invalid action received:", action, "Type:", typeof action, "Status:", status)
     return NextResponse.json({ 
-      error: "Invalid action. Must be 'approve' or 'reject' (or status: 'approved'/'rejected')",
-      received: { action, status },
-      receivedType: typeof action,
-      fullBody: body
+      error: "Invalid action. Must be 'approve' or 'reject'"
     }, { status: 400 })
   }
-
-  // Debug logging
-  console.log("=== BOOKING ACTION DEBUG ===")
-  console.log("Booking ID:", id)
-  console.log("Action received:", action)
-  console.log("Status note:", statusNote)
-  console.log("Apply to all:", applyToAll)
-  console.log("============================")
 
   const booking = await prisma.booking.findUnique({
     where: { id },
@@ -127,8 +98,6 @@ export async function PATCH(
 
   // Determine the new status
   const newStatus = action === "approve" ? "approved" : "rejected"
-  console.log("Setting status to:", newStatus)
-  console.log("Updating booking IDs:", bookingIdsToUpdate)
 
   // Update all selected bookings
   await prisma.booking.updateMany({
@@ -142,14 +111,7 @@ export async function PATCH(
     }
   })
 
-  // Get the updated booking to return
-  const updatedBooking = await prisma.booking.findUnique({
-    where: { id }
-  })
-  
-  console.log("Updated booking status:", updatedBooking?.status)
-
-  // Send email notification
+  // Send email notification (non-blocking - don't await)
   const userEmail = booking.contactEmail || booking.user.email
   if (userEmail) {
     const date = format(new Date(booking.startTime), "EEEE d. MMMM yyyy", { locale: nb })
@@ -157,41 +119,45 @@ export async function PATCH(
     const resourceName = booking.resourcePart 
       ? `${booking.resource.name} → ${booking.resourcePart.name}`
       : booking.resource.name
+    const count = bookingIdsToUpdate.length
 
-    if (action === "approve") {
-      console.log("Sending APPROVED email to:", userEmail)
-      const count = bookingIdsToUpdate.length
-      // Get admin note from resource part if booking is for a specific part
-      // Use optional chaining and type safety for backwards compatibility
-      const adminNote = (booking.resourcePart as any)?.adminNote || null
-      const emailContent = await getBookingApprovedEmail(
-        booking.organizationId,
-        booking.title, 
-        resourceName, 
-        count > 1 ? `${date} (og ${count - 1} andre datoer)` : date, 
-        time,
-        adminNote
-      )
-      console.log("Approved email subject:", emailContent.subject)
-      await sendEmail(booking.organizationId, { to: userEmail, ...emailContent })
-    } else {
-      console.log("Sending REJECTED email to:", userEmail)
-      const count = bookingIdsToUpdate.length
-      const emailContent = await getBookingRejectedEmail(
-        booking.organizationId,
-        booking.title, 
-        resourceName, 
-        count > 1 ? `${date} (og ${count - 1} andre datoer)` : date, 
-        time, 
-        statusNote
-      )
-      console.log("Rejected email subject:", emailContent.subject)
-      await sendEmail(booking.organizationId, { to: userEmail, ...emailContent })
+    // Fire and forget - don't block the response
+    const sendEmailAsync = async () => {
+      try {
+        if (action === "approve") {
+          const adminNote = (booking.resourcePart as any)?.adminNote || null
+          const emailContent = await getBookingApprovedEmail(
+            booking.organizationId,
+            booking.title, 
+            resourceName, 
+            count > 1 ? `${date} (og ${count - 1} andre datoer)` : date, 
+            time,
+            adminNote
+          )
+          await sendEmail(booking.organizationId, { to: userEmail, ...emailContent })
+        } else {
+          const emailContent = await getBookingRejectedEmail(
+            booking.organizationId,
+            booking.title, 
+            resourceName, 
+            count > 1 ? `${date} (og ${count - 1} andre datoer)` : date, 
+            time, 
+            statusNote
+          )
+          await sendEmail(booking.organizationId, { to: userEmail, ...emailContent })
+        }
+      } catch (error) {
+        console.error("Failed to send email:", error)
+      }
     }
+    
+    // Don't await - let it run in background
+    void sendEmailAsync()
   }
 
   return NextResponse.json({ 
-    ...updatedBooking, 
+    id,
+    status: newStatus,
     updatedCount: bookingIdsToUpdate.length 
   })
 }

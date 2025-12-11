@@ -1,7 +1,7 @@
 import { Calendar } from "lucide-react"
 import Link from "next/link"
 
-const VERSION = "1.0.7"
+const VERSION = "1.0.8"
 
 export function Footer() {
   return (
@@ -41,4 +41,3 @@ export function Footer() {
     </footer>
   )
 }
-

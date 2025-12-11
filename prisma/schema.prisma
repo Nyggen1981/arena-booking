@@ -214,6 +214,7 @@ model Booking {
   @@index([organizationId])
   @@index([startTime])
   @@index([status])
+  @@index([parentBookingId]) // For recurring bookings
 }
 
 // Email templates for customizing automated emails

@@ -145,19 +145,11 @@ export async function POST(request: Request) {
       let conflictingBookings
       
       if (!resourcePartId) {
-        // Booking whole facility (resourcePartId = null)
-        // Check if ANY part is booked (hierarchical: any child or descendant)
+        // Booking whole facility - check if ANY part is booked
         conflictingBookings = await prisma.booking.findMany({
           where: baseFilter,
-          include: { 
-            resourcePart: {
-              include: {
-                parent: true
-              }
-            }
-          }
+          select: { id: true, status: true, resourcePart: { select: { name: true } } }
         })
-        console.log("Booking whole facility - found conflicting bookings:", conflictingBookings.length)
       } else {
         // Booking a specific part
         // Get the part to check its hierarchy
@@ -193,43 +185,24 @@ export async function POST(request: Request) {
           partIdsToCheck.push(bookingPart.parentId)
         }
         
-        console.log("Booking part:", bookingPart.name, "Checking conflicts for parts:", partIdsToCheck)
-        
-        // Check for conflicts: same parts OR whole facility (null) OR parent/children
+        // Check for conflicts: same parts OR whole facility OR parent/children
         conflictingBookings = await prisma.booking.findMany({
           where: {
             resourceId,
             status: { notIn: ["cancelled", "rejected"] },
             OR: [
-              // Check for bookings on the specific parts (self, parent, children)
               {
                 resourcePartId: { in: partIdsToCheck },
                 AND: { OR: timeOverlapConditions }
               },
-              // Check for whole facility bookings (resourcePartId = null)
               {
                 resourcePartId: null,
                 AND: { OR: timeOverlapConditions }
               }
             ]
           },
-          include: { 
-            resourcePart: {
-              include: {
-                parent: true
-              }
-            }
-          }
+          select: { id: true, status: true, resourcePart: { select: { name: true } } }
         })
-        
-        console.log("Found conflicting bookings:", conflictingBookings.length, conflictingBookings.map(b => ({
-          id: b.id,
-          title: b.title,
-          status: b.status,
-          resourcePart: b.resourcePart?.name || "hele fasiliteten",
-          startTime: b.startTime,
-          endTime: b.endTime
-        })))
       }
 
       if (conflictingBookings.length > 0) {
@@ -239,16 +212,8 @@ export async function POST(request: Request) {
           ? `"${conflict.resourcePart.name}"` 
           : "hele fasiliteten"
         
-        // Debug: Log the conflicting booking status
-        console.log("=== BOOKING CONFLICT DEBUG ===")
-        console.log("Conflicting booking ID:", conflict.id)
-        console.log("Conflicting booking STATUS:", conflict.status)
-        console.log("Conflicting booking title:", conflict.title)
-        console.log("Conflicting booking time:", conflict.startTime, "-", conflict.endTime)
-        console.log("==============================")
-        
         return NextResponse.json(
-          { error: `Konflikt ${conflictDate}: ${conflictInfo} er allerede booket i dette tidsrommet (status: ${conflict.status})` },
+          { error: `Konflikt ${conflictDate}: ${conflictInfo} er allerede booket i dette tidsrommet` },
           { status: 409 }
         )
       }
@@ -310,42 +275,46 @@ export async function POST(request: Request) {
 
     const createdBookings = [parentBooking, ...childBookings]
 
-    // Send email notification to admins if booking requires approval
+    // Send email notification to admins if booking requires approval (non-blocking)
     if (resource.requiresApproval && createdBookings.length > 0) {
       const firstBooking = createdBookings[0]
-      const admins = await prisma.user.findMany({
-        where: {
-          organizationId: session.user.organizationId,
-          role: "admin"
-        }
-      })
-
-      const date = format(new Date(firstBooking.startTime), "EEEE d. MMMM yyyy", { locale: nb })
-      const time = `${format(new Date(firstBooking.startTime), "HH:mm")} - ${format(new Date(firstBooking.endTime), "HH:mm")}`
+      const orgId = session.user.organizationId
+      const userName = session.user.name || contactName || "Ukjent"
+      const userEmail = session.user.email || contactEmail || ""
       
-      // Get part name if resourcePartId is provided
-      let resourceName = resource.name
-      if (resourcePartId) {
-        const part = await prisma.resourcePart.findUnique({ where: { id: resourcePartId } })
-        if (part) {
-          resourceName = `${resource.name} → ${part.name}`
+      // Fire and forget - don't block the response
+      const sendEmailsAsync = async () => {
+        try {
+          const admins = await prisma.user.findMany({
+            where: { organizationId: orgId, role: "admin" },
+            select: { email: true }
+          })
+
+          const date = format(new Date(firstBooking.startTime), "EEEE d. MMMM yyyy", { locale: nb })
+          const time = `${format(new Date(firstBooking.startTime), "HH:mm")} - ${format(new Date(firstBooking.endTime), "HH:mm")}`
+          
+          let resourceName = resource.name
+          if (resourcePartId) {
+            const part = await prisma.resourcePart.findUnique({ 
+              where: { id: resourcePartId },
+              select: { name: true }
+            })
+            if (part) resourceName = `${resource.name} → ${part.name}`
+          }
+
+          // Send emails in parallel
+          await Promise.all(admins.map(async (admin) => {
+            const emailContent = await getNewBookingRequestEmail(
+              orgId, title, resourceName, date, time, userName, userEmail, description
+            )
+            await sendEmail(orgId, { to: admin.email, ...emailContent })
+          }))
+        } catch (error) {
+          console.error("Failed to send booking notification emails:", error)
         }
       }
-
-      // Send email to each admin
-      for (const admin of admins) {
-        const emailContent = await getNewBookingRequestEmail(
-          session.user.organizationId,
-          title,
-          resourceName,
-          date,
-          time,
-          session.user.name || contactName || "Ukjent",
-          session.user.email || contactEmail || "",
-          description
-        )
-        await sendEmail(session.user.organizationId, { to: admin.email, ...emailContent })
-      }
+      
+      void sendEmailsAsync()
     }
 
     return NextResponse.json(
