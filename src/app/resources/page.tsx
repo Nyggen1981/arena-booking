@@ -24,6 +24,7 @@ async function getResources() {
         location: true,
         image: true,
         color: true,
+        isActive: true,
         minBookingMinutes: true,
         maxBookingMinutes: true,
         requiresApproval: true,
