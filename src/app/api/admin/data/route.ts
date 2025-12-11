@@ -34,8 +34,44 @@ export async function GET() {
     prisma.resourceCategory.findMany(),
     prisma.resource.findMany({
       where: { organizationId },
-      include: {
-        parts: true
+      select: {
+        id: true,
+        name: true,
+        description: true,
+        location: true,
+        image: true,
+        mapImage: true,
+        color: true,
+        isActive: true,
+        showOnPublicCalendar: true,
+        blockPartsWhenWholeBooked: true,
+        blockWholeWhenPartBooked: true,
+        allowWholeBooking: true,
+        minBookingMinutes: true,
+        maxBookingMinutes: true,
+        requiresApproval: true,
+        advanceBookingDays: true,
+        openingHours: true,
+        prisInfo: true,
+        visPrisInfo: true,
+        createdAt: true,
+        updatedAt: true,
+        organizationId: true,
+        categoryId: true,
+        parts: {
+          select: {
+            id: true,
+            name: true,
+            description: true,
+            capacity: true,
+            isActive: true,
+            mapCoordinates: true,
+            parentId: true,
+            resourceId: true
+            // Excluding adminNote since it doesn't exist in database yet
+          },
+          orderBy: { name: "asc" }
+        }
       }
     }),
     prisma.booking.findMany({

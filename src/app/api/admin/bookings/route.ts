@@ -18,9 +18,43 @@ export async function GET(request: Request) {
       organizationId: session.user.organizationId,
       ...(status === "pending" ? { status: "pending" } : {})
     },
-    include: {
-      resource: true,
-      resourcePart: true,
+    select: {
+      id: true,
+      title: true,
+      description: true,
+      startTime: true,
+      endTime: true,
+      status: true,
+      statusNote: true,
+      contactName: true,
+      contactEmail: true,
+      contactPhone: true,
+      isRecurring: true,
+      parentBookingId: true,
+      createdAt: true,
+      updatedAt: true,
+      approvedAt: true,
+      resourceId: true,
+      resourcePartId: true,
+      userId: true,
+      resource: {
+        select: {
+          id: true,
+          name: true,
+          description: true,
+          location: true,
+          image: true,
+          color: true,
+          categoryId: true
+        }
+      },
+      resourcePart: {
+        select: {
+          id: true,
+          name: true
+          // Excluding adminNote since it doesn't exist in database yet
+        }
+      },
       user: {
         select: { name: true, email: true }
       }

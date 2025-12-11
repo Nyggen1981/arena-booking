@@ -18,9 +18,43 @@ export async function GET(request: Request) {
       where: {
         userId: userId,
       },
-      include: {
-        resource: true,
-        resourcePart: true,
+      select: {
+        id: true,
+        title: true,
+        description: true,
+        startTime: true,
+        endTime: true,
+        status: true,
+        statusNote: true,
+        contactName: true,
+        contactEmail: true,
+        contactPhone: true,
+        isRecurring: true,
+        parentBookingId: true,
+        resourceId: true,
+        resourcePartId: true,
+        createdAt: true,
+        updatedAt: true,
+        resource: {
+          select: {
+            id: true,
+            name: true,
+            description: true,
+            location: true,
+            image: true,
+            color: true
+          }
+        },
+        resourcePart: {
+          select: {
+            id: true,
+            name: true,
+            description: true,
+            capacity: true,
+            mapCoordinates: true
+            // Excluding adminNote since it doesn't exist in database yet
+          }
+        },
       },
       orderBy: {
         startTime: 'desc',
@@ -110,10 +144,38 @@ export async function POST(request: Request) {
         resourceId,
         resourcePartId: resourcePartId || null,
         userId,
+        organizationId: resource.organizationId,
       },
-      include: {
-        resource: true,
-        resourcePart: true,
+      select: {
+        id: true,
+        title: true,
+        description: true,
+        startTime: true,
+        endTime: true,
+        status: true,
+        contactName: true,
+        contactEmail: true,
+        contactPhone: true,
+        resource: {
+          select: {
+            id: true,
+            name: true,
+            description: true,
+            location: true,
+            image: true,
+            color: true
+          }
+        },
+        resourcePart: {
+          select: {
+            id: true,
+            name: true,
+            description: true,
+            capacity: true,
+            mapCoordinates: true
+            // Excluding adminNote since it doesn't exist in database yet
+          }
+        },
       },
     })
 

@@ -63,10 +63,38 @@ export async function PATCH(
 
   const booking = await prisma.booking.findUnique({
     where: { id },
-    include: {
-      user: true,
-      resource: true,
-      resourcePart: true
+    select: {
+      id: true,
+      title: true,
+      startTime: true,
+      endTime: true,
+      status: true,
+      isRecurring: true,
+      parentBookingId: true,
+      organizationId: true,
+      userId: true,
+      contactEmail: true,
+      user: {
+        select: {
+          id: true,
+          name: true,
+          email: true
+        }
+      },
+      resource: {
+        select: {
+          id: true,
+          name: true,
+          organizationId: true
+        }
+      },
+      resourcePart: {
+        select: {
+          id: true,
+          name: true
+          // Excluding adminNote since it doesn't exist in database yet
+        }
+      }
     }
   })
 

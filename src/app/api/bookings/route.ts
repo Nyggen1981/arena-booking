@@ -155,9 +155,22 @@ export async function POST(request: Request) {
         // Get the part to check its hierarchy
         const bookingPart = await prisma.resourcePart.findUnique({
           where: { id: resourcePartId },
-          include: {
-            parent: true,
-            children: true
+          select: {
+            id: true,
+            name: true,
+            parentId: true,
+            parent: {
+              select: {
+                id: true,
+                name: true
+              }
+            },
+            children: {
+              select: {
+                id: true,
+                name: true
+              }
+            }
           }
         })
         

@@ -16,8 +16,29 @@ export async function POST(request: Request) {
     // Find user
     const user = await prisma.user.findUnique({
       where: { email: email.toLowerCase() },
-      include: {
-        organization: true,
+      select: {
+        id: true,
+        email: true,
+        name: true,
+        password: true,
+        role: true,
+        phone: true,
+        isApproved: true,
+        approvedAt: true,
+        createdAt: true,
+        updatedAt: true,
+        organizationId: true,
+        organization: {
+          select: {
+            id: true,
+            name: true,
+            slug: true,
+            logo: true,
+            tagline: true,
+            primaryColor: true,
+            secondaryColor: true
+          }
+        }
       },
     })
 
