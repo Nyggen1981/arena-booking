@@ -261,8 +261,7 @@ export default function AdminSettingsPage() {
     }
   }
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
+  const saveAllSettings = async () => {
     setIsSubmitting(true)
     setError("")
     setSuccess(false)
@@ -283,7 +282,7 @@ export default function AdminSettingsPage() {
           smtpUser: smtpUser || null,
           smtpPass: smtpPass || null,
           smtpFrom: smtpFrom || null,
-        })
+        }),
       })
 
       if (!response.ok) {
@@ -298,6 +297,11 @@ export default function AdminSettingsPage() {
     } finally {
       setIsSubmitting(false)
     }
+  }
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    await saveAllSettings()
   }
 
   if (status === "loading" || isLoading) {
@@ -555,7 +559,7 @@ export default function AdminSettingsPage() {
           </form>
         </div>
 
-        {/* SMTP Settings */}
+            {/* SMTP Settings */}
         <div className="card p-6 md:p-8 mt-6">
           <div className="flex items-center gap-3 mb-6">
             <div className="w-12 h-12 rounded-xl bg-blue-100 flex items-center justify-center">
@@ -654,31 +658,53 @@ export default function AdminSettingsPage() {
               </p>
             </div>
 
-            {/* SMTP Test */}
+            {/* SMTP actions */}
             <div className="border-t pt-4 mt-4">
-              <div className="flex items-center justify-between mb-3">
+              <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3 mb-3">
                 <div>
-                  <h3 className="font-medium text-gray-900">Test e-postinnstillinger</h3>
-                  <p className="text-sm text-gray-500">Send en test-e-post for å verifisere at innstillingene fungerer</p>
+                  <h3 className="font-medium text-gray-900">Lagre og teste e-postinnstillinger</h3>
+                  <p className="text-sm text-gray-500">
+                    Husk å lagre før du tester – både denne og knappen &quot;Lagre innstillinger&quot; øverst lagrer SMTP-oppsettet.
+                  </p>
                 </div>
-                <button
-                  type="button"
-                  onClick={handleTestSmtp}
-                  disabled={isTestingSmtp}
-                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
-                >
-                  {isTestingSmtp ? (
-                    <>
-                      <Loader2 className="w-4 h-4 animate-spin" />
-                      Tester...
-                    </>
-                  ) : (
-                    <>
-                      <Mail className="w-4 h-4" />
-                      Send test-e-post
-                    </>
-                  )}
-                </button>
+                <div className="flex flex-col sm:flex-row gap-2">
+                  <button
+                    type="button"
+                    onClick={saveAllSettings}
+                    disabled={isSubmitting}
+                    className="px-4 py-2 bg-gray-900 text-white rounded-lg hover:bg-gray-800 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                  >
+                    {isSubmitting ? (
+                      <>
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                        Lagrer...
+                      </>
+                    ) : (
+                      <>
+                        <Save className="w-4 h-4" />
+                        Lagre e-postinnstillinger
+                      </>
+                    )}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleTestSmtp}
+                    disabled={isTestingSmtp}
+                    className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                  >
+                    {isTestingSmtp ? (
+                      <>
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                        Tester...
+                      </>
+                    ) : (
+                      <>
+                        <Mail className="w-4 h-4" />
+                        Send test-e-post
+                      </>
+                    )}
+                  </button>
+                </div>
               </div>
 
               {smtpTestResult && (
