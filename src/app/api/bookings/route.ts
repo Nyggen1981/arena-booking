@@ -155,22 +155,9 @@ export async function POST(request: Request) {
         // Get the part to check its hierarchy
         const bookingPart = await prisma.resourcePart.findUnique({
           where: { id: resourcePartId },
-          select: {
-            id: true,
-            name: true,
-            parentId: true,
-            parent: {
-              select: {
-                id: true,
-                name: true
-              }
-            },
-            children: {
-              select: {
-                id: true,
-                name: true
-              }
-            }
+          include: {
+            parent: true,
+            children: true
           }
         })
         
@@ -343,7 +330,11 @@ export async function POST(request: Request) {
   } catch (error) {
     console.error("Error creating booking:", error)
     return NextResponse.json(
-      { error: "Kunne ikke opprette booking" },
+      { 
+        error: "Kunne ikke opprette booking",
+        // Midlertidig ekstra info for feilsøking i prod
+        details: (error as any)?.message || String(error),
+      },
       { status: 500 }
     )
   }
