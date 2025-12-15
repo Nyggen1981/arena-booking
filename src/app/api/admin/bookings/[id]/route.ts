@@ -22,7 +22,7 @@ export async function PATCH(
   let body: { action?: string; status?: string; statusNote?: string; applyToAll?: boolean } = {}
   try {
     body = await request.json()
-  } catch {
+  } catch (jsonError) {
     try {
       const bodyText = await request.text()
       if (bodyText && bodyText.trim()) {
@@ -63,38 +63,10 @@ export async function PATCH(
 
   const booking = await prisma.booking.findUnique({
     where: { id },
-    select: {
-      id: true,
-      title: true,
-      startTime: true,
-      endTime: true,
-      status: true,
-      isRecurring: true,
-      parentBookingId: true,
-      organizationId: true,
-      userId: true,
-      contactEmail: true,
-      user: {
-        select: {
-          id: true,
-          name: true,
-          email: true
-        }
-      },
-      resource: {
-        select: {
-          id: true,
-          name: true,
-          organizationId: true
-        }
-      },
-      resourcePart: {
-        select: {
-          id: true,
-          name: true
-          // Excluding adminNote since it doesn't exist in database yet
-        }
-      }
+    include: {
+      user: true,
+      resource: true,
+      resourcePart: true
     }
   })
 
@@ -134,8 +106,7 @@ export async function PATCH(
       status: newStatus,
       statusNote: statusNote || null,
       approvedAt: action === "approve" ? new Date() : null,
-      approvedById: action === "approve" ? session.user.id : null,
-      userSeenAt: null // Reset so user sees the notification
+      approvedById: action === "approve" ? session.user.id : null
     }
   })
 
@@ -178,7 +149,7 @@ export async function PATCH(
         console.error("Failed to send email:", error)
       }
     }
-    
+
     // Don't await - let it run in background
     void sendEmailAsync()
   }
