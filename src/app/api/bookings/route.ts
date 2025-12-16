@@ -13,14 +13,6 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
   }
 
-  // Moderators cannot create bookings - they can only approve/reject them
-  if (session.user.role === "moderator") {
-    return NextResponse.json(
-      { error: "Moderatorer kan ikke opprette bookinger" },
-      { status: 403 }
-    )
-  }
-
   try {
     const body = await request.json()
     const {
