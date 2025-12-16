@@ -271,6 +271,21 @@ export default function AdminSettingsPage() {
           status: data.status,
           message: `Organisasjon: ${data.organization}. ${data.daysRemaining ? `${data.daysRemaining} dager igjen.` : ''}`,
         })
+        
+        // Oppdater lisensinfo og tøm cache
+        setLicenseInfo({
+          valid: true,
+          status: data.status,
+          expiresAt: data.expiresAt || null,
+          daysRemaining: data.daysRemaining || null,
+          licenseType: data.licenseType || null
+        })
+        
+        // Tøm lisens-cache på serveren og last siden på nytt etter 2 sekunder
+        await fetch("/api/license/clear-cache", { method: "POST" })
+        setTimeout(() => {
+          window.location.reload()
+        }, 2000)
       } else {
         setLicenseTestResult({
           success: false,

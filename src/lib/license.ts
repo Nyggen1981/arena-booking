@@ -250,6 +250,8 @@ export async function canCreateResource(): Promise<{ allowed: boolean; message?:
 export function clearLicenseCache(): void {
   cachedResult = null
   cacheTimestamp = 0
+  cachedLicenseKey = null
+  dbConfigTimestamp = 0
 }
 
 /**
