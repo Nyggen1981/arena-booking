@@ -91,6 +91,13 @@ export default function AdminSettingsPage() {
   const [licenseKey, setLicenseKey] = useState("")
   const [isTestingLicense, setIsTestingLicense] = useState(false)
   const [licenseTestResult, setLicenseTestResult] = useState<{ success: boolean; message: string; status?: string } | null>(null)
+  const [licenseInfo, setLicenseInfo] = useState<{
+    valid: boolean
+    status: string
+    expiresAt: string | null
+    daysRemaining: number | null
+    licenseType: string | null
+  } | null>(null)
   
 
   useEffect(() => {
@@ -129,6 +136,12 @@ export default function AdminSettingsPage() {
           setLicenseKey(orgData.licenseKey || "")
           
           setIsLoading(false)
+          
+          // Fetch license status info
+          fetch("/api/license/status")
+            .then(res => res.json())
+            .then(data => setLicenseInfo(data))
+            .catch(() => {})
         })
         .catch((error) => {
           console.error("Error loading settings:", error)
@@ -1011,7 +1024,46 @@ export default function AdminSettingsPage() {
               </div>
             )}
 
-            {licenseKey && (
+            {licenseKey && licenseInfo && licenseInfo.status === "active" && (
+              <div className="bg-emerald-50 border border-emerald-200 rounded-lg p-4">
+                <div className="flex items-start justify-between">
+                  <div>
+                    <p className="text-sm text-emerald-800 font-medium">
+                      ✓ Lisens aktiv
+                    </p>
+                    {licenseInfo.expiresAt && (
+                      <p className="text-sm text-emerald-700 mt-1">
+                        Utløper: {new Date(licenseInfo.expiresAt).toLocaleDateString("nb-NO", { 
+                          day: "numeric", 
+                          month: "long", 
+                          year: "numeric" 
+                        })}
+                        {licenseInfo.daysRemaining !== null && (
+                          <span className="ml-2 text-emerald-600">
+                            ({licenseInfo.daysRemaining} dager igjen)
+                          </span>
+                        )}
+                      </p>
+                    )}
+                    {licenseInfo.licenseType && (
+                      <p className="text-xs text-emerald-600 mt-1">
+                        Type: {licenseInfo.licenseType.charAt(0).toUpperCase() + licenseInfo.licenseType.slice(1)}
+                      </p>
+                    )}
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {licenseKey && licenseInfo && licenseInfo.daysRemaining !== null && licenseInfo.daysRemaining <= 14 && licenseInfo.daysRemaining > 0 && (
+              <div className="bg-amber-50 border border-amber-200 rounded-lg p-4">
+                <p className="text-sm text-amber-800">
+                  <strong>⚠️ Lisensen utløper snart!</strong> Kontakt leverandør for å fornye.
+                </p>
+              </div>
+            )}
+
+            {licenseKey && !licenseInfo && (
               <div className="bg-emerald-50 border border-emerald-200 rounded-lg p-4">
                 <p className="text-sm text-emerald-800">
                   <strong>✓</strong> Lisensnøkkel er konfigurert. Trykk &quot;Test lisens&quot; for å verifisere.
