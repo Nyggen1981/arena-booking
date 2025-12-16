@@ -987,8 +987,8 @@ export default function AdminSettingsPage() {
           </p>
         </div>
 
-        {/* Database Migration - Only show if table doesn't exist */}
-        {tableExists === false && (
+        {/* Database Migration - Show if table doesn't exist or status is unknown */}
+        {(tableExists === false || tableExists === null) && (
           <div className="card p-6 md:p-8 mt-6">
             <div className="flex items-center gap-3 mb-6">
               <div className="w-12 h-12 rounded-xl bg-green-100 flex items-center justify-center">
@@ -1020,7 +1020,9 @@ export default function AdminSettingsPage() {
                 <div>
                   <h3 className="font-semibold text-gray-900 mb-1">ResourceModerator-tabell</h3>
                   <p className="text-sm text-gray-600">
-                    ⚠️ Tabellen mangler - må opprettes
+                    {tableExists === null 
+                      ? "⏳ Sjekker status..." 
+                      : "⚠️ Tabellen mangler - må opprettes"}
                   </p>
                 </div>
               </div>
