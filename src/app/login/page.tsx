@@ -30,12 +30,22 @@ function LoginForm() {
       })
 
       if (result?.error) {
-        setError("Feil e-post eller passord")
-      } else {
+        // NextAuth returnerer feilmeldingen direkte når vi kaster Error i authorize
+        // Hvis det er "CredentialsSignin" er det generisk feil, ellers vis spesifikk melding
+        if (result.error === "CredentialsSignin") {
+          setError("Feil e-post eller passord")
+        } else {
+          // Vis den faktiske feilmeldingen (f.eks. "Abonnementet har utløpt...")
+          setError(result.error)
+        }
+      } else if (result?.ok) {
         router.push(callbackUrl)
         router.refresh()
+      } else {
+        setError("Noe gikk galt. Prøv igjen.")
       }
-    } catch {
+    } catch (err) {
+      console.error("Login error:", err)
       setError("Noe gikk galt. Prøv igjen.")
     } finally {
       setIsLoading(false)

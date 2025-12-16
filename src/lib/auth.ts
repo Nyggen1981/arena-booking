@@ -67,9 +67,22 @@ export const authOptions: NextAuthOptions = {
         // Sjekk lisens ved hver innlogging (testfase)
         // Admin får alltid logge inn for å kunne konfigurere lisens
         if (user.role !== "admin") {
-          const license = await validateLicense(true) // Force refresh
-          if (!license.valid) {
-            throw new Error("Tjenesten er midlertidig utilgjengelig. Kontakt administrator.")
+          try {
+            const license = await validateLicense(true) // Force refresh
+            if (!license.valid) {
+              const errorMsg = license.status === "expired" 
+                ? "Abonnementet har utløpt. Kontakt din klubb for mer informasjon."
+                : license.status === "suspended"
+                  ? "Lisensen er suspendert. Kontakt din klubb."
+                  : "Tjenesten er midlertidig utilgjengelig. Kontakt din klubb."
+              throw new Error(errorMsg)
+            }
+          } catch (licenseError) {
+            // Hvis lisenssjekk feiler, kast feilen videre
+            if (licenseError instanceof Error) {
+              throw licenseError
+            }
+            throw new Error("Kunne ikke verifisere lisens. Kontakt din klubb.")
           }
         }
 
@@ -86,11 +99,17 @@ export const authOptions: NextAuthOptions = {
           }
         } catch (error) {
           // Re-throw specific error messages so they show to the user
-          if (error instanceof Error && (
-            error.message.includes("godkjenning") || 
-            error.message.includes("utilgjengelig")
-          )) {
-            throw error
+          if (error instanceof Error) {
+            // Lisensfeil og godkjenningsfeil skal vises direkte
+            if (
+              error.message.includes("godkjenning") || 
+              error.message.includes("utilgjengelig") ||
+              error.message.includes("utløpt") ||
+              error.message.includes("suspendert") ||
+              error.message.includes("lisens")
+            ) {
+              throw error
+            }
           }
           // Log other errors but show generic message
           console.error("Auth error:", error)
