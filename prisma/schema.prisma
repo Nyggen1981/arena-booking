@@ -47,7 +47,7 @@ model User {
   email      String   @unique
   name       String?
   password   String
-  role       String   @default("user") // "admin", "user"
+  role       String   @default("user") // "admin", "moderator", "user"
   phone      String?
   isApproved Boolean  @default(false)  // Must be approved by admin to use system
   approvedAt DateTime?
@@ -60,6 +60,7 @@ model User {
   bookings          Booking[]
   approvedBookings  Booking[] @relation("ApprovedBy")
   preferences       UserPreferences?
+  moderatedResources ResourceModerator[] // Resources this user can moderate (if role is "moderator")
 
   @@index([organizationId, isApproved])
 }
@@ -131,6 +132,7 @@ model Resource {
 
   parts    ResourcePart[]
   bookings Booking[]
+  moderators ResourceModerator[] // Users who can moderate this resource
 
   // Indexes for faster queries
   @@index([organizationId, isActive])
@@ -225,6 +227,21 @@ model Booking {
   @@index([resourceId, status, startTime, endTime]) // For whole facility bookings
   @@index([resourceId, resourcePartId, status, startTime, endTime]) // For part bookings
   @@index([resourceId, status, resourcePartId]) // For filtering by part
+}
+
+// Resource Moderator - Links users with "moderator" role to specific resources they can approve bookings for
+model ResourceModerator {
+  id         String   @id @default(cuid())
+  userId     String
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  resourceId String
+  resource   Resource @relation(fields: [resourceId], references: [id], onDelete: Cascade)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@unique([userId, resourceId]) // A user can only be moderator for a resource once
+  @@index([userId])
+  @@index([resourceId])
 }
 
 // Email templates for customizing automated emails

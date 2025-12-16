@@ -3,6 +3,25 @@
 ## 📋 Oppsummering
 Dette er en statusrapport etter reinstallasjon av PC og Cursor.
 
+**Sist oppdatert:** 2024-12-19
+
+## ✅ Prosjektstatus (Nåværende)
+
+### Git Status
+- **Branch:** `main`
+- **Synkronisert med remote:** ✅ Ja (HEAD = origin/main)
+- **Siste commit:** `65a73afe` - "chore: save current project state - code cleanup and refactoring"
+- **Versjon i produksjon:** `1.0.12` (bekreftet i `package.json` og `origin/main`)
+- **Git rettigheter:** ✅ Konfigurert (`safe.directory` er satt)
+
+### Versjon og Endringer
+- **Nåværende versjon:** `1.0.12`
+- **Footer viser versjon:** ✅ Dynamisk fra `package.json`
+- **Siste endringer:**
+  - Horisontalt skille mellom bookinger på tidslinje
+  - Copyright-symbol fikset i footer (`&copy;`)
+  - Code cleanup og refactoring (716 linjer fjernet, 155 linjer lagt til)
+
 ## ⚠️ Kritisk mangler
 
 ### 1. Node.js og npm er ikke installert
@@ -98,14 +117,14 @@ npm run dev
 
 Åpne [http://localhost:3000](http://localhost:3000)
 
-## 🔍 Annet å sjekke
+## 🔍 Rydding og Vedlikehold
 
-### Uvanlige filer i prosjektrot
-Det er noen filer som ser ut som feilaktige git-kommandoer:
-- `et --hard d09a5b2`
-- `h origin main --force`
-
-Disse bør sjekkes og muligens fjernes hvis de ikke er nødvendige.
+### Uvanlige filer
+- **Status:** ⚠️ To uvanlige filer i prosjektrot (feilaktig opprettet fra git-kommandoer)
+  - `et --hard d09a5b2`
+  - `h origin main --force`
+- **Løsning:** Filene er lagt til `.gitignore` og vil ikke påvirke git-operasjoner
+- **Note:** Filene kan ikke slettes pga. rettighetsproblemer, men de er ignorert av git
 
 ### Mobile app
 Hvis du skal jobbe med mobile-appen:

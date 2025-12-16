@@ -96,7 +96,16 @@ export default function AdminUsersPage() {
   }
 
   const toggleRole = async (userId: string, currentRole: string) => {
-    const newRole = currentRole === "admin" ? "user" : "admin"
+    // Cycle through roles: user -> moderator -> admin -> user
+    let newRole: string
+    if (currentRole === "user") {
+      newRole = "moderator"
+    } else if (currentRole === "moderator") {
+      newRole = "admin"
+    } else {
+      newRole = "user"
+    }
+    
     await fetch(`/api/admin/users/${userId}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
@@ -153,6 +162,7 @@ export default function AdminUsersPage() {
   const pendingUsers = users.filter(u => !u.isApproved)
   const approvedUsers = users.filter(u => u.isApproved)
   const admins = approvedUsers.filter(u => u.role === "admin")
+  const moderators = approvedUsers.filter(u => u.role === "moderator")
   const regularUsers = approvedUsers.filter(u => u.role === "user")
 
   return (
@@ -290,6 +300,29 @@ export default function AdminUsersPage() {
               </div>
             </section>
 
+            {/* Moderators */}
+            {moderators.length > 0 && (
+              <section className="mb-8">
+                <h2 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
+                  <ShieldCheck className="w-5 h-5 text-amber-600" />
+                  Moderatorer ({moderators.length})
+                </h2>
+                <div className="space-y-3">
+                  {moderators.map((user) => (
+                    <UserCard 
+                      key={user.id} 
+                      user={user} 
+                      currentUserId={session?.user?.id}
+                      openMenu={openMenu}
+                      setOpenMenu={setOpenMenu}
+                      onToggleRole={toggleRole}
+                      onDelete={deleteUser}
+                    />
+                  ))}
+                </div>
+              </section>
+            )}
+
             {/* Regular users */}
             <section>
               <h2 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
@@ -365,8 +398,12 @@ export default function AdminUsersPage() {
                   className="input"
                 >
                   <option value="user">Bruker</option>
+                  <option value="moderator">Moderator</option>
                   <option value="admin">Administrator</option>
                 </select>
+                <p className="text-xs text-gray-500 mt-1">
+                  Moderatorer kan godkjenne bookinger for tildelte fasiliteter, men kan ikke booke selv.
+                </p>
               </div>
               <p className="text-xs text-gray-500">
                 Brukere lagt til av admin blir automatisk godkjent.
@@ -415,16 +452,20 @@ function UserCard({
   return (
     <div className="card p-4">
       <div className="flex items-center justify-between">
-        <div className="flex items-center gap-4">
-          <div className={`w-10 h-10 rounded-full flex items-center justify-center ${
-            user.role === "admin" ? "bg-purple-100" : "bg-blue-100"
-          }`}>
-            {user.role === "admin" ? (
-              <Shield className="w-5 h-5 text-purple-600" />
-            ) : (
-              <User className="w-5 h-5 text-blue-600" />
-            )}
-          </div>
+          <div className="flex items-center gap-4">
+            <div className={`w-10 h-10 rounded-full flex items-center justify-center ${
+              user.role === "admin" ? "bg-purple-100" : 
+              user.role === "moderator" ? "bg-amber-100" : 
+              "bg-blue-100"
+            }`}>
+              {user.role === "admin" ? (
+                <Shield className="w-5 h-5 text-purple-600" />
+              ) : user.role === "moderator" ? (
+                <ShieldCheck className="w-5 h-5 text-amber-600" />
+              ) : (
+                <User className="w-5 h-5 text-blue-600" />
+              )}
+            </div>
           <div>
             <div className="flex items-center gap-2">
               <p className="font-medium text-gray-900">{user.name || "Uten navn"}</p>
@@ -467,12 +508,17 @@ function UserCard({
                     {user.role === "admin" ? (
                       <>
                         <ShieldOff className="w-4 h-4" />
-                        Fjern admin-tilgang
+                        Gjør til bruker
+                      </>
+                    ) : user.role === "moderator" ? (
+                      <>
+                        <Shield className="w-4 h-4" />
+                        Gjør til admin
                       </>
                     ) : (
                       <>
                         <ShieldCheck className="w-4 h-4" />
-                        Gjør til admin
+                        Gjør til moderator
                       </>
                     )}
                   </button>

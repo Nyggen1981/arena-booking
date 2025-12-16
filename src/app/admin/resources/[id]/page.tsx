@@ -15,7 +15,11 @@ import {
   Upload,
   X,
   ImageIcon,
-  Map
+  Map,
+  Users,
+  ShieldCheck,
+  Plus,
+  Trash2
 } from "lucide-react"
 import { MapEditor } from "@/components/MapEditor"
 import { PartsHierarchyEditor, HierarchicalPart } from "@/components/PartsHierarchyEditor"
@@ -73,6 +77,19 @@ export default function EditResourcePage({ params }: Props) {
   const [parts, setParts] = useState<Part[]>([])
   const [prisInfo, setPrisInfo] = useState("")
   const [visPrisInfo, setVisPrisInfo] = useState(false)
+  
+  // Moderators state
+  const [moderators, setModerators] = useState<Array<{
+    id: string
+    user: { id: string; name: string | null; email: string; role: string }
+  }>>([])
+  const [availableModerators, setAvailableModerators] = useState<Array<{
+    id: string
+    name: string | null
+    email: string
+  }>>([])
+  const [showAddModerator, setShowAddModerator] = useState(false)
+  const [selectedModeratorId, setSelectedModeratorId] = useState("")
 
   useEffect(() => {
     if (status === "unauthenticated") {
@@ -85,8 +102,10 @@ export default function EditResourcePage({ params }: Props) {
   useEffect(() => {
     Promise.all([
       fetch("/api/admin/categories").then(res => res.json()),
-      fetch(`/api/admin/resources/${id}`).then(res => res.json())
-    ]).then(([cats, resource]) => {
+      fetch(`/api/admin/resources/${id}`).then(res => res.json()),
+      fetch(`/api/admin/resources/${id}/moderators`).then(res => res.json()).catch(() => []),
+      fetch("/api/admin/users").then(res => res.json()).catch(() => [])
+    ]).then(([cats, resource, mods, users]) => {
       setCategories(cats)
       
       setName(resource.name || "")
@@ -120,6 +139,16 @@ export default function EditResourcePage({ params }: Props) {
         adminNote: p.adminNote || null,
         parentId: p.parentId || null
       })) || [])
+      
+      // Set moderators
+      setModerators(mods || [])
+      
+      // Set available moderators (users with moderator role who aren't already moderators)
+      const moderatorUserIds = (mods || []).map((m: any) => m.user.id)
+      const available = (users || []).filter((u: any) => 
+        u.role === "moderator" && u.isApproved && !moderatorUserIds.includes(u.id)
+      )
+      setAvailableModerators(available)
       
       setIsLoading(false)
     }).catch(() => {
@@ -625,6 +654,144 @@ export default function EditResourcePage({ params }: Props) {
                 )}
               </div>
             )}
+
+            {/* Moderators */}
+            <div className="space-y-4">
+              <div className="flex items-center gap-2 border-b pb-2">
+                <ShieldCheck className="w-5 h-5 text-amber-600" />
+                <h2 className="font-semibold text-gray-900">Moderatorer</h2>
+              </div>
+              
+              <p className="text-sm text-gray-500">
+                Moderatorer kan godkjenne og avslå bookinger for denne fasiliteten. De kan ikke opprette bookinger selv.
+              </p>
+
+              <div className="space-y-2">
+                {moderators.map((mod) => (
+                  <div key={mod.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                    <div className="flex items-center gap-3">
+                      <div className="w-8 h-8 rounded-full bg-amber-100 flex items-center justify-center">
+                        <ShieldCheck className="w-4 h-4 text-amber-600" />
+                      </div>
+                      <div>
+                        <p className="font-medium text-gray-900">{mod.user.name || "Uten navn"}</p>
+                        <p className="text-xs text-gray-500">{mod.user.email}</p>
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={async () => {
+                        await fetch(`/api/admin/resources/${id}/moderators?userId=${mod.user.id}`, {
+                          method: "DELETE"
+                        })
+                        // Reload moderators
+                        const updated = await fetch(`/api/admin/resources/${id}/moderators`).then(res => res.json())
+                        setModerators(updated || [])
+                        // Update available moderators
+                        const users = await fetch("/api/admin/users").then(res => res.json())
+                        const moderatorUserIds = (updated || []).map((m: any) => m.user.id)
+                        const available = users.filter((u: any) => 
+                          u.role === "moderator" && u.isApproved && !moderatorUserIds.includes(u.id)
+                        )
+                        setAvailableModerators(available)
+                      }}
+                      className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  </div>
+                ))}
+                
+                {moderators.length === 0 && (
+                  <div className="p-4 bg-gray-50 rounded-lg text-center text-gray-500 text-sm">
+                    Ingen moderatorer tildelt denne fasiliteten
+                  </div>
+                )}
+              </div>
+
+              {availableModerators.length > 0 && (
+                <div>
+                  {!showAddModerator ? (
+                    <button
+                      type="button"
+                      onClick={() => setShowAddModerator(true)}
+                      className="btn btn-secondary text-sm"
+                    >
+                      <Plus className="w-4 h-4" />
+                      Legg til moderator
+                    </button>
+                  ) : (
+                    <div className="flex gap-2">
+                      <select
+                        value={selectedModeratorId}
+                        onChange={(e) => setSelectedModeratorId(e.target.value)}
+                        className="input flex-1"
+                      >
+                        <option value="">Velg moderator...</option>
+                        {availableModerators.map((user) => (
+                          <option key={user.id} value={user.id}>
+                            {user.name || "Uten navn"} ({user.email})
+                          </option>
+                        ))}
+                      </select>
+                      <button
+                        type="button"
+                        onClick={async () => {
+                          if (!selectedModeratorId) return
+                          
+                          await fetch(`/api/admin/resources/${id}/moderators`, {
+                            method: "POST",
+                            headers: { "Content-Type": "application/json" },
+                            body: JSON.stringify({ userId: selectedModeratorId })
+                          })
+                          
+                          // Reload moderators
+                          const updated = await fetch(`/api/admin/resources/${id}/moderators`).then(res => res.json())
+                          setModerators(updated || [])
+                          
+                          // Update available moderators
+                          const users = await fetch("/api/admin/users").then(res => res.json())
+                          const moderatorUserIds = (updated || []).map((m: any) => m.user.id)
+                          const available = users.filter((u: any) => 
+                            u.role === "moderator" && u.isApproved && !moderatorUserIds.includes(u.id)
+                          )
+                          setAvailableModerators(available)
+                          
+                          setShowAddModerator(false)
+                          setSelectedModeratorId("")
+                        }}
+                        disabled={!selectedModeratorId}
+                        className="btn btn-primary text-sm disabled:opacity-50"
+                      >
+                        Legg til
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setShowAddModerator(false)
+                          setSelectedModeratorId("")
+                        }}
+                        className="btn btn-secondary text-sm"
+                      >
+                        Avbryt
+                      </button>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {availableModerators.length === 0 && moderators.length > 0 && (
+                <p className="text-xs text-gray-500">
+                  Alle tilgjengelige moderatorer er allerede tildelt denne fasiliteten.
+                </p>
+              )}
+
+              {availableModerators.length === 0 && moderators.length === 0 && (
+                <p className="text-xs text-gray-500">
+                  Det finnes ingen brukere med moderator-rolle. Gå til <Link href="/admin/users" className="text-blue-600 hover:underline">Brukere</Link> for å opprette en moderator.
+                </p>
+              )}
+            </div>
 
             {/* Submit */}
             <div className="flex gap-3 pt-4 border-t">

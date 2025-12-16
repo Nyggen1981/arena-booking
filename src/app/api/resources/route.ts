@@ -7,7 +7,6 @@ export async function GET() {
       where: {
         isActive: true,
       },
-<<<<<<< HEAD
       select: {
         id: true,
         name: true,
@@ -32,15 +31,10 @@ export async function GET() {
             icon: true
           }
         },
-=======
-      include: {
-        category: true,
->>>>>>> main
         parts: {
           where: {
             isActive: true,
           },
-<<<<<<< HEAD
           select: {
             id: true,
             name: true,
@@ -48,8 +42,6 @@ export async function GET() {
             capacity: true,
             isActive: true
           },
-=======
->>>>>>> main
           orderBy: {
             name: 'asc',
           },

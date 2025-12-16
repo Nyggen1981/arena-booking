@@ -30,7 +30,6 @@ export async function GET(request: Request) {
           in: ['approved', 'pending'],
         },
       },
-<<<<<<< HEAD
       select: {
         id: true,
         title: true,
@@ -59,11 +58,6 @@ export async function GET(request: Request) {
             name: true
           }
         },
-=======
-      include: {
-        resource: true,
-        resourcePart: true,
->>>>>>> main
         user: {
           select: {
             id: true,

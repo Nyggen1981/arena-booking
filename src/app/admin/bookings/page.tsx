@@ -61,8 +61,12 @@ export default function AdminBookingsPage() {
   useEffect(() => {
     if (status === "unauthenticated") {
       router.push("/login")
-    } else if (session?.user?.role !== "admin") {
-      router.push("/")
+    } else {
+      const isAdmin = session?.user?.role === "admin"
+      const isModerator = session?.user?.role === "moderator"
+      if (!isAdmin && !isModerator) {
+        router.push("/")
+      }
     }
   }, [status, session, router])
 
@@ -80,7 +84,9 @@ export default function AdminBookingsPage() {
   }, [])
 
   useEffect(() => {
-    if (session?.user?.role === "admin") {
+    const isAdmin = session?.user?.role === "admin"
+    const isModerator = session?.user?.role === "moderator"
+    if (isAdmin || isModerator) {
       fetchBookings()
     }
   }, [session, fetchBookings])

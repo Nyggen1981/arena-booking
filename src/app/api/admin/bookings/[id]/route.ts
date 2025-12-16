@@ -12,7 +12,7 @@ export async function PATCH(
 ) {
   const session = await getServerSession(authOptions)
 
-  if (!session?.user || session.user.role !== "admin") {
+  if (!session?.user) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
   }
 
@@ -72,6 +72,32 @@ export async function PATCH(
 
   if (!booking || booking.organizationId !== session.user.organizationId) {
     return NextResponse.json({ error: "Booking not found" }, { status: 404 })
+  }
+
+  // Check if user has permission to approve/reject this booking
+  const isAdmin = session.user.role === "admin"
+  const isModerator = session.user.role === "moderator"
+  
+  if (!isAdmin && !isModerator) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+  }
+
+  // If moderator, check if they have access to this specific resource
+  if (isModerator) {
+    const moderatorAccess = await prisma.resourceModerator.findUnique({
+      where: {
+        userId_resourceId: {
+          userId: session.user.id,
+          resourceId: booking.resourceId
+        }
+      }
+    })
+
+    if (!moderatorAccess) {
+      return NextResponse.json({ 
+        error: "Du har ikke tilgang til å godkjenne bookinger for denne fasiliteten" 
+      }, { status: 403 })
+    }
   }
 
   // Determine which bookings to update
