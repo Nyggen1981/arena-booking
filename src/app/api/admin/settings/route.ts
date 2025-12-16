@@ -15,8 +15,28 @@ export async function GET() {
       return NextResponse.json({ error: "Organization ID missing" }, { status: 400 })
     }
 
+    // Use select to avoid relation validation issues
     const org = await prisma.organization.findUnique({
-      where: { id: session.user.organizationId }
+      where: { id: session.user.organizationId },
+      select: {
+        id: true,
+        name: true,
+        slug: true,
+        logo: true,
+        tagline: true,
+        primaryColor: true,
+        secondaryColor: true,
+        smtpHost: true,
+        smtpPort: true,
+        smtpUser: true,
+        smtpPass: true,
+        smtpFrom: true,
+        createdAt: true,
+        updatedAt: true,
+        isActive: true,
+        subscriptionEndsAt: true,
+        graceEndsAt: true
+      }
     })
 
     if (!org) {
