@@ -51,6 +51,11 @@ export function BookingManagement({ initialBookings, showTabs = true }: BookingM
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
   const [isDeleting, setIsDeleting] = useState(false)
   
+  // Reject modal state
+  const [rejectModalOpen, setRejectModalOpen] = useState(false)
+  const [rejectingBookingId, setRejectingBookingId] = useState<string | null>(null)
+  const [rejectReason, setRejectReason] = useState("")
+  
   const now = new Date()
   
   // Clear selection when tab changes
@@ -77,6 +82,14 @@ export function BookingManagement({ initialBookings, showTabs = true }: BookingM
   }
 
   const handleAction = async (bookingId: string, action: "approve" | "reject" | "cancel") => {
+    // For reject, show the modal to get a reason
+    if (action === "reject") {
+      setRejectingBookingId(bookingId)
+      setRejectReason("")
+      setRejectModalOpen(true)
+      return
+    }
+
     setProcessingId(bookingId)
     try {
       const response = await fetch(`/api/admin/bookings/${bookingId}`, {
@@ -96,6 +109,34 @@ export function BookingManagement({ initialBookings, showTabs = true }: BookingM
       console.error("Failed to process booking:", error)
     } finally {
       setProcessingId(null)
+    }
+  }
+
+  const confirmReject = async () => {
+    if (!rejectingBookingId) return
+
+    setProcessingId(rejectingBookingId)
+    setRejectModalOpen(false)
+    
+    try {
+      const response = await fetch(`/api/admin/bookings/${rejectingBookingId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ 
+          action: "reject",
+          statusNote: rejectReason.trim() || undefined
+        })
+      })
+
+      if (response.ok) {
+        await fetchBookings()
+      }
+    } catch (error) {
+      console.error("Failed to reject booking:", error)
+    } finally {
+      setProcessingId(null)
+      setRejectingBookingId(null)
+      setRejectReason("")
     }
   }
 
@@ -464,6 +505,51 @@ export function BookingManagement({ initialBookings, showTabs = true }: BookingM
               </div>
             </div>
           ))}
+        </div>
+      )}
+
+      {/* Reject reason modal */}
+      {rejectModalOpen && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl shadow-xl max-w-md w-full p-6">
+            <h3 className="text-lg font-semibold text-gray-900 mb-4">Avslå booking</h3>
+            
+            <div className="mb-4">
+              <label htmlFor="rejectReason" className="block text-sm font-medium text-gray-700 mb-2">
+                Grunn til avslag (valgfritt)
+              </label>
+              <textarea
+                id="rejectReason"
+                value={rejectReason}
+                onChange={(e) => setRejectReason(e.target.value)}
+                placeholder="F.eks. Fasiliteten er reservert for annet arrangement..."
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500 resize-none"
+                rows={3}
+              />
+              <p className="mt-1 text-xs text-gray-500">
+                Grunnen vil bli sendt til brukeren på e-post
+              </p>
+            </div>
+
+            <div className="flex gap-3 justify-end">
+              <button
+                onClick={() => {
+                  setRejectModalOpen(false)
+                  setRejectingBookingId(null)
+                  setRejectReason("")
+                }}
+                className="px-4 py-2 text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
+              >
+                Avbryt
+              </button>
+              <button
+                onClick={confirmReject}
+                className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
+              >
+                Avslå booking
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </div>
