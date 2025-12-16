@@ -73,6 +73,8 @@ type ViewMode = "week" | "month"
 export function CalendarView({ categories, resources, bookings: initialBookings }: Props) {
   const { data: session, status: sessionStatus } = useSession()
   const isAdmin = session?.user?.role === "admin"
+  const isModerator = session?.user?.role === "moderator"
+  const canManageBookings = isAdmin || isModerator
   const isLoggedIn = sessionStatus === "authenticated"
   
   const [bookings, setBookings] = useState<Booking[]>(initialBookings)
@@ -668,7 +670,7 @@ export function CalendarView({ categories, resources, bookings: initialBookings 
           <div className="w-4 h-3 rounded border-2 border-dashed border-gray-400 bg-gray-100" />
           <span className="text-gray-600">Venter på godkjenning</span>
         </div>
-        {isAdmin && (
+        {canManageBookings && (
           <div className="ml-4 pl-4 border-l border-gray-200 text-gray-500 italic">
             Klikk på en booking for å behandle
           </div>
@@ -682,7 +684,7 @@ export function CalendarView({ categories, resources, bookings: initialBookings 
             {/* Header */}
             <div className="flex items-center justify-between p-4 border-b">
               <h3 className="text-lg font-bold text-gray-900">
-                {isAdmin ? "Behandle booking" : "Booking-detaljer"}
+                {canManageBookings ? "Behandle booking" : "Booking-detaljer"}
               </h3>
               <button
                 onClick={() => setSelectedBooking(null)}
@@ -739,10 +741,10 @@ export function CalendarView({ categories, resources, bookings: initialBookings 
             {(() => {
               const isOwner = selectedBooking.userId === session?.user?.id
               const canCancel = isOwner && (selectedBooking.status === "pending" || selectedBooking.status === "approved")
-              const canEdit = (isOwner || isAdmin) && (selectedBooking.status === "pending" || selectedBooking.status === "approved")
+              const canEdit = (isOwner || canManageBookings) && (selectedBooking.status === "pending" || selectedBooking.status === "approved")
               const isPast = new Date(selectedBooking.startTime) < new Date()
 
-              if (isAdmin) {
+              if (canManageBookings) {
                 return (
                   <div className="p-4 border-t bg-gray-50 rounded-b-xl space-y-3">
                     {/* Recurring booking checkbox */}
@@ -856,7 +858,7 @@ export function CalendarView({ categories, resources, bookings: initialBookings 
       {editingBooking && (
         <EditBookingModal
           booking={editingBooking}
-          isAdmin={isAdmin}
+          isAdmin={canManageBookings}
           onClose={() => setEditingBooking(null)}
           onSaved={(updatedBooking) => {
             setBookings(bookings.map(b => 

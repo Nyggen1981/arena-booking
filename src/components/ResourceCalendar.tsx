@@ -52,6 +52,8 @@ interface Props {
 export function ResourceCalendar({ resourceId, resourceName, bookings, parts }: Props) {
   const { data: session } = useSession()
   const isAdmin = session?.user?.role === "admin"
+  const isModerator = session?.user?.role === "moderator"
+  const canManageBookings = isAdmin || isModerator
   const isLoggedIn = session?.user !== undefined
   
   const [currentDate, setCurrentDate] = useState(new Date())
@@ -520,7 +522,7 @@ export function ResourceCalendar({ resourceId, resourceName, bookings, parts }: 
             {/* Header */}
             <div className="flex items-center justify-between p-4 border-b">
               <h3 className="text-lg font-bold text-gray-900">
-                {isAdmin ? "Behandle booking" : "Booking-detaljer"}
+                {canManageBookings ? "Behandle booking" : "Booking-detaljer"}
               </h3>
               <button
                 onClick={() => setSelectedBooking(null)}
@@ -585,7 +587,7 @@ export function ResourceCalendar({ resourceId, resourceName, bookings, parts }: 
               const canCancel = isOwner && (selectedBooking.status === "pending" || selectedBooking.status === "approved")
               const isPast = new Date(selectedBooking.startTime) < new Date()
 
-              if (isAdmin) {
+              if (canManageBookings) {
                 return (
                   <div className="p-4 border-t bg-gray-50 rounded-b-xl space-y-3">
                     {/* Recurring booking checkbox */}
