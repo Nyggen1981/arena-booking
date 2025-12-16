@@ -987,48 +987,44 @@ export default function AdminSettingsPage() {
           </p>
         </div>
 
-        {/* Database Migration */}
-        <div className="card p-6 md:p-8 mt-6">
-          <div className="flex items-center gap-3 mb-6">
-            <div className="w-12 h-12 rounded-xl bg-green-100 flex items-center justify-center">
-              <Database className="w-6 h-6 text-green-600" />
-            </div>
-            <div>
-              <h2 className="text-xl font-bold text-gray-900">Database Migrasjon</h2>
-              <p className="text-gray-500 text-sm">Oppdater database-skjemaet</p>
-            </div>
-          </div>
-
-          {migrationStatus && (
-            <div className={`p-4 rounded-xl mb-6 flex items-center gap-2 ${
-              migrationStatus.success
-                ? "bg-green-50 border border-green-100 text-green-700"
-                : "bg-red-50 border border-red-100 text-red-700"
-            }`}>
-              {migrationStatus.success ? (
-                <CheckCircle2 className="w-5 h-5 flex-shrink-0" />
-              ) : (
-                <AlertCircle className="w-5 h-5 flex-shrink-0" />
-              )}
-              {migrationStatus.message}
-            </div>
-          )}
-
-          <div className="p-4 bg-gray-50 rounded-xl">
-            <div className="flex items-center justify-between mb-4">
+        {/* Database Migration - Only show if table doesn't exist */}
+        {tableExists === false && (
+          <div className="card p-6 md:p-8 mt-6">
+            <div className="flex items-center gap-3 mb-6">
+              <div className="w-12 h-12 rounded-xl bg-green-100 flex items-center justify-center">
+                <Database className="w-6 h-6 text-green-600" />
+              </div>
               <div>
-                <h3 className="font-semibold text-gray-900 mb-1">ResourceModerator-tabell</h3>
-                <p className="text-sm text-gray-600">
-                  {tableExists === null 
-                    ? "Sjekker status..." 
-                    : tableExists 
-                    ? "✅ Tabellen eksisterer allerede" 
-                    : "⚠️ Tabellen mangler - må opprettes"}
-                </p>
+                <h2 className="text-xl font-bold text-gray-900">Database Migrasjon</h2>
+                <p className="text-gray-500 text-sm">Oppdater database-skjemaet</p>
               </div>
             </div>
-            
-            {tableExists === false && (
+
+            {migrationStatus && (
+              <div className={`p-4 rounded-xl mb-6 flex items-center gap-2 ${
+                migrationStatus.success
+                  ? "bg-green-50 border border-green-100 text-green-700"
+                  : "bg-red-50 border border-red-100 text-red-700"
+              }`}>
+                {migrationStatus.success ? (
+                  <CheckCircle2 className="w-5 h-5 flex-shrink-0" />
+                ) : (
+                  <AlertCircle className="w-5 h-5 flex-shrink-0" />
+                )}
+                {migrationStatus.message}
+              </div>
+            )}
+
+            <div className="p-4 bg-gray-50 rounded-xl">
+              <div className="flex items-center justify-between mb-4">
+                <div>
+                  <h3 className="font-semibold text-gray-900 mb-1">ResourceModerator-tabell</h3>
+                  <p className="text-sm text-gray-600">
+                    ⚠️ Tabellen mangler - må opprettes
+                  </p>
+                </div>
+              </div>
+              
               <div className="space-y-3">
                 <p className="text-sm text-gray-700">
                   ResourceModerator-tabellen er nødvendig for moderator-funksjonaliteten. 
@@ -1052,17 +1048,9 @@ export default function AdminSettingsPage() {
                   )}
                 </button>
               </div>
-            )}
-            
-            {tableExists === true && (
-              <div className="p-3 bg-green-50 rounded-lg">
-                <p className="text-sm text-green-700">
-                  ✅ Database-skjemaet er oppdatert. Registrering skal nå fungere.
-                </p>
-              </div>
-            )}
+            </div>
           </div>
-        </div>
+        )}
 
       </div>
       <Footer />
