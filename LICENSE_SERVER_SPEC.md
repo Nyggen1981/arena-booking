@@ -321,13 +321,27 @@ ADMIN_PASSWORD="veldig-sikkert-passord"
 
 ## 🔐 Miljøvariabler for Arena Booking (hver kunde)
 
-Når en kunde er registrert i lisensserveren, må de legge til dette i sin `.env`:
+Når en kunde er registrert i lisensserveren, må de legge til dette i sin `.env` og i Vercel:
 
 ```env
+# Database (Neon PostgreSQL)
+DATABASE_URL="postgresql://user:password@host:5432/database?sslmode=require"
+
+# NextAuth
+NEXTAUTH_SECRET="generer-en-lang-tilfeldig-streng"
+NEXTAUTH_URL="https://din-app.vercel.app"
+
 # Lisensserver
 LICENSE_SERVER_URL="https://license.arena-booking.no"
 LICENSE_KEY="clxxxxxxxxxxxxxxxxxxxx"  # Generert av lisensserveren
+ORG_SLUG="organisasjonens-slug"       # F.eks. "haugesund-il"
+
+# E-post (Resend)
+RESEND_API_KEY="re_xxxxxxxxxxxx"
+EMAIL_FROM="noreply@dindomain.no"
 ```
+
+**Merk:** Hvis `LICENSE_SERVER_URL`, `LICENSE_KEY` eller `ORG_SLUG` ikke er satt, kjører appen i "development mode" og hopper over lisensvalidering.
 
 ---
 

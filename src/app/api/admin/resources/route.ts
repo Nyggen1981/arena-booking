@@ -2,6 +2,7 @@ import { prisma } from "@/lib/prisma"
 import { NextResponse } from "next/server"
 import { getServerSession } from "next-auth"
 import { authOptions } from "@/lib/auth"
+import { canCreateResource } from "@/lib/license"
 
 export async function GET() {
   const session = await getServerSession(authOptions)
@@ -30,6 +31,15 @@ export async function POST(request: Request) {
 
   if (!session?.user || session.user.role !== "admin") {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+  }
+
+  // Sjekk lisensgrenser for ressursantall
+  const licenseCheck = await canCreateResource()
+  if (!licenseCheck.allowed) {
+    return NextResponse.json(
+      { error: licenseCheck.message || "Kan ikke opprette flere ressurser med gjeldende lisens" },
+      { status: 403 }
+    )
   }
 
   const body = await request.json()

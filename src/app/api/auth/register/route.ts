@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/prisma"
 import { NextResponse } from "next/server"
 import bcrypt from "bcryptjs"
+import { canCreateUser } from "@/lib/license"
 
 export async function POST(request: Request) {
   try {
@@ -11,6 +12,15 @@ export async function POST(request: Request) {
       return NextResponse.json(
         { error: "E-post, passord og klubbkode er påkrevd" },
         { status: 400 }
+      )
+    }
+
+    // Sjekk lisensgrenser for brukerantall
+    const licenseCheck = await canCreateUser()
+    if (!licenseCheck.allowed) {
+      return NextResponse.json(
+        { error: licenseCheck.message || "Kan ikke opprette flere brukere med gjeldende lisens" },
+        { status: 403 }
       )
     }
 
