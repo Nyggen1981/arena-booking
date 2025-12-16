@@ -30,15 +30,62 @@ let cachedResult: LicenseValidationResult | null = null
 let cacheTimestamp: number = 0
 const CACHE_DURATION = 5 * 60 * 1000 // 5 minutter
 
+// Cache for database config
+let cachedDbConfig: { serverUrl: string; licenseKey: string; orgSlug: string } | null = null
+let dbConfigTimestamp: number = 0
+const DB_CONFIG_CACHE_DURATION = 60 * 1000 // 1 minutt
+
+/**
+ * Henter lisenskonfigurasjon fra database eller env
+ */
+async function getLicenseConfig(): Promise<{ serverUrl: string | null; licenseKey: string | null; orgSlug: string | null }> {
+  // Sjekk cache først
+  if (cachedDbConfig && Date.now() - dbConfigTimestamp < DB_CONFIG_CACHE_DURATION) {
+    return cachedDbConfig
+  }
+
+  // Prøv å hente fra database
+  try {
+    const { prisma } = await import("./prisma")
+    const org = await prisma.organization.findFirst({
+      select: {
+        licenseServerUrl: true,
+        licenseKey: true,
+        licenseOrgSlug: true
+      }
+    })
+
+    if (org?.licenseServerUrl && org?.licenseKey && org?.licenseOrgSlug) {
+      cachedDbConfig = {
+        serverUrl: org.licenseServerUrl,
+        licenseKey: org.licenseKey,
+        orgSlug: org.licenseOrgSlug
+      }
+      dbConfigTimestamp = Date.now()
+      return cachedDbConfig
+    }
+  } catch (error) {
+    console.log("[License] Could not read config from database, falling back to env")
+  }
+
+  // Fallback til miljøvariabler
+  return {
+    serverUrl: process.env.LICENSE_SERVER_URL || null,
+    licenseKey: process.env.LICENSE_KEY || null,
+    orgSlug: process.env.ORG_SLUG || null
+  }
+}
+
 /**
  * Validerer lisensen mot lisensserveren
  * Cacher resultatet i 5 minutter for å redusere API-kall
  */
 export async function validateLicense(forceRefresh = false): Promise<LicenseValidationResult> {
-  // Sjekk om vi har miljøvariabler
-  const serverUrl = process.env.LICENSE_SERVER_URL
-  const licenseKey = process.env.LICENSE_KEY
-  const orgSlug = process.env.ORG_SLUG
+  // Hent konfigurasjon (fra database eller env)
+  const config = await getLicenseConfig()
+  const serverUrl = config.serverUrl
+  const licenseKey = config.licenseKey
+  const orgSlug = config.orgSlug
 
   // Hvis ingen lisensserver er konfigurert, tillat alt (development mode)
   if (!serverUrl || !licenseKey || !orgSlug) {

@@ -28,6 +28,11 @@ model Organization {
   subscriptionEndsAt DateTime?             // Optional: contract end date
   graceEndsAt        DateTime?             // Optional: last day with read-only access
 
+  // License server integration
+  licenseServerUrl   String?   // URL to the central license server
+  licenseKey         String?   // License key provided by the license server
+  licenseOrgSlug     String?   // Organization slug on the license server
+
   // SMTP settings per organization (optional - falls back to global env vars if not set)
   smtpHost       String?  // e.g., smtp.office365.com, smtp.gmail.com
   smtpPort       Int?     // e.g., 587, 465

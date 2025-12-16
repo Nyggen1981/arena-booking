@@ -23,6 +23,8 @@ import {
   Mail,
   ChevronDown,
   ChevronRight,
+  Key,
+  Shield,
 } from "lucide-react"
 import Image from "next/image"
 import { EmailTemplateEditor } from "@/components/EmailTemplateEditor"
@@ -40,6 +42,9 @@ interface Organization {
   smtpUser?: string | null
   smtpPass?: string | null
   smtpFrom?: string | null
+  licenseServerUrl?: string | null
+  licenseKey?: string | null
+  licenseOrgSlug?: string | null
 }
 
 export default function AdminSettingsPage() {
@@ -83,6 +88,13 @@ export default function AdminSettingsPage() {
   // SMTP test state
   const [isTestingSmtp, setIsTestingSmtp] = useState(false)
   const [smtpTestResult, setSmtpTestResult] = useState<{ success: boolean; message: string } | null>(null)
+
+  // License settings state
+  const [licenseServerUrl, setLicenseServerUrl] = useState("")
+  const [licenseKey, setLicenseKey] = useState("")
+  const [licenseOrgSlug, setLicenseOrgSlug] = useState("")
+  const [isTestingLicense, setIsTestingLicense] = useState(false)
+  const [licenseTestResult, setLicenseTestResult] = useState<{ success: boolean; message: string; status?: string } | null>(null)
   
 
   useEffect(() => {
@@ -116,6 +128,11 @@ export default function AdminSettingsPage() {
           setSmtpUser(orgData.smtpUser || "")
           setSmtpPass(orgData.smtpPass || "")
           setSmtpFrom(orgData.smtpFrom || "")
+          
+          // Load license settings
+          setLicenseServerUrl(orgData.licenseServerUrl || "")
+          setLicenseKey(orgData.licenseKey || "")
+          setLicenseOrgSlug(orgData.licenseOrgSlug || "")
           
           setIsLoading(false)
         })
@@ -226,6 +243,46 @@ export default function AdminSettingsPage() {
     }
   }
 
+  const handleTestLicense = async () => {
+    setIsTestingLicense(true)
+    setLicenseTestResult(null)
+    
+    try {
+      const response = await fetch("/api/license/test", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          serverUrl: licenseServerUrl,
+          licenseKey: licenseKey,
+          orgSlug: licenseOrgSlug,
+        }),
+      })
+      
+      const data = await response.json()
+      
+      if (data.valid) {
+        setLicenseTestResult({
+          success: true,
+          status: data.status,
+          message: `Organisasjon: ${data.organization || licenseOrgSlug}. ${data.daysRemaining ? `${data.daysRemaining} dager igjen.` : ''}`,
+        })
+      } else {
+        setLicenseTestResult({
+          success: false,
+          status: data.status,
+          message: data.message || data.error || "Lisensen er ikke gyldig",
+        })
+      }
+    } catch (error) {
+      setLicenseTestResult({
+        success: false,
+        message: "Kunne ikke kontakte lisensserveren. Sjekk URL og nettverkstilkobling.",
+      })
+    } finally {
+      setIsTestingLicense(false)
+    }
+  }
+
   const handleResetEmailTemplate = async (templateType: string) => {
     const response = await fetch(`/api/admin/email-templates?templateType=${templateType}`, {
       method: "DELETE",
@@ -291,6 +348,9 @@ export default function AdminSettingsPage() {
           smtpUser: smtpUser || null,
           smtpPass: smtpPass || null,
           smtpFrom: smtpFrom || null,
+          licenseServerUrl: licenseServerUrl || null,
+          licenseKey: licenseKey || null,
+          licenseOrgSlug: licenseOrgSlug || null,
         }),
       })
 
@@ -921,6 +981,152 @@ export default function AdminSettingsPage() {
             <strong>Tips:</strong> Bruk eksport som backup før du gjør store endringer. 
             Import vil ikke overskrive eksisterende data.
           </p>
+        </div>
+
+        {/* License Settings */}
+        <div className="card p-6 md:p-8 mt-6">
+          <div className="flex items-center gap-3 mb-6">
+            <div className="w-12 h-12 rounded-xl bg-emerald-100 flex items-center justify-center">
+              <Key className="w-6 h-6 text-emerald-600" />
+            </div>
+            <div>
+              <h2 className="text-xl font-bold text-gray-900">Lisens</h2>
+              <p className="text-gray-500 text-sm">Koble til lisensserver for aktivering og validering</p>
+            </div>
+          </div>
+
+          <div className="space-y-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Lisensserver URL
+              </label>
+              <input
+                type="url"
+                value={licenseServerUrl}
+                onChange={(e) => setLicenseServerUrl(e.target.value)}
+                placeholder="https://license.arena-booking.no"
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
+              />
+              <p className="text-xs text-gray-500 mt-1">URL til den sentrale lisensserveren</p>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Organisasjons-slug
+              </label>
+              <input
+                type="text"
+                value={licenseOrgSlug}
+                onChange={(e) => setLicenseOrgSlug(e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, ''))}
+                placeholder="haugesund-il"
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
+              />
+              <p className="text-xs text-gray-500 mt-1">Din organisasjons ID på lisensserveren</p>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Lisensnøkkel
+              </label>
+              <input
+                type="text"
+                value={licenseKey}
+                onChange={(e) => setLicenseKey(e.target.value)}
+                placeholder="clxxxxxxxxxxxxxxxxxxxxxxxxx"
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent font-mono text-sm"
+              />
+              <p className="text-xs text-gray-500 mt-1">Lisensnøkkelen du har fått fra lisensserveren</p>
+            </div>
+
+            {!licenseServerUrl && !licenseKey && (
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                <p className="text-sm text-blue-800">
+                  <strong>Info:</strong> Uten lisensinnstillinger kjører appen i utviklingsmodus uten lisensvalidering. 
+                  Dette er greit for testing, men for produksjon bør lisensinnstillinger konfigureres.
+                </p>
+              </div>
+            )}
+
+            {/* License actions */}
+            <div className="border-t pt-4 mt-4">
+              <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3 mb-3">
+                <div>
+                  <h3 className="font-medium text-gray-900">Lagre og teste lisens</h3>
+                  <p className="text-sm text-gray-500">
+                    Husk å lagre før du tester lisenstilkoblingen.
+                  </p>
+                </div>
+                <div className="flex flex-col gap-2 items-start">
+                  <button
+                    type="button"
+                    onClick={saveAllSettings}
+                    disabled={isSubmitting}
+                    className="inline-flex items-center justify-center gap-1.5 rounded-md border border-gray-300 bg-white px-3 py-1.5 text-sm font-medium text-gray-800 shadow-sm hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {isSubmitting ? (
+                      <>
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                        Lagrer...
+                      </>
+                    ) : (
+                      <>
+                        <Save className="w-4 h-4" />
+                        Lagre lisensinnstillinger
+                      </>
+                    )}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleTestLicense}
+                    disabled={isTestingLicense || !licenseServerUrl || !licenseKey || !licenseOrgSlug}
+                    className="inline-flex items-center justify-center gap-1.5 rounded-md bg-emerald-600 px-3 py-1.5 text-sm font-medium text-white shadow-sm hover:bg-emerald-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {isTestingLicense ? (
+                      <>
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                        Tester...
+                      </>
+                    ) : (
+                      <>
+                        <Shield className="w-4 h-4" />
+                        Test lisens
+                      </>
+                    )}
+                  </button>
+                </div>
+              </div>
+
+              {licenseTestResult && (
+                <div
+                  className={`p-3 rounded-lg flex items-start gap-2 text-sm ${
+                    licenseTestResult.success
+                      ? "bg-green-50 border border-green-200 text-green-700"
+                      : "bg-red-50 border border-red-200 text-red-700"
+                  }`}
+                >
+                  {licenseTestResult.success ? (
+                    <CheckCircle2 className="w-5 h-5 flex-shrink-0 mt-0.5" />
+                  ) : (
+                    <AlertCircle className="w-5 h-5 flex-shrink-0 mt-0.5" />
+                  )}
+                  <div className="flex-1">
+                    <p className="font-medium">
+                      {licenseTestResult.success ? "Lisens gyldig!" : "Lisensfeil"}
+                      {licenseTestResult.status && ` (${licenseTestResult.status})`}
+                    </p>
+                    <p>{licenseTestResult.message}</p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setLicenseTestResult(null)}
+                    className="text-gray-400 hover:text-gray-600"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
+                </div>
+              )}
+            </div>
+          </div>
         </div>
 
       </div>
