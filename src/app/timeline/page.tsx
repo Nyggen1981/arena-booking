@@ -242,8 +242,8 @@ export default function TimelinePage() {
     return { dayStart, dayEnd, dayDuration }
   }, [selectedDate])
 
-  // Calculate booking position and width - memoized
-  const getBookingStyle = useCallback((booking: Booking) => {
+  // Calculate booking position and width with horizontal spacing - memoized
+  const getBookingStyle = useCallback((booking: Booking, allBookings: Booking[]) => {
     const bookingStart = parseISO(booking.startTime)
     const bookingEnd = parseISO(booking.endTime)
     const { dayStart, dayEnd, dayDuration } = dayBoundaries
@@ -255,13 +255,35 @@ export default function TimelinePage() {
     const startOffset = startTime.getTime() - dayStart.getTime()
     const duration = endTime.getTime() - startTime.getTime()
 
+    // Calculate base position
     const leftPercent = (startOffset / dayDuration) * 100
     const widthPercent = (duration / dayDuration) * 100
 
+    // Add horizontal spacing between bookings
+    // Sort other bookings by start time to find adjacent ones
+    const sortedBookings = allBookings
+      .filter(b => b.id !== booking.id)
+      .map(b => ({
+        booking: b,
+        start: parseISO(b.startTime),
+        end: parseISO(b.endTime)
+      }))
+      .sort((a, b) => a.start.getTime() - b.start.getTime())
+
+    // Find the next booking that starts after this one ends
+    const nextBooking = sortedBookings.find(b => {
+      const gap = b.start.getTime() - endTime.getTime()
+      return gap >= 0 && gap < 10 * 60 * 1000 // Within 10 minutes
+    })
+
+    // Add a small gap (0.2% of day ≈ 2-3 minutes) before next booking
+    const gapPercent = nextBooking ? 0.2 : 0
+
     return {
       left: `${leftPercent}%`,
-      width: `${widthPercent}%`,
-      minWidth: '20px'
+      width: `${Math.max(0.3, widthPercent - gapPercent)}%`,
+      minWidth: '20px',
+      marginRight: nextBooking ? `${gapPercent}%` : '0'
     }
   }, [dayBoundaries])
 
@@ -529,7 +551,7 @@ export default function TimelinePage() {
 
                               {/* Bookings */}
                               {bookings.map((booking) => {
-                                const style = getBookingStyle(booking)
+                                const style = getBookingStyle(booking, bookings)
                                 const isPending = booking.status === "pending"
                                 const color = resource.color || resource.category?.color || "#3b82f6"
                                 const startTime = parseISO(booking.startTime)

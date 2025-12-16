@@ -1,7 +1,8 @@
 import { Calendar } from "lucide-react"
 import Link from "next/link"
+import packageJson from "../../package.json"
 
-const VERSION = "1.0.11"
+const VERSION = packageJson.version
 
 export function Footer() {
   return (
@@ -33,7 +34,7 @@ export function Footer() {
               Personvernpolicy
             </Link>
             <p className="text-xs text-slate-500 mt-1">
-              © {new Date().getFullYear()} Arena Booking. Alle rettigheter reservert.
+              &copy; {new Date().getFullYear()} Arena Booking. Alle rettigheter reservert.
             </p>
           </div>
         </div>
