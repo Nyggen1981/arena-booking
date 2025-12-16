@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useMemo, useEffect, useRef, useCallback } from "react"
-import { ChevronLeft, ChevronRight, List, Grid3X3, Calendar, Clock, MapPin } from "lucide-react"
+import { ChevronLeft, ChevronRight, List, Grid3X3, Calendar, Clock, MapPin, X } from "lucide-react"
 import { 
   format, 
   startOfWeek, 
@@ -63,7 +63,19 @@ export function PublicCalendar({ categories, resources, bookings }: Props) {
   const [selectedResourceId, setSelectedResourceId] = useState<string | null>(null)
   const [selectedPartId, setSelectedPartId] = useState<string | null>(null)
   const [selectedBooking, setSelectedBooking] = useState<Booking | null>(null)
+  const [helpDismissed, setHelpDismissed] = useState(true)
   const weekViewScrollRef = useRef<HTMLDivElement>(null)
+
+  // Sjekk om hjelpetext er dismisset
+  useEffect(() => {
+    const dismissed = localStorage.getItem("calendar-help-dismissed")
+    setHelpDismissed(dismissed === "true")
+  }, [])
+
+  const dismissHelp = () => {
+    localStorage.setItem("calendar-help-dismissed", "true")
+    setHelpDismissed(true)
+  }
 
   // Filter resources by selected category
   const availableResources = useMemo(() => {
@@ -145,10 +157,22 @@ export function PublicCalendar({ categories, resources, bookings }: Props) {
   return (
     <div className="space-y-4">
       {/* Help text */}
-      <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 text-sm text-blue-800">
-        <p className="font-medium mb-1">Slik finner du frem i kalenderen:</p>
-        <p className="text-blue-700">Velg først en kategori, deretter en fasilitet. Hvis fasiliteten har underdeler, kan du velge en spesifikk del eller se alle deler.</p>
-      </div>
+      {!helpDismissed && (
+        <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 text-sm text-blue-800 relative">
+          <button
+            onClick={dismissHelp}
+            className="absolute top-2 right-2 p-1.5 text-blue-600 hover:text-blue-800 hover:bg-blue-100 rounded transition-colors"
+            aria-label="Lukk"
+            title="Lukk"
+          >
+            <X className="w-5 h-5" />
+          </button>
+          <div className="pr-10">
+            <p className="font-medium mb-1">Slik finner du frem i kalenderen:</p>
+            <p className="text-blue-700">Velg først en kategori, deretter en fasilitet. Hvis fasiliteten har underdeler, kan du velge en spesifikk del eller se alle deler.</p>
+          </div>
+        </div>
+      )}
 
       {/* Controls */}
       <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
