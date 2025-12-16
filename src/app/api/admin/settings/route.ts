@@ -15,29 +15,68 @@ export async function GET() {
       return NextResponse.json({ error: "Organization ID missing" }, { status: 400 })
     }
 
-    // Use select to avoid relation validation issues
-    const org = await prisma.organization.findUnique({
-      where: { id: session.user.organizationId },
-      select: {
-        id: true,
-        name: true,
-        slug: true,
-        logo: true,
-        tagline: true,
-        primaryColor: true,
-        secondaryColor: true,
-        smtpHost: true,
-        smtpPort: true,
-        smtpUser: true,
-        smtpPass: true,
-        smtpFrom: true,
-        createdAt: true,
-        updatedAt: true,
-        isActive: true,
-        subscriptionEndsAt: true,
-        graceEndsAt: true
-      }
-    })
+    // Try using Prisma first, fallback to raw SQL if it fails
+    let org
+    try {
+      // Use select to avoid relation validation issues
+      org = await prisma.organization.findUnique({
+        where: { id: session.user.organizationId },
+        select: {
+          id: true,
+          name: true,
+          slug: true,
+          logo: true,
+          tagline: true,
+          primaryColor: true,
+          secondaryColor: true,
+          smtpHost: true,
+          smtpPort: true,
+          smtpUser: true,
+          smtpPass: true,
+          smtpFrom: true,
+          createdAt: true,
+          updatedAt: true,
+          isActive: true,
+          subscriptionEndsAt: true,
+          graceEndsAt: true
+        }
+      })
+    } catch (prismaError: any) {
+      // If Prisma fails (e.g., due to missing relations), try raw SQL
+      console.warn("Prisma query failed, trying raw SQL:", prismaError.message)
+      
+      const result = await prisma.$queryRaw<Array<{
+        id: string
+        name: string
+        slug: string
+        logo: string | null
+        tagline: string
+        primaryColor: string
+        secondaryColor: string
+        smtpHost: string | null
+        smtpPort: number | null
+        smtpUser: string | null
+        smtpPass: string | null
+        smtpFrom: string | null
+        createdAt: Date
+        updatedAt: Date
+        isActive: boolean
+        subscriptionEndsAt: Date | null
+        graceEndsAt: Date | null
+      }>>`
+        SELECT 
+          id, name, slug, logo, tagline, 
+          "primaryColor", "secondaryColor",
+          "smtpHost", "smtpPort", "smtpUser", "smtpPass", "smtpFrom",
+          "createdAt", "updatedAt", "isActive",
+          "subscriptionEndsAt", "graceEndsAt"
+        FROM "Organization"
+        WHERE id = ${session.user.organizationId}
+        LIMIT 1
+      `
+      
+      org = result[0] || null
+    }
 
     if (!org) {
       return NextResponse.json({ error: "Organization not found" }, { status: 404 })

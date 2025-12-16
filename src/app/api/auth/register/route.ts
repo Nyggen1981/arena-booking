@@ -14,8 +14,22 @@ export async function POST(request: Request) {
       )
     }
 
-    // Check if email already exists
-    const existingUser = await prisma.user.findUnique({ where: { email } })
+    // Check if email already exists - use raw SQL as fallback
+    let existingUser
+    try {
+      existingUser = await prisma.user.findUnique({ 
+        where: { email },
+        select: { id: true }
+      })
+    } catch (prismaError: any) {
+      // Fallback to raw SQL if Prisma fails
+      console.warn("Prisma user check failed, trying raw SQL:", prismaError.message)
+      const result = await prisma.$queryRaw<Array<{ id: string }>>`
+        SELECT id FROM "User" WHERE email = ${email} LIMIT 1
+      `
+      existingUser = result[0] || null
+    }
+    
     if (existingUser) {
       return NextResponse.json(
         { error: "E-postadressen er allerede registrert" },
@@ -23,10 +37,25 @@ export async function POST(request: Request) {
       )
     }
 
-    // Find organization by slug
-    const organization = await prisma.organization.findUnique({ 
-      where: { slug: orgSlug } 
-    })
+    // Find organization by slug - use raw SQL as fallback
+    let organization
+    try {
+      organization = await prisma.organization.findUnique({ 
+        where: { slug: orgSlug },
+        select: {
+          id: true,
+          name: true
+        }
+      })
+    } catch (prismaError: any) {
+      // Fallback to raw SQL if Prisma fails
+      console.warn("Prisma organization check failed, trying raw SQL:", prismaError.message)
+      const result = await prisma.$queryRaw<Array<{ id: string; name: string }>>`
+        SELECT id, name FROM "Organization" WHERE slug = ${orgSlug} LIMIT 1
+      `
+      organization = result[0] || null
+    }
+    
     if (!organization) {
       return NextResponse.json(
         { error: "Fant ingen klubb med denne koden. Sjekk at du har skrevet riktig." },
@@ -37,23 +66,57 @@ export async function POST(request: Request) {
     // Hash password
     const hashedPassword = await bcrypt.hash(password, 10)
 
-    // Create user
-    const user = await prisma.user.create({
-      data: {
+    // Create user - use raw SQL as fallback if Prisma fails
+    let user
+    try {
+      user = await prisma.user.create({
+        data: {
+          email,
+          name,
+          phone,
+          password: hashedPassword,
+          role: "user",
+          organizationId: organization.id
+        },
+        select: {
+          id: true,
+          email: true,
+          name: true,
+          role: true
+        }
+      })
+    } catch (prismaError: any) {
+      // Fallback to raw SQL if Prisma fails (e.g., due to missing ResourceModerator relation)
+      console.warn("Prisma user create failed, trying raw SQL:", prismaError.message)
+      
+      // Generate cuid-like ID (Prisma uses cuid format)
+      const timestamp = Date.now().toString(36)
+      const random = Math.random().toString(36).substring(2, 11)
+      const userId = `cl${timestamp}${random}`
+      
+      await prisma.$executeRaw`
+        INSERT INTO "User" (id, email, name, phone, password, role, "organizationId", "isApproved", "createdAt", "updatedAt")
+        VALUES (
+          ${userId},
+          ${email},
+          ${name || null},
+          ${phone || null},
+          ${hashedPassword},
+          'user',
+          ${organization.id},
+          false,
+          NOW(),
+          NOW()
+        )
+      `
+      
+      user = {
+        id: userId,
         email,
-        name,
-        phone,
-        password: hashedPassword,
-        role: "user",
-        organizationId: organization.id
-      },
-      select: {
-        id: true,
-        email: true,
-        name: true,
-        role: true
+        name: name || null,
+        role: "user"
       }
-    })
+    }
 
     return NextResponse.json({
       success: true,
