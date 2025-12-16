@@ -70,7 +70,7 @@ export function LicenseGuard({ children }: LicenseGuardProps) {
         // On network error, assume valid to not lock out users accidentally
         setLicenseStatus({ valid: true, status: "error", isLoading: false })
       })
-  }
+  }, [])
 
   useEffect(() => {
     // Not logged in - no license check needed
