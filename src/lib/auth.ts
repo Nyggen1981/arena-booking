@@ -13,13 +13,13 @@ export const authOptions: NextAuthOptions = {
       },
       async authorize(credentials) {
         try {
-          if (!credentials?.email || !credentials?.password) {
-            return null
-          }
+        if (!credentials?.email || !credentials?.password) {
+          return null
+        }
 
           // Use select instead of include to avoid relation validation issues
-          const user = await prisma.user.findUnique({
-            where: { email: credentials.email },
+        const user = await prisma.user.findUnique({
+          where: { email: credentials.email },
             select: {
               id: true,
               email: true,
@@ -38,41 +38,41 @@ export const authOptions: NextAuthOptions = {
                 }
               }
             }
-          })
+        })
 
-          if (!user) {
-            return null
-          }
+        if (!user) {
+          return null
+        }
 
-          const isPasswordValid = await bcrypt.compare(
-            credentials.password,
-            user.password
-          )
+        const isPasswordValid = await bcrypt.compare(
+          credentials.password,
+          user.password
+        )
 
-          if (!isPasswordValid) {
-            return null
-          }
+        if (!isPasswordValid) {
+          return null
+        }
 
-          // Check if user is approved (admins and organization creators are always approved)
-          if (!user.isApproved && user.role !== "admin") {
-            throw new Error("Din konto venter på godkjenning fra administrator")
-          }
+        // Check if user is approved (admins and organization creators are always approved)
+        if (!user.isApproved && user.role !== "admin") {
+          throw new Error("Din konto venter på godkjenning fra administrator")
+        }
 
           if (!user.organization) {
             console.error("User has no organization:", user.id)
             return null
           }
 
-          return {
-            id: user.id,
-            email: user.email,
-            name: user.name,
-            role: user.role,
-            organizationId: user.organizationId,
-            organizationName: user.organization.name,
-            organizationSlug: user.organization.slug,
+        return {
+          id: user.id,
+          email: user.email,
+          name: user.name,
+          role: user.role,
+          organizationId: user.organizationId,
+          organizationName: user.organization.name,
+          organizationSlug: user.organization.slug,
             organizationTagline: user.organization.tagline || "Kalender",
-            organizationColor: user.organization.primaryColor,
+          organizationColor: user.organization.primaryColor,
           }
         } catch (error) {
           // Re-throw specific error messages (like "not approved") so they show to the user

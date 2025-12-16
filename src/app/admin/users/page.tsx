@@ -463,20 +463,20 @@ function UserCard({
   return (
     <div className="card p-4">
       <div className="flex items-center justify-between">
-          <div className="flex items-center gap-4">
-            <div className={`w-10 h-10 rounded-full flex items-center justify-center ${
+        <div className="flex items-center gap-4">
+          <div className={`w-10 h-10 rounded-full flex items-center justify-center ${
               user.role === "admin" ? "bg-purple-100" : 
               user.role === "moderator" ? "bg-amber-100" : 
               "bg-blue-100"
-            }`}>
-              {user.role === "admin" ? (
-                <Shield className="w-5 h-5 text-purple-600" />
+          }`}>
+            {user.role === "admin" ? (
+              <Shield className="w-5 h-5 text-purple-600" />
               ) : user.role === "moderator" ? (
                 <ShieldCheck className="w-5 h-5 text-amber-600" />
-              ) : (
-                <User className="w-5 h-5 text-blue-600" />
-              )}
-            </div>
+            ) : (
+              <User className="w-5 h-5 text-blue-600" />
+            )}
+          </div>
           <div>
             <div className="flex items-center gap-2">
               <p className="font-medium text-gray-900">{user.name || "Uten navn"}</p>
@@ -532,11 +532,11 @@ function UserCard({
                     </button>
                   )}
                   {user.role !== "moderator" && (
-                    <button
+                  <button
                       onClick={() => onChangeRole(user.id, "moderator")}
-                      className="flex items-center gap-2 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 w-full text-left"
-                    >
-                      <ShieldCheck className="w-4 h-4" />
+                    className="flex items-center gap-2 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 w-full text-left"
+                  >
+                        <ShieldCheck className="w-4 h-4" />
                       Gjør til moderator
                     </button>
                   )}
@@ -546,9 +546,9 @@ function UserCard({
                       className="flex items-center gap-2 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 w-full text-left"
                     >
                       <Shield className="w-4 h-4" />
-                      Gjør til admin
+                        Gjør til admin
                     </button>
-                  )}
+                    )}
                   <button
                     onClick={() => onDelete(user.id)}
                     className="flex items-center gap-2 px-4 py-2 text-sm text-red-600 hover:bg-red-50 w-full text-left"

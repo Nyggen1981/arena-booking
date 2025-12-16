@@ -35,7 +35,7 @@ async function getQuickStats(organizationId: string) {
     prisma.user.count({ where: { organizationId } })
   ])
   return { resourceCount, categoryCount, userCount }
-}
+      }
 
 // Force dynamic rendering since we use getServerSession and database queries
 export const dynamic = 'force-dynamic'
@@ -68,19 +68,19 @@ export default async function AdminPage() {
       ? await getQuickStats(session.user.organizationId)
       : null
 
-    return (
-      <div className="min-h-screen bg-slate-50 flex flex-col">
-        <Navbar />
+  return (
+    <div className="min-h-screen bg-slate-50 flex flex-col">
+      <Navbar />
 
-        <main className="flex-1">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <main className="flex-1">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
             {/* Header */}
             <div className="mb-6">
               <h1 className="text-2xl font-bold text-gray-900">
                 {isModerator ? "Moderator" : "Admin"}
               </h1>
-              <p className="text-gray-500">{session.user.organizationName}</p>
-            </div>
+          <p className="text-gray-500">{session.user.organizationName}</p>
+        </div>
 
             {/* Moderator: Show assigned facilities */}
             {isModerator && moderatorResources.length > 0 && (
@@ -103,58 +103,58 @@ export default async function AdminPage() {
             {/* Admin: Quick links */}
             {isAdmin && stats && (
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
-                <Link 
-                  href="/admin/resources" 
+              <Link 
+                href="/admin/resources" 
                   className="card p-4 hover:shadow-md transition-shadow group"
-                >
-                  <div className="flex items-center gap-3">
+              >
+                <div className="flex items-center gap-3">
                     <div className="w-10 h-10 rounded-lg bg-blue-100 flex items-center justify-center group-hover:bg-blue-200 transition-colors">
-                      <Building2 className="w-5 h-5 text-blue-600" />
-                    </div>
-                    <div>
-                      <p className="font-medium text-gray-900">Fasiliteter</p>
-                      <p className="text-sm text-gray-500">{stats.resourceCount} aktive</p>
-                    </div>
+                    <Building2 className="w-5 h-5 text-blue-600" />
                   </div>
-                </Link>
-                <Link 
-                  href="/admin/categories" 
+                  <div>
+                      <p className="font-medium text-gray-900">Fasiliteter</p>
+                    <p className="text-sm text-gray-500">{stats.resourceCount} aktive</p>
+                  </div>
+                </div>
+              </Link>
+              <Link 
+                href="/admin/categories" 
                   className="card p-4 hover:shadow-md transition-shadow group"
-                >
-                  <div className="flex items-center gap-3">
+              >
+                <div className="flex items-center gap-3">
                     <div className="w-10 h-10 rounded-lg bg-green-100 flex items-center justify-center group-hover:bg-green-200 transition-colors">
                       <Layers className="w-5 h-5 text-green-600" />
-                    </div>
-                    <div>
-                      <p className="font-medium text-gray-900">Kategorier</p>
+                  </div>
+                  <div>
+                    <p className="font-medium text-gray-900">Kategorier</p>
                       <p className="text-sm text-gray-500">{stats.categoryCount} stk</p>
                     </div>
                   </div>
-                </Link>
-                <Link 
-                  href="/admin/users" 
+              </Link>
+              <Link 
+                href="/admin/users" 
                   className="card p-4 hover:shadow-md transition-shadow group"
-                >
-                  <div className="flex items-center gap-3">
+              >
+                <div className="flex items-center gap-3">
                     <div className="w-10 h-10 rounded-lg bg-purple-100 flex items-center justify-center group-hover:bg-purple-200 transition-colors">
-                      <Users className="w-5 h-5 text-purple-600" />
-                    </div>
-                    <div>
-                      <p className="font-medium text-gray-900">Brukere</p>
-                      <p className="text-sm text-gray-500">{stats.userCount} registrert</p>
-                    </div>
+                    <Users className="w-5 h-5 text-purple-600" />
                   </div>
-                </Link>
-                <Link 
-                  href="/admin/settings" 
+                  <div>
+                    <p className="font-medium text-gray-900">Brukere</p>
+                    <p className="text-sm text-gray-500">{stats.userCount} registrert</p>
+                  </div>
+                </div>
+              </Link>
+              <Link 
+                href="/admin/settings" 
                   className="card p-4 hover:shadow-md transition-shadow group"
-                >
-                  <div className="flex items-center gap-3">
+              >
+                <div className="flex items-center gap-3">
                     <div className="w-10 h-10 rounded-lg bg-gray-100 flex items-center justify-center group-hover:bg-gray-200 transition-colors">
                       <Settings className="w-5 h-5 text-gray-600" />
-                    </div>
-                    <div>
-                      <p className="font-medium text-gray-900">Innstillinger</p>
+                  </div>
+                  <div>
+                    <p className="font-medium text-gray-900">Innstillinger</p>
                       <p className="text-sm text-gray-500">Klubb & utseende</p>
                     </div>
                   </div>
@@ -166,11 +166,11 @@ export default async function AdminPage() {
             <div className="card p-6">
               <h2 className="text-lg font-semibold text-gray-900 mb-4">Bookinger</h2>
               <BookingManagement />
-            </div>
-          </div>
-        </main>
-        <Footer />
-      </div>
+        </div>
+        </div>
+      </main>
+      <Footer />
+    </div>
     )
   } catch (error) {
     console.error("Admin page error:", error)
