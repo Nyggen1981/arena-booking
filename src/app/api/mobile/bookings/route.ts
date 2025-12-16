@@ -18,43 +18,9 @@ export async function GET(request: Request) {
       where: {
         userId: userId,
       },
-      select: {
-        id: true,
-        title: true,
-        description: true,
-        startTime: true,
-        endTime: true,
-        status: true,
-        statusNote: true,
-        contactName: true,
-        contactEmail: true,
-        contactPhone: true,
-        isRecurring: true,
-        parentBookingId: true,
-        resourceId: true,
-        resourcePartId: true,
-        createdAt: true,
-        updatedAt: true,
-        resource: {
-          select: {
-            id: true,
-            name: true,
-            description: true,
-            location: true,
-            image: true,
-            color: true
-          }
-        },
-        resourcePart: {
-          select: {
-            id: true,
-            name: true,
-            description: true,
-            capacity: true,
-            mapCoordinates: true
-            // Excluding adminNote since it doesn't exist in database yet
-          }
-        },
+      include: {
+        resource: true,
+        resourcePart: true,
       },
       orderBy: {
         startTime: 'desc',
@@ -107,20 +73,20 @@ export async function POST(request: Request) {
       )
     }
 
-    // Check for conflicts
+    // Check for conflicts - optimized query using time range overlap
+    // Time ranges overlap if: start1 < end2 && start2 < end1
+    const bookingStart = new Date(startTime)
+    const bookingEnd = new Date(endTime)
+    
     const conflictingBookings = await prisma.booking.findMany({
       where: {
         resourceId,
         status: { in: ['approved', 'pending'] },
-        OR: [
-          {
-            AND: [
-              { startTime: { lt: new Date(endTime) } },
-              { endTime: { gt: new Date(startTime) } },
-            ],
-          },
-        ],
+        // Optimized overlap check: bookings that start before our end AND end after our start
+        startTime: { lt: bookingEnd },
+        endTime: { gt: bookingStart },
       },
+      select: { id: true } // Only need to know if conflict exists
     })
 
     if (conflictingBookings.length > 0) {
@@ -144,38 +110,10 @@ export async function POST(request: Request) {
         resourceId,
         resourcePartId: resourcePartId || null,
         userId,
-        organizationId: resource.organizationId,
       },
-      select: {
-        id: true,
-        title: true,
-        description: true,
-        startTime: true,
-        endTime: true,
-        status: true,
-        contactName: true,
-        contactEmail: true,
-        contactPhone: true,
-        resource: {
-          select: {
-            id: true,
-            name: true,
-            description: true,
-            location: true,
-            image: true,
-            color: true
-          }
-        },
-        resourcePart: {
-          select: {
-            id: true,
-            name: true,
-            description: true,
-            capacity: true,
-            mapCoordinates: true
-            // Excluding adminNote since it doesn't exist in database yet
-          }
-        },
+      include: {
+        resource: true,
+        resourcePart: true,
       },
     })
 

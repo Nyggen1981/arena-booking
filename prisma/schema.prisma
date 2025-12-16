@@ -23,6 +23,11 @@ model Organization {
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
 
+  // Subscription / license control
+  isActive           Boolean   @default(true)  // Set to false to disable all access for this club
+  subscriptionEndsAt DateTime?             // Optional: contract end date
+  graceEndsAt        DateTime?             // Optional: last day with read-only access
+
   // SMTP settings per organization (optional - falls back to global env vars if not set)
   smtpHost       String?  // e.g., smtp.office365.com, smtp.gmail.com
   smtpPort       Int?     // e.g., 587, 465

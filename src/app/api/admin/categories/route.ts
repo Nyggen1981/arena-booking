@@ -11,12 +11,7 @@ export async function GET() {
   }
 
   const categories = await prisma.resourceCategory.findMany({
-    select: {
-      id: true,
-      name: true,
-      description: true,
-      icon: true,
-      color: true,
+    include: {
       _count: {
         select: { resources: true }
       }

@@ -24,43 +24,14 @@ export async function POST(
     // Get the booking with user and resource info
     const booking = await prisma.booking.findUnique({
       where: { id },
-      select: {
-        id: true,
-        title: true,
-        startTime: true,
-        endTime: true,
-        status: true,
-        userId: true,
-        contactEmail: true,
-        contactName: true,
-        organizationId: true,
-        user: {
-          select: {
-            id: true,
-            name: true,
-            email: true
-          }
-        },
+      include: {
+        user: true,
         resource: {
-          select: {
-            id: true,
-            name: true,
-            organizationId: true,
-            organization: {
-              select: {
-                id: true,
-                name: true
-              }
-            }
+          include: {
+            organization: true
           }
         },
-        resourcePart: {
-          select: {
-            id: true,
-            name: true
-            // Excluding adminNote since it doesn't exist in database yet
-          }
-        }
+        resourcePart: true
       }
     })
 

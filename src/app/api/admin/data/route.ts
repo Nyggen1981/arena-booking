@@ -34,65 +34,13 @@ export async function GET() {
     prisma.resourceCategory.findMany(),
     prisma.resource.findMany({
       where: { organizationId },
-      select: {
-        id: true,
-        name: true,
-        description: true,
-        location: true,
-        image: true,
-        mapImage: true,
-        color: true,
-        isActive: true,
-        showOnPublicCalendar: true,
-        blockPartsWhenWholeBooked: true,
-        blockWholeWhenPartBooked: true,
-        allowWholeBooking: true,
-        minBookingMinutes: true,
-        maxBookingMinutes: true,
-        requiresApproval: true,
-        advanceBookingDays: true,
-        openingHours: true,
-        prisInfo: true,
-        visPrisInfo: true,
-        createdAt: true,
-        updatedAt: true,
-        organizationId: true,
-        categoryId: true,
-        parts: {
-          select: {
-            id: true,
-            name: true,
-            description: true,
-            capacity: true,
-            isActive: true,
-            mapCoordinates: true,
-            parentId: true,
-            resourceId: true
-            // Excluding adminNote since it doesn't exist in database yet
-          },
-          orderBy: { name: "asc" }
-        }
+      include: {
+        parts: true
       }
     }),
     prisma.booking.findMany({
       where: { organizationId },
-      select: {
-        id: true,
-        title: true,
-        description: true,
-        startTime: true,
-        endTime: true,
-        status: true,
-        statusNote: true,
-        contactName: true,
-        contactEmail: true,
-        contactPhone: true,
-        isRecurring: true,
-        recurringPattern: true,
-        recurringEndDate: true,
-        createdAt: true,
-        updatedAt: true,
-        approvedAt: true,
+      include: {
         resource: { select: { name: true } },
         resourcePart: { select: { name: true } },
         user: { select: { name: true, email: true } }

@@ -7,6 +7,7 @@ export async function GET() {
       where: {
         isActive: true,
       },
+<<<<<<< HEAD
       select: {
         id: true,
         name: true,
@@ -14,28 +15,41 @@ export async function GET() {
         location: true,
         image: true,
         color: true,
+        isActive: true,
+        showOnPublicCalendar: true,
         minBookingMinutes: true,
         maxBookingMinutes: true,
         requiresApproval: true,
+        advanceBookingDays: true,
+        prisInfo: true,
+        visPrisInfo: true,
         category: {
           select: {
             id: true,
             name: true,
-            color: true
+            color: true,
+            description: true,
+            icon: true
           }
         },
+=======
+      include: {
+        category: true,
+>>>>>>> main
         parts: {
           where: {
             isActive: true,
           },
+<<<<<<< HEAD
           select: {
             id: true,
             name: true,
             description: true,
             capacity: true,
-            mapCoordinates: true
-            // Excluding adminNote since it doesn't exist in database yet
+            isActive: true
           },
+=======
+>>>>>>> main
           orderBy: {
             name: 'asc',
           },

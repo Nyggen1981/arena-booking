@@ -11,7 +11,8 @@ import {
   ArrowLeft,
   CheckCircle2,
   AlertCircle,
-  Users
+  Users,
+  DollarSign
 } from "lucide-react"
 import { ResourceCalendar } from "@/components/ResourceCalendar"
 import { MapViewer } from "@/components/MapViewer"
@@ -32,30 +33,7 @@ async function getResource(id: string) {
 
     return await prisma.resource.findUnique({
       where: { id },
-      select: {
-        id: true,
-        name: true,
-        description: true,
-        location: true,
-        image: true,
-        mapImage: true,
-        color: true,
-        isActive: true,
-        showOnPublicCalendar: true,
-        blockPartsWhenWholeBooked: true,
-        blockWholeWhenPartBooked: true,
-        allowWholeBooking: true,
-        minBookingMinutes: true,
-        maxBookingMinutes: true,
-        requiresApproval: true,
-        advanceBookingDays: true,
-        openingHours: true,
-        prisInfo: true,
-        visPrisInfo: true,
-        createdAt: true,
-        updatedAt: true,
-        organizationId: true,
-        categoryId: true,
+      include: {
         category: {
           select: {
             id: true,
@@ -71,7 +49,6 @@ async function getResource(id: string) {
             description: true,
             capacity: true,
             mapCoordinates: true
-            // Excluding adminNote since it doesn't exist in database yet
           },
           orderBy: { name: "asc" }
         },
@@ -188,7 +165,7 @@ export default async function ResourcePage({ params }: Props) {
             {resource.description && (
               <div className="card p-6">
                 <h2 className="text-lg font-semibold text-gray-900 mb-3">Om fasiliteten</h2>
-                <p className="text-gray-600 whitespace-pre-wrap">{resource.description}</p>
+                <p className="text-gray-600">{resource.description}</p>
               </div>
             )}
 
@@ -308,8 +285,13 @@ export default async function ResourcePage({ params }: Props) {
             {/* Price info */}
             {resource.visPrisInfo && resource.prisInfo && (
               <div className="card p-6">
-                <h3 className="font-semibold text-gray-900 mb-4">Prisinfo</h3>
-                <div className="text-sm text-gray-600 whitespace-pre-wrap">{resource.prisInfo}</div>
+                <h3 className="font-semibold text-gray-900 mb-4 flex items-center gap-2">
+                  <DollarSign className="w-5 h-5 text-blue-600" />
+                  Prisinfo
+                </h3>
+                <div className="text-sm text-gray-600 whitespace-pre-line">
+                  {resource.prisInfo}
+                </div>
               </div>
             )}
 

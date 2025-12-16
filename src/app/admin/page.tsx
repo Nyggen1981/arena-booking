@@ -16,9 +16,6 @@ import {
 } from "lucide-react"
 import { PendingBookingsList } from "@/components/PendingBookingsList"
 
-// Force dynamic rendering since we use getServerSession
-export const dynamic = 'force-dynamic'
-
 async function getStats(organizationId: string) {
   const [
     resourceCount,

@@ -75,41 +75,13 @@ const getBookings = unstable_cache(
           status: { in: ["approved", "pending"] },
           startTime: { gte: twoWeeksAgo, lte: twoMonthsAhead }
         },
-        select: {
-          id: true,
-          title: true,
-          startTime: true,
-          endTime: true,
-          status: true,
-          isRecurring: true,
-          parentBookingId: true,
-          userId: true,
-          resourceId: true,
-          resource: {
-            select: {
-              id: true,
-              name: true,
-              color: true,
-              category: {
-                select: {
-                  id: true,
-                  name: true,
-                  color: true
-                }
-              }
-            }
-          },
-          resourcePart: {
-            select: {
-              id: true,
-              name: true
-            }
-          }
+        include: {
+          resource: true,
+          resourcePart: true
         },
         orderBy: { startTime: "asc" }
       })
-    } catch (error) {
-      console.error("Error fetching calendar bookings:", error)
+    } catch {
       return []
     }
   },

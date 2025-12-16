@@ -46,48 +46,43 @@ export async function GET(request: Request) {
           }
         ]
       },
-      select: {
-        id: true,
-        title: true,
-        startTime: true,
-        endTime: true,
-        status: true,
-        resource: {
-          select: {
-            id: true,
-            name: true,
-            color: true,
-            category: {
-              select: {
-                id: true,
-                name: true,
-                color: true
-              }
-            },
-            parts: {
-              where: { isActive: true },
-              select: {
-                id: true,
-                name: true
-              },
-              orderBy: { name: "asc" }
+    include: {
+      resource: {
+        select: {
+          id: true,
+          name: true,
+          color: true,
+          category: {
+            select: {
+              id: true,
+              name: true,
+              color: true
             }
-          }
-        },
-        resourcePart: {
-          select: {
-            id: true,
-            name: true
-          }
-        },
-        user: {
-          select: {
-            id: true,
-            name: true,
-            email: true
+          },
+          parts: {
+            where: { isActive: true },
+            select: {
+              id: true,
+              name: true
+            },
+            orderBy: { name: "asc" }
           }
         }
       },
+      resourcePart: {
+        select: {
+          id: true,
+          name: true
+        }
+      },
+      user: {
+        select: {
+          id: true,
+          name: true,
+          email: true
+        }
+      }
+    },
       orderBy: { startTime: "asc" }
     }),
     prisma.resource.findMany({
@@ -95,35 +90,27 @@ export async function GET(request: Request) {
         organizationId,
         isActive: true
       },
-      select: {
-        id: true,
-        name: true,
-        description: true,
-        location: true,
-        image: true,
-        color: true,
-        isActive: true,
-        categoryId: true,
-        category: {
-          select: {
-            id: true,
-            name: true,
-            color: true
-          }
-        },
-        parts: {
-          where: { isActive: true },
-          select: {
-            id: true,
-            name: true
-          },
-          orderBy: { name: "asc" }
+    include: {
+      category: {
+        select: {
+          id: true,
+          name: true,
+          color: true
         }
       },
-      orderBy: [
-        { category: { name: "asc" } },
-        { name: "asc" }
-      ]
+      parts: {
+        where: { isActive: true },
+        select: {
+          id: true,
+          name: true
+        },
+        orderBy: { name: "asc" }
+      }
+    },
+    orderBy: [
+      { category: { name: "asc" } },
+      { name: "asc" }
+    ]
     })
   ])
 

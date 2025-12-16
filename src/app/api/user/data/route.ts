@@ -39,23 +39,7 @@ export async function GET() {
       }),
       prisma.booking.findMany({
         where: { userId },
-        select: {
-          id: true,
-          title: true,
-          description: true,
-          startTime: true,
-          endTime: true,
-          status: true,
-          statusNote: true,
-          contactName: true,
-          contactEmail: true,
-          contactPhone: true,
-          isRecurring: true,
-          recurringPattern: true,
-          recurringEndDate: true,
-          createdAt: true,
-          updatedAt: true,
-          approvedAt: true,
+        include: {
           resource: {
             select: {
               id: true,

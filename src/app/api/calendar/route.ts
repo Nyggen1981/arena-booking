@@ -30,15 +30,15 @@ export async function GET(request: Request) {
           in: ['approved', 'pending'],
         },
       },
+<<<<<<< HEAD
       select: {
         id: true,
         title: true,
+        description: true,
         startTime: true,
         endTime: true,
         status: true,
         isRecurring: true,
-        parentBookingId: true,
-        userId: true,
         resource: {
           select: {
             id: true,
@@ -59,6 +59,11 @@ export async function GET(request: Request) {
             name: true
           }
         },
+=======
+      include: {
+        resource: true,
+        resourcePart: true,
+>>>>>>> main
         user: {
           select: {
             id: true,

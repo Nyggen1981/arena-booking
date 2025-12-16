@@ -21,54 +21,9 @@ export async function GET(
 
   const booking = await prisma.booking.findUnique({
     where: { id },
-    select: {
-      id: true,
-      title: true,
-      description: true,
-      startTime: true,
-      endTime: true,
-      status: true,
-      statusNote: true,
-      contactName: true,
-      contactEmail: true,
-      contactPhone: true,
-      isRecurring: true,
-      parentBookingId: true,
-      userId: true,
-      resourceId: true,
-      resourcePartId: true,
-      organizationId: true,
-      createdAt: true,
-      updatedAt: true,
-      approvedAt: true,
-      approvedById: true,
-      userSeenAt: true,
-      resource: {
-        select: {
-          id: true,
-          name: true,
-          description: true,
-          location: true,
-          image: true,
-          color: true,
-          organizationId: true,
-          categoryId: true,
-          isActive: true,
-          minBookingMinutes: true,
-          maxBookingMinutes: true,
-          requiresApproval: true
-        }
-      },
-      resourcePart: {
-        select: {
-          id: true,
-          name: true,
-          description: true,
-          capacity: true,
-          mapCoordinates: true
-          // Excluding adminNote since it doesn't exist in database yet
-        }
-      },
+    include: {
+      resource: true,
+      resourcePart: true,
       user: {
         select: { id: true, name: true, email: true }
       }
@@ -118,60 +73,10 @@ export async function PATCH(
     // Get the existing booking
     const booking = await prisma.booking.findUnique({
       where: { id },
-      select: {
-        id: true,
-        title: true,
-        description: true,
-        startTime: true,
-        endTime: true,
-        status: true,
-        statusNote: true,
-        contactName: true,
-        contactEmail: true,
-        contactPhone: true,
-        isRecurring: true,
-        parentBookingId: true,
-        userId: true,
-        resourceId: true,
-        resourcePartId: true,
-        organizationId: true,
-        createdAt: true,
-        updatedAt: true,
-        approvedAt: true,
-        approvedById: true,
-        resource: {
-          select: {
-            id: true,
-            name: true,
-            description: true,
-            location: true,
-            image: true,
-            color: true,
-            organizationId: true,
-            categoryId: true,
-            isActive: true,
-            minBookingMinutes: true,
-            maxBookingMinutes: true,
-            requiresApproval: true
-          }
-        },
-        resourcePart: {
-          select: {
-            id: true,
-            name: true,
-            description: true,
-            capacity: true,
-            mapCoordinates: true
-            // Excluding adminNote since it doesn't exist in database yet
-          }
-        },
-        user: {
-          select: {
-            id: true,
-            name: true,
-            email: true
-          }
-        }
+      include: {
+        resource: true,
+        resourcePart: true,
+        user: true
       }
     })
 
@@ -278,25 +183,9 @@ export async function PATCH(
         approvedAt: newStatus === "pending" ? null : booking.approvedAt,
         approvedById: newStatus === "pending" ? null : booking.approvedById
       },
-      select: {
-        id: true,
-        title: true,
-        startTime: true,
-        endTime: true,
-        status: true,
-        resource: {
-          select: {
-            id: true,
-            name: true,
-            color: true
-          }
-        },
-        resourcePart: {
-          select: {
-            id: true,
-            name: true
-          }
-        }
+      include: {
+        resource: true,
+        resourcePart: true
       }
     })
 
@@ -359,18 +248,8 @@ export async function DELETE(
 
     const booking = await prisma.booking.findUnique({
       where: { id },
-      select: {
-        id: true,
-        userId: true,
-        startTime: true,
-        status: true,
-        resource: {
-          select: {
-            id: true,
-            name: true,
-            organizationId: true
-          }
-        }
+      include: {
+        resource: true
       }
     })
 

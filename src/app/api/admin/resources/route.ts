@@ -12,53 +12,9 @@ export async function GET() {
 
   const resources = await prisma.resource.findMany({
     where: { organizationId: session.user.organizationId },
-    select: {
-      id: true,
-      name: true,
-      description: true,
-      location: true,
-      image: true,
-      mapImage: true,
-      color: true,
-      isActive: true,
-      showOnPublicCalendar: true,
-      blockPartsWhenWholeBooked: true,
-      blockWholeWhenPartBooked: true,
-      allowWholeBooking: true,
-      minBookingMinutes: true,
-      maxBookingMinutes: true,
-      requiresApproval: true,
-      advanceBookingDays: true,
-      openingHours: true,
-      prisInfo: true,
-      visPrisInfo: true,
-      createdAt: true,
-      updatedAt: true,
-      organizationId: true,
-      categoryId: true,
-      category: {
-        select: {
-          id: true,
-          name: true,
-          description: true,
-          icon: true,
-          color: true
-        }
-      },
-      parts: {
-        select: {
-          id: true,
-          name: true,
-          description: true,
-          capacity: true,
-          isActive: true,
-          mapCoordinates: true,
-          parentId: true,
-          resourceId: true
-          // Excluding adminNote since it doesn't exist in database yet
-        },
-        orderBy: { name: "asc" }
-      },
+    include: {
+      category: true,
+      parts: true,
       _count: {
         select: { bookings: true }
       }
@@ -124,53 +80,9 @@ export async function POST(request: Request) {
         }))
       } : undefined
     },
-    select: {
-      id: true,
-      name: true,
-      description: true,
-      location: true,
-      image: true,
-      mapImage: true,
-      color: true,
-      isActive: true,
-      showOnPublicCalendar: true,
-      blockPartsWhenWholeBooked: true,
-      blockWholeWhenPartBooked: true,
-      allowWholeBooking: true,
-      minBookingMinutes: true,
-      maxBookingMinutes: true,
-      requiresApproval: true,
-      advanceBookingDays: true,
-      openingHours: true,
-      prisInfo: true,
-      visPrisInfo: true,
-      createdAt: true,
-      updatedAt: true,
-      organizationId: true,
-      categoryId: true,
-      category: {
-        select: {
-          id: true,
-          name: true,
-          description: true,
-          icon: true,
-          color: true
-        }
-      },
-      parts: {
-        select: {
-          id: true,
-          name: true,
-          description: true,
-          capacity: true,
-          isActive: true,
-          mapCoordinates: true,
-          parentId: true,
-          resourceId: true
-          // Excluding adminNote since it doesn't exist in database yet
-        },
-        orderBy: { name: "asc" }
-      }
+    include: {
+      category: true,
+      parts: true
     }
   })
 

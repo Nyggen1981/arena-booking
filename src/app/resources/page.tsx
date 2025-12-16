@@ -8,43 +8,12 @@ export const revalidate = 60
 // Fetch resources directly (cache removed temporarily to debug)
 async function getResources() {
   try {
-    // First, check if we can connect to the database
-    const resourceCount = await prisma.resource.count()
-    console.log("Total resources in database:", resourceCount)
-    
-    const activeCount = await prisma.resource.count({ where: { isActive: true } })
-    console.log("Active resources in database:", activeCount)
-    
-    const resources = await prisma.resource.findMany({
+    return await prisma.resource.findMany({
       where: { isActive: true },
-      select: {
-        id: true,
-        name: true,
-        description: true,
-        location: true,
-        image: true,
-        color: true,
-        isActive: true,
-        minBookingMinutes: true,
-        maxBookingMinutes: true,
-        requiresApproval: true,
-        category: {
-          select: {
-            id: true,
-            name: true,
-            color: true
-          }
-        },
+      include: {
+        category: true,
         parts: {
           where: { isActive: true },
-          select: {
-            id: true,
-            name: true,
-            description: true,
-            capacity: true,
-            mapCoordinates: true
-            // Excluding adminNote since it doesn't exist in database yet
-          },
           orderBy: { name: "asc" }
         },
       },
@@ -53,16 +22,8 @@ async function getResources() {
         { name: "asc" }
       ]
     })
-    
-    console.log("Fetched resources count:", resources.length)
-    if (resources.length > 0) {
-      console.log("First resource:", { id: resources[0].id, name: resources[0].name, isActive: resources[0].isActive })
-    }
-    
-    return resources
   } catch (error) {
     console.error("Error fetching resources:", error)
-    console.error("Error details:", JSON.stringify(error, null, 2))
     return []
   }
 }
