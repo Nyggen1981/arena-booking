@@ -81,12 +81,10 @@ export function LicenseGuard({ children }: LicenseGuardProps) {
 
     // Initial fetch
     fetchLicenseStatus()
-
-    // Re-check every 30 seconds (important for when admin activates license)
-    const interval = setInterval(fetchLicenseStatus, 30000)
     
-    return () => clearInterval(interval)
-  }, [sessionStatus])
+    // No automatic polling - users can use "Sjekk på nytt" button
+    // This avoids spamming the license server
+  }, [sessionStatus, fetchLicenseStatus])
 
   // Still loading session or license - show children (will show loading states)
   if (sessionStatus === "loading" || licenseStatus.isLoading) {
@@ -240,7 +238,7 @@ export function LicenseGuard({ children }: LicenseGuardProps) {
             </button>
           </div>
           <p className="text-slate-500 text-sm mt-6">
-            Sjekker automatisk hvert 30. sekund
+            Trykk &quot;Sjekk på nytt&quot; når administrator har aktivert lisensen
           </p>
         </div>
       </div>
