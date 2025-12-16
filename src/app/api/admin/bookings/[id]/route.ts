@@ -82,23 +82,22 @@ export async function PATCH(
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
   }
 
-  // If moderator, check if they have access to this specific resource
-  if (isModerator) {
-    const moderatorAccess = await prisma.resourceModerator.findUnique({
-      where: {
-        userId_resourceId: {
-          userId: session.user.id,
-          resourceId: booking.resourceId
-        }
-      }
-    })
-
-    if (!moderatorAccess) {
-      return NextResponse.json({ 
-        error: "Du har ikke tilgang til å godkjenne bookinger for denne fasiliteten" 
-      }, { status: 403 })
-    }
-  }
+  // NOTE: ResourceModerator temporarily disabled - moderators can approve all bookings for now
+  // if (isModerator) {
+  //   const moderatorAccess = await prisma.resourceModerator.findUnique({
+  //     where: {
+  //       userId_resourceId: {
+  //         userId: session.user.id,
+  //         resourceId: booking.resourceId
+  //       }
+  //     }
+  //   })
+  //   if (!moderatorAccess) {
+  //     return NextResponse.json({ 
+  //       error: "Du har ikke tilgang til å godkjenne bookinger for denne fasiliteten" 
+  //     }, { status: 403 })
+  //   }
+  // }
 
   // Determine which bookings to update
   let bookingIdsToUpdate: string[] = [id]

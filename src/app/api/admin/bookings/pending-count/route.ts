@@ -17,27 +17,13 @@ export async function GET() {
     return NextResponse.json({ count: 0 })
   }
 
-  // If moderator, get list of resource IDs they can moderate
-  let resourceIds: string[] | undefined
-  if (isModerator) {
-    const moderatorResources = await prisma.resourceModerator.findMany({
-      where: { userId: session.user.id },
-      select: { resourceId: true }
-    })
-    resourceIds = moderatorResources.map(mr => mr.resourceId)
-    
-    // If moderator has no resources, return 0
-    if (resourceIds.length === 0) {
-      return NextResponse.json({ count: 0 })
-    }
-  }
+  // NOTE: ResourceModerator temporarily disabled - moderators see all pending bookings for now
 
   const count = await prisma.booking.count({
     where: {
       status: "pending",
       resource: {
-        organizationId: session.user.organizationId,
-        ...(isModerator && resourceIds ? { id: { in: resourceIds } } : {})
+        organizationId: session.user.organizationId
       }
     }
   })
