@@ -189,14 +189,34 @@ export async function PATCH(
       }
     })
 
-    // If user edited and needs re-approval, notify admins
+    // If user edited and needs re-approval, notify admins and moderators
     if (!isAdmin && newStatus === "pending") {
+      // Hent alle admin-brukere
       const admins = await prisma.user.findMany({
         where: {
           organizationId: booking.resource.organizationId,
           role: "admin"
+        },
+        select: { email: true }
+      })
+
+      // Hent alle moderatorer som har tilgang til denne ressursen
+      const resourceModerators = await prisma.resourceModerator.findMany({
+        where: { resourceId: booking.resourceId },
+        include: {
+          user: {
+            select: { email: true, role: true }
+          }
         }
       })
+
+      // Kombiner admin og moderator e-poster (unngå duplikater)
+      const adminEmails = admins.map(a => a.email)
+      const moderatorEmails = resourceModerators
+        .filter(rm => rm.user.role === "moderator")
+        .map(rm => rm.user.email)
+      
+      const allRecipients = [...new Set([...adminEmails, ...moderatorEmails])]
 
       const date = format(newStartTime, "EEEE d. MMMM yyyy", { locale: nb })
       const time = `${format(newStartTime, "HH:mm")} - ${format(newEndTime, "HH:mm")}`
@@ -204,7 +224,7 @@ export async function PATCH(
         ? `${updatedBooking.resource.name} → ${updatedBooking.resourcePart.name}`
         : updatedBooking.resource.name
 
-      for (const admin of admins) {
+      for (const email of allRecipients) {
         const emailContent = await getNewBookingRequestEmail(
           session.user.organizationId,
           `${updatedBooking.title} (Endret)`,
@@ -215,7 +235,7 @@ export async function PATCH(
           session.user.email || contactEmail || "",
           description || undefined
         )
-        await sendEmail(session.user.organizationId, { to: admin.email, ...emailContent })
+        await sendEmail(session.user.organizationId, { to: email, ...emailContent })
       }
     }
 

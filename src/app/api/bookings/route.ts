@@ -295,10 +295,29 @@ export async function POST(request: Request) {
       // Fire and forget - don't block the response
       const sendEmailsAsync = async () => {
         try {
+          // Hent alle admin-brukere
           const admins = await prisma.user.findMany({
             where: { organizationId: orgId, role: "admin" },
             select: { email: true }
           })
+
+          // Hent alle moderatorer som har tilgang til denne ressursen
+          const resourceModerators = await prisma.resourceModerator.findMany({
+            where: { resourceId: resource.id },
+            include: {
+              user: {
+                select: { email: true, role: true }
+              }
+            }
+          })
+
+          // Kombiner admin og moderator e-poster (unngå duplikater)
+          const adminEmails = admins.map(a => a.email)
+          const moderatorEmails = resourceModerators
+            .filter(rm => rm.user.role === "moderator")
+            .map(rm => rm.user.email)
+          
+          const allRecipients = [...new Set([...adminEmails, ...moderatorEmails])]
 
           const date = format(new Date(firstBooking.startTime), "EEEE d. MMMM yyyy", { locale: nb })
           const time = `${format(new Date(firstBooking.startTime), "HH:mm")} - ${format(new Date(firstBooking.endTime), "HH:mm")}`
@@ -313,11 +332,11 @@ export async function POST(request: Request) {
           }
 
           // Send emails in parallel
-          await Promise.all(admins.map(async (admin) => {
+          await Promise.all(allRecipients.map(async (email) => {
             const emailContent = await getNewBookingRequestEmail(
               orgId, title, resourceName, date, time, userName, userEmail, description
             )
-            await sendEmail(orgId, { to: admin.email, ...emailContent })
+            await sendEmail(orgId, { to: email, ...emailContent })
           }))
         } catch (error) {
           console.error("Failed to send booking notification emails:", error)
