@@ -15,28 +15,49 @@ export async function GET() {
       return NextResponse.json({ error: "Organization ID missing" }, { status: 400 })
     }
 
-    const org = await prisma.organization.findUnique({
-      where: { id: session.user.organizationId },
-      select: {
-        id: true,
-        name: true,
-        slug: true,
-        logo: true,
-        tagline: true,
-        primaryColor: true,
-        secondaryColor: true,
-        smtpHost: true,
-        smtpPort: true,
-        smtpUser: true,
-        smtpPass: true,
-        smtpFrom: true,
-        createdAt: true,
-        updatedAt: true,
-        isActive: true,
-        subscriptionEndsAt: true,
-        graceEndsAt: true
-      }
-    })
+    // First try with all fields, fall back to basic fields if some don't exist
+    let org
+    try {
+      org = await prisma.organization.findUnique({
+        where: { id: session.user.organizationId },
+        select: {
+          id: true,
+          name: true,
+          slug: true,
+          logo: true,
+          tagline: true,
+          primaryColor: true,
+          secondaryColor: true,
+          smtpHost: true,
+          smtpPort: true,
+          smtpUser: true,
+          smtpPass: true,
+          smtpFrom: true,
+          createdAt: true,
+          updatedAt: true,
+          isActive: true,
+          subscriptionEndsAt: true,
+          graceEndsAt: true
+        }
+      })
+    } catch (selectError: any) {
+      // If some fields don't exist, try with basic fields only
+      console.warn("Full select failed, trying basic fields:", selectError.message)
+      org = await prisma.organization.findUnique({
+        where: { id: session.user.organizationId },
+        select: {
+          id: true,
+          name: true,
+          slug: true,
+          logo: true,
+          tagline: true,
+          primaryColor: true,
+          secondaryColor: true,
+          createdAt: true,
+          updatedAt: true
+        }
+      })
+    }
 
     if (!org) {
       return NextResponse.json({ error: "Organization not found" }, { status: 404 })
