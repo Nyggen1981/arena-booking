@@ -44,6 +44,13 @@ export async function PATCH(
     updateData.approvedAt = isApproved ? new Date() : null
   }
 
+  // If changing role from moderator to user, remove all resource assignments
+  if (role === "user" && user.role === "moderator") {
+    await prisma.resourceModerator.deleteMany({
+      where: { userId: id }
+    })
+  }
+
   const updated = await prisma.user.update({
     where: { id },
     data: updateData,

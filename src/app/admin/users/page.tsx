@@ -39,6 +39,12 @@ interface UserData {
   _count: {
     bookings: number
   }
+  moderatedResources?: Array<{
+    resource: {
+      id: string
+      name: string
+    }
+  }>
 }
 
 export default function AdminUsersPage() {
@@ -95,15 +101,13 @@ export default function AdminUsersPage() {
     fetchUsers()
   }
 
-  const toggleRole = async (userId: string, currentRole: string) => {
-    // Cycle through roles: user -> moderator -> admin -> user
-    let newRole: string
-    if (currentRole === "user") {
-      newRole = "moderator"
-    } else if (currentRole === "moderator") {
-      newRole = "admin"
-    } else {
-      newRole = "user"
+  const changeRole = async (userId: string, newRole: string) => {
+    const confirmMessage = newRole === "user" 
+      ? "Dette vil fjerne alle moderator-tilganger for denne brukeren. Fortsette?"
+      : `Er du sikker på at du vil endre rollen til ${newRole === "admin" ? "administrator" : "moderator"}?`
+    
+    if (!confirm(confirmMessage)) {
+      return
     }
     
     await fetch(`/api/admin/users/${userId}`, {
@@ -293,7 +297,7 @@ export default function AdminUsersPage() {
                     currentUserId={session?.user?.id}
                     openMenu={openMenu}
                     setOpenMenu={setOpenMenu}
-                    onToggleRole={toggleRole}
+                    onChangeRole={changeRole}
                     onDelete={deleteUser}
                   />
                 ))}
@@ -315,7 +319,7 @@ export default function AdminUsersPage() {
                       currentUserId={session?.user?.id}
                       openMenu={openMenu}
                       setOpenMenu={setOpenMenu}
-                      onToggleRole={toggleRole}
+                      onChangeRole={changeRole}
                       onDelete={deleteUser}
                     />
                   ))}
@@ -343,7 +347,7 @@ export default function AdminUsersPage() {
                       currentUserId={session?.user?.id}
                       openMenu={openMenu}
                       setOpenMenu={setOpenMenu}
-                      onToggleRole={toggleRole}
+                      onChangeRole={changeRole}
                       onDelete={deleteUser}
                     />
                   ))}
@@ -402,7 +406,7 @@ export default function AdminUsersPage() {
                   <option value="admin">Administrator</option>
                 </select>
                 <p className="text-xs text-gray-500 mt-1">
-                  Moderatorer kan godkjenne bookinger for tildelte fasiliteter, men kan ikke booke selv.
+                  Moderatorer kan godkjenne bookinger for tildelte fasiliteter og booke som vanlige brukere.
                 </p>
               </div>
               <p className="text-xs text-gray-500">
@@ -437,14 +441,14 @@ function UserCard({
   currentUserId,
   openMenu, 
   setOpenMenu, 
-  onToggleRole, 
+  onChangeRole, 
   onDelete 
 }: { 
   user: UserData
   currentUserId?: string
   openMenu: string | null
   setOpenMenu: (id: string | null) => void
-  onToggleRole: (id: string, role: string) => void
+  onChangeRole: (id: string, role: string) => void
   onDelete: (id: string) => void
 }) {
   const isCurrentUser = user.id === currentUserId
@@ -479,6 +483,16 @@ function UserCard({
               <Mail className="w-3 h-3" />
               {user.email}
             </p>
+            {user.role === "moderator" && user.moderatedResources && user.moderatedResources.length > 0 && (
+              <p className="text-xs text-amber-600 mt-1">
+                📍 {user.moderatedResources.map(mr => mr.resource.name).join(", ")}
+              </p>
+            )}
+            {user.role === "moderator" && (!user.moderatedResources || user.moderatedResources.length === 0) && (
+              <p className="text-xs text-gray-400 mt-1 italic">
+                Ingen fasiliteter tildelt
+              </p>
+            )}
           </div>
         </div>
 
@@ -501,27 +515,51 @@ function UserCard({
 
               {openMenu === user.id && (
                 <div className="absolute right-0 top-full mt-1 w-48 bg-white rounded-xl shadow-lg border border-gray-200 py-1 z-10 animate-fadeIn">
-                  <button
-                    onClick={() => onToggleRole(user.id, user.role)}
-                    className="flex items-center gap-2 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 w-full text-left"
-                  >
-                    {user.role === "admin" ? (
-                      <>
-                        <ShieldOff className="w-4 h-4" />
-                        Gjør til bruker
-                      </>
-                    ) : user.role === "moderator" ? (
-                      <>
-                        <Shield className="w-4 h-4" />
-                        Gjør til admin
-                      </>
-                    ) : (
-                      <>
-                        <ShieldCheck className="w-4 h-4" />
-                        Gjør til moderator
-                      </>
-                    )}
-                  </button>
+                  {user.role === "user" && (
+                    <button
+                      onClick={() => onChangeRole(user.id, "moderator")}
+                      className="flex items-center gap-2 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 w-full text-left"
+                    >
+                      <ShieldCheck className="w-4 h-4" />
+                      Gjør til moderator
+                    </button>
+                  )}
+                  {user.role === "user" && (
+                    <button
+                      onClick={() => onChangeRole(user.id, "admin")}
+                      className="flex items-center gap-2 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 w-full text-left"
+                    >
+                      <Shield className="w-4 h-4" />
+                      Gjør til admin
+                    </button>
+                  )}
+                  {user.role === "moderator" && (
+                    <button
+                      onClick={() => onChangeRole(user.id, "user")}
+                      className="flex items-center gap-2 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 w-full text-left"
+                    >
+                      <ShieldOff className="w-4 h-4" />
+                      Fjern moderator-tilgang
+                    </button>
+                  )}
+                  {user.role === "moderator" && (
+                    <button
+                      onClick={() => onChangeRole(user.id, "admin")}
+                      className="flex items-center gap-2 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 w-full text-left"
+                    >
+                      <Shield className="w-4 h-4" />
+                      Gjør til admin
+                    </button>
+                  )}
+                  {user.role === "admin" && (
+                    <button
+                      onClick={() => onChangeRole(user.id, "user")}
+                      className="flex items-center gap-2 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 w-full text-left"
+                    >
+                      <ShieldOff className="w-4 h-4" />
+                      Gjør til bruker
+                    </button>
+                  )}
                   <button
                     onClick={() => onDelete(user.id)}
                     className="flex items-center gap-2 px-4 py-2 text-sm text-red-600 hover:bg-red-50 w-full text-left"

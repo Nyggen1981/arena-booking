@@ -24,6 +24,16 @@ export async function GET() {
       createdAt: true,
       _count: {
         select: { bookings: true }
+      },
+      moderatedResources: {
+        select: {
+          resource: {
+            select: {
+              id: true,
+              name: true
+            }
+          }
+        }
       }
     },
     orderBy: [
