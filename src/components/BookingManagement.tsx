@@ -12,7 +12,9 @@ import {
   Calendar,
   User,
   Building2,
-  History
+  History,
+  Square,
+  CheckSquare
 } from "lucide-react"
 
 interface Booking {
@@ -46,8 +48,15 @@ export function BookingManagement({ initialBookings, showTabs = true }: BookingM
   const [isLoading, setIsLoading] = useState(!initialBookings)
   const [activeTab, setActiveTab] = useState<"pending" | "approved" | "rejected" | "history">("pending")
   const [processingId, setProcessingId] = useState<string | null>(null)
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
+  const [isDeleting, setIsDeleting] = useState(false)
   
   const now = new Date()
+  
+  // Clear selection when tab changes
+  useEffect(() => {
+    setSelectedIds(new Set())
+  }, [activeTab])
 
   useEffect(() => {
     fetchBookings()
@@ -89,6 +98,75 @@ export function BookingManagement({ initialBookings, showTabs = true }: BookingM
       setProcessingId(null)
     }
   }
+
+  const handleDelete = async (bookingId: string) => {
+    if (!confirm("Er du sikker på at du vil slette denne bookingen permanent?")) {
+      return
+    }
+    
+    setProcessingId(bookingId)
+    try {
+      const response = await fetch(`/api/admin/bookings/${bookingId}`, {
+        method: "DELETE"
+      })
+
+      if (response.ok) {
+        await fetchBookings()
+      }
+    } catch (error) {
+      console.error("Failed to delete booking:", error)
+    } finally {
+      setProcessingId(null)
+    }
+  }
+
+  const handleBulkDelete = async () => {
+    if (selectedIds.size === 0) return
+    
+    if (!confirm(`Er du sikker på at du vil slette ${selectedIds.size} booking${selectedIds.size > 1 ? "er" : ""} permanent?`)) {
+      return
+    }
+    
+    setIsDeleting(true)
+    try {
+      const response = await fetch("/api/admin/bookings/bulk-delete", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ bookingIds: Array.from(selectedIds) })
+      })
+
+      if (response.ok) {
+        setSelectedIds(new Set())
+        await fetchBookings()
+      }
+    } catch (error) {
+      console.error("Failed to bulk delete bookings:", error)
+    } finally {
+      setIsDeleting(false)
+    }
+  }
+
+  const toggleSelection = (bookingId: string) => {
+    setSelectedIds(prev => {
+      const newSet = new Set(prev)
+      if (newSet.has(bookingId)) {
+        newSet.delete(bookingId)
+      } else {
+        newSet.add(bookingId)
+      }
+      return newSet
+    })
+  }
+
+  const toggleSelectAll = () => {
+    if (selectedIds.size === filteredBookings.length) {
+      setSelectedIds(new Set())
+    } else {
+      setSelectedIds(new Set(filteredBookings.map(b => b.id)))
+    }
+  }
+
+  const canDelete = activeTab === "rejected" || activeTab === "history"
 
   const filteredBookings = bookings.filter(b => {
     const isPast = new Date(b.endTime) < now
@@ -191,6 +269,38 @@ export function BookingManagement({ initialBookings, showTabs = true }: BookingM
         </div>
       )}
 
+      {/* Bulk actions bar */}
+      {canDelete && filteredBookings.length > 0 && (
+        <div className="flex items-center justify-between mb-4 p-3 bg-gray-50 rounded-lg">
+          <button
+            onClick={toggleSelectAll}
+            className="flex items-center gap-2 text-sm text-gray-600 hover:text-gray-900"
+          >
+            {selectedIds.size === filteredBookings.length ? (
+              <CheckSquare className="w-5 h-5 text-blue-600" />
+            ) : (
+              <Square className="w-5 h-5" />
+            )}
+            {selectedIds.size === filteredBookings.length ? "Fjern alle" : "Velg alle"}
+          </button>
+          
+          {selectedIds.size > 0 && (
+            <button
+              onClick={handleBulkDelete}
+              disabled={isDeleting}
+              className="flex items-center gap-2 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors disabled:opacity-50"
+            >
+              {isDeleting ? (
+                <Loader2 className="w-4 h-4 animate-spin" />
+              ) : (
+                <Trash2 className="w-4 h-4" />
+              )}
+              Slett valgte ({selectedIds.size})
+            </button>
+          )}
+        </div>
+      )}
+
       {/* Booking list */}
       {filteredBookings.length === 0 ? (
         <div className="card p-8 text-center">
@@ -212,9 +322,25 @@ export function BookingManagement({ initialBookings, showTabs = true }: BookingM
           {filteredBookings.map((booking) => (
             <div 
               key={booking.id} 
-              className="card p-4 hover:shadow-md transition-shadow"
+              className={`card p-4 hover:shadow-md transition-shadow ${
+                selectedIds.has(booking.id) ? "ring-2 ring-blue-500 bg-blue-50/50" : ""
+              }`}
             >
               <div className="flex items-start justify-between gap-4">
+                {/* Checkbox for deletable tabs */}
+                {canDelete && (
+                  <button
+                    onClick={() => toggleSelection(booking.id)}
+                    className="flex-shrink-0 mt-1"
+                  >
+                    {selectedIds.has(booking.id) ? (
+                      <CheckSquare className="w-5 h-5 text-blue-600" />
+                    ) : (
+                      <Square className="w-5 h-5 text-gray-400 hover:text-gray-600" />
+                    )}
+                  </button>
+                )}
+                
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 mb-1">
                     <div 
@@ -246,19 +372,52 @@ export function BookingManagement({ initialBookings, showTabs = true }: BookingM
                 {/* Actions */}
                 <div className="flex items-center gap-2 flex-shrink-0">
                   {activeTab === "history" ? (
-                    // Show status badge for historical bookings
-                    <span className={`px-3 py-1 rounded-full text-sm ${
-                      booking.status === "approved" 
-                        ? "bg-green-100 text-green-600" 
-                        : booking.status === "cancelled"
-                        ? "bg-gray-100 text-gray-600"
-                        : "bg-red-100 text-red-600"
-                    }`}>
-                      {booking.status === "approved" && "Gjennomført"}
-                      {booking.status === "cancelled" && "Kansellert"}
-                      {booking.status === "rejected" && "Avslått"}
-                      {booking.status === "pending" && "Utløpt"}
-                    </span>
+                    // Show status badge + delete button for historical bookings
+                    <>
+                      <span className={`px-3 py-1 rounded-full text-sm ${
+                        booking.status === "approved" 
+                          ? "bg-green-100 text-green-600" 
+                          : booking.status === "cancelled"
+                          ? "bg-gray-100 text-gray-600"
+                          : "bg-red-100 text-red-600"
+                      }`}>
+                        {booking.status === "approved" && "Gjennomført"}
+                        {booking.status === "cancelled" && "Kansellert"}
+                        {booking.status === "rejected" && "Avslått"}
+                        {booking.status === "pending" && "Utløpt"}
+                      </span>
+                      <button
+                        onClick={() => handleDelete(booking.id)}
+                        disabled={processingId === booking.id}
+                        className="p-2 rounded-lg bg-gray-100 text-gray-500 hover:bg-red-100 hover:text-red-600 transition-colors disabled:opacity-50"
+                        title="Slett permanent"
+                      >
+                        {processingId === booking.id ? (
+                          <Loader2 className="w-5 h-5 animate-spin" />
+                        ) : (
+                          <Trash2 className="w-5 h-5" />
+                        )}
+                      </button>
+                    </>
+                  ) : activeTab === "rejected" ? (
+                    // Show status badge + delete button for rejected bookings
+                    <>
+                      <span className="px-3 py-1 rounded-full bg-red-100 text-red-600 text-sm">
+                        {booking.status === "cancelled" ? "Kansellert" : "Avslått"}
+                      </span>
+                      <button
+                        onClick={() => handleDelete(booking.id)}
+                        disabled={processingId === booking.id}
+                        className="p-2 rounded-lg bg-gray-100 text-gray-500 hover:bg-red-100 hover:text-red-600 transition-colors disabled:opacity-50"
+                        title="Slett permanent"
+                      >
+                        {processingId === booking.id ? (
+                          <Loader2 className="w-5 h-5 animate-spin" />
+                        ) : (
+                          <Trash2 className="w-5 h-5" />
+                        )}
+                      </button>
+                    </>
                   ) : (
                     <>
                       {booking.status === "pending" && (
@@ -298,11 +457,6 @@ export function BookingManagement({ initialBookings, showTabs = true }: BookingM
                             <Trash2 className="w-5 h-5" />
                           )}
                         </button>
-                      )}
-                      {(booking.status === "rejected" || booking.status === "cancelled") && (
-                        <span className="px-3 py-1 rounded-full bg-red-100 text-red-600 text-sm">
-                          {booking.status === "cancelled" ? "Kansellert" : "Avslått"}
-                        </span>
                       )}
                     </>
                   )}

@@ -185,3 +185,60 @@ export async function PATCH(
     updatedCount: bookingIdsToUpdate.length 
   })
 }
+
+export async function DELETE(
+  request: Request,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  const session = await getServerSession(authOptions)
+
+  if (!session?.user) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+  }
+
+  const { id } = await params
+
+  const booking = await prisma.booking.findUnique({
+    where: { id },
+    select: {
+      id: true,
+      organizationId: true,
+      resourceId: true
+    }
+  })
+
+  if (!booking || booking.organizationId !== session.user.organizationId) {
+    return NextResponse.json({ error: "Booking not found" }, { status: 404 })
+  }
+
+  // Check if user has permission to delete this booking
+  const isAdmin = session.user.role === "admin"
+  const isModerator = session.user.role === "moderator"
+  
+  if (!isAdmin && !isModerator) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+  }
+
+  // Check if moderator has access to this resource
+  if (isModerator) {
+    const moderatorAccess = await prisma.resourceModerator.findUnique({
+      where: {
+        userId_resourceId: {
+          userId: session.user.id,
+          resourceId: booking.resourceId
+        }
+      }
+    })
+    if (!moderatorAccess) {
+      return NextResponse.json({ 
+        error: "Du har ikke tilgang til å slette bookinger for denne fasiliteten" 
+      }, { status: 403 })
+    }
+  }
+
+  await prisma.booking.delete({
+    where: { id }
+  })
+
+  return NextResponse.json({ success: true })
+}
