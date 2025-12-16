@@ -2,6 +2,7 @@ import { NextAuthOptions } from "next-auth"
 import CredentialsProvider from "next-auth/providers/credentials"
 import { prisma } from "./prisma"
 import bcrypt from "bcryptjs"
+import { validateLicense } from "./license"
 
 export const authOptions: NextAuthOptions = {
   providers: [
@@ -63,6 +64,15 @@ export const authOptions: NextAuthOptions = {
             return null
           }
 
+        // Sjekk lisens ved hver innlogging (testfase)
+        // Admin får alltid logge inn for å kunne konfigurere lisens
+        if (user.role !== "admin") {
+          const license = await validateLicense(true) // Force refresh
+          if (!license.valid) {
+            throw new Error("Tjenesten er midlertidig utilgjengelig. Kontakt administrator.")
+          }
+        }
+
         return {
           id: user.id,
           email: user.email,
@@ -75,8 +85,11 @@ export const authOptions: NextAuthOptions = {
           organizationColor: user.organization.primaryColor,
           }
         } catch (error) {
-          // Re-throw specific error messages (like "not approved") so they show to the user
-          if (error instanceof Error && error.message.includes("godkjenning")) {
+          // Re-throw specific error messages so they show to the user
+          if (error instanceof Error && (
+            error.message.includes("godkjenning") || 
+            error.message.includes("utilgjengelig")
+          )) {
             throw error
           }
           // Log other errors but show generic message
