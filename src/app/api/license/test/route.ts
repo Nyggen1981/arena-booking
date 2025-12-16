@@ -4,6 +4,9 @@ import { authOptions } from "@/lib/auth"
 
 export const dynamic = "force-dynamic"
 
+// Hardkodet lisensserver URL
+const LICENSE_SERVER_URL = "https://arena-booking-lisence-server.vercel.app"
+
 export async function POST(req: Request) {
   try {
     // Kun admin kan teste lisens
@@ -12,23 +15,22 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
 
-    const { serverUrl, licenseKey, orgSlug } = await req.json()
+    const { licenseKey } = await req.json()
 
-    if (!serverUrl || !licenseKey || !orgSlug) {
+    if (!licenseKey) {
       return NextResponse.json({
         valid: false,
-        error: "Alle felt må fylles ut"
+        error: "Lisensnøkkel må fylles ut"
       })
     }
 
-    // Kall lisensserveren direkte med de oppgitte verdiene
-    const response = await fetch(`${serverUrl}/api/license/validate`, {
+    // Kall lisensserveren med lisensnøkkelen
+    const response = await fetch(`${LICENSE_SERVER_URL}/api/license/validate`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        slug: orgSlug,
         licenseKey: licenseKey,
-        appVersion: "1.0.16"
+        appVersion: "1.0.20"
       }),
       signal: AbortSignal.timeout(10000)
     })
@@ -62,4 +64,3 @@ export async function POST(req: Request) {
     })
   }
 }
-

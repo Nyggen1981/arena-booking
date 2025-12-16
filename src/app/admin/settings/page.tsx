@@ -42,9 +42,7 @@ interface Organization {
   smtpUser?: string | null
   smtpPass?: string | null
   smtpFrom?: string | null
-  licenseServerUrl?: string | null
   licenseKey?: string | null
-  licenseOrgSlug?: string | null
 }
 
 export default function AdminSettingsPage() {
@@ -90,9 +88,7 @@ export default function AdminSettingsPage() {
   const [smtpTestResult, setSmtpTestResult] = useState<{ success: boolean; message: string } | null>(null)
 
   // License settings state
-  const [licenseServerUrl, setLicenseServerUrl] = useState("")
   const [licenseKey, setLicenseKey] = useState("")
-  const [licenseOrgSlug, setLicenseOrgSlug] = useState("")
   const [isTestingLicense, setIsTestingLicense] = useState(false)
   const [licenseTestResult, setLicenseTestResult] = useState<{ success: boolean; message: string; status?: string } | null>(null)
   
@@ -130,9 +126,7 @@ export default function AdminSettingsPage() {
           setSmtpFrom(orgData.smtpFrom || "")
           
           // Load license settings
-          setLicenseServerUrl(orgData.licenseServerUrl || "")
           setLicenseKey(orgData.licenseKey || "")
-          setLicenseOrgSlug(orgData.licenseOrgSlug || "")
           
           setIsLoading(false)
         })
@@ -252,9 +246,7 @@ export default function AdminSettingsPage() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          serverUrl: licenseServerUrl,
           licenseKey: licenseKey,
-          orgSlug: licenseOrgSlug,
         }),
       })
       
@@ -264,7 +256,7 @@ export default function AdminSettingsPage() {
         setLicenseTestResult({
           success: true,
           status: data.status,
-          message: `Organisasjon: ${data.organization || licenseOrgSlug}. ${data.daysRemaining ? `${data.daysRemaining} dager igjen.` : ''}`,
+          message: `Organisasjon: ${data.organization}. ${data.daysRemaining ? `${data.daysRemaining} dager igjen.` : ''}`,
         })
       } else {
         setLicenseTestResult({
@@ -276,7 +268,7 @@ export default function AdminSettingsPage() {
     } catch (error) {
       setLicenseTestResult({
         success: false,
-        message: "Kunne ikke kontakte lisensserveren. Sjekk URL og nettverkstilkobling.",
+        message: "Kunne ikke kontakte lisensserveren.",
       })
     } finally {
       setIsTestingLicense(false)
@@ -348,9 +340,7 @@ export default function AdminSettingsPage() {
           smtpUser: smtpUser || null,
           smtpPass: smtpPass || null,
           smtpFrom: smtpFrom || null,
-          licenseServerUrl: licenseServerUrl || null,
           licenseKey: licenseKey || null,
-          licenseOrgSlug: licenseOrgSlug || null,
         }),
       })
 
@@ -998,51 +988,33 @@ export default function AdminSettingsPage() {
           <div className="space-y-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
-                Lisensserver URL
-              </label>
-              <input
-                type="url"
-                value={licenseServerUrl}
-                onChange={(e) => setLicenseServerUrl(e.target.value)}
-                placeholder="https://license.arena-booking.no"
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
-              />
-              <p className="text-xs text-gray-500 mt-1">URL til den sentrale lisensserveren</p>
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Organisasjons-slug
-              </label>
-              <input
-                type="text"
-                value={licenseOrgSlug}
-                onChange={(e) => setLicenseOrgSlug(e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, ''))}
-                placeholder="haugesund-il"
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
-              />
-              <p className="text-xs text-gray-500 mt-1">Din organisasjons ID på lisensserveren</p>
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
                 Lisensnøkkel
               </label>
               <input
                 type="text"
                 value={licenseKey}
                 onChange={(e) => setLicenseKey(e.target.value)}
-                placeholder="clxxxxxxxxxxxxxxxxxxxxxxxxx"
+                placeholder="Lim inn lisensnøkkelen her..."
                 className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent font-mono text-sm"
               />
-              <p className="text-xs text-gray-500 mt-1">Lisensnøkkelen du har fått fra lisensserveren</p>
+              <p className="text-xs text-gray-500 mt-1">
+                Lisensnøkkelen du har fått tildelt. Kontakt leverandør hvis du ikke har en nøkkel.
+              </p>
             </div>
 
-            {!licenseServerUrl && !licenseKey && (
-              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-                <p className="text-sm text-blue-800">
-                  <strong>Info:</strong> Uten lisensinnstillinger kjører appen i utviklingsmodus uten lisensvalidering. 
-                  Dette er greit for testing, men for produksjon bør lisensinnstillinger konfigureres.
+            {!licenseKey && (
+              <div className="bg-amber-50 border border-amber-200 rounded-lg p-4">
+                <p className="text-sm text-amber-800">
+                  <strong>OBS:</strong> Appen krever en gyldig lisensnøkkel for å fungere i produksjon. 
+                  Uten lisensnøkkel vil brukere ikke kunne logge inn.
+                </p>
+              </div>
+            )}
+
+            {licenseKey && (
+              <div className="bg-emerald-50 border border-emerald-200 rounded-lg p-4">
+                <p className="text-sm text-emerald-800">
+                  <strong>✓</strong> Lisensnøkkel er konfigurert. Trykk &quot;Test lisens&quot; for å verifisere.
                 </p>
               </div>
             )}
@@ -1053,10 +1025,10 @@ export default function AdminSettingsPage() {
                 <div>
                   <h3 className="font-medium text-gray-900">Lagre og teste lisens</h3>
                   <p className="text-sm text-gray-500">
-                    Husk å lagre før du tester lisenstilkoblingen.
+                    Lagre først, deretter test at lisensnøkkelen er gyldig.
                   </p>
                 </div>
-                <div className="flex flex-col gap-2 items-start">
+                <div className="flex gap-2">
                   <button
                     type="button"
                     onClick={saveAllSettings}
@@ -1071,14 +1043,14 @@ export default function AdminSettingsPage() {
                     ) : (
                       <>
                         <Save className="w-4 h-4" />
-                        Lagre lisensinnstillinger
+                        Lagre
                       </>
                     )}
                   </button>
                   <button
                     type="button"
                     onClick={handleTestLicense}
-                    disabled={isTestingLicense || !licenseServerUrl || !licenseKey || !licenseOrgSlug}
+                    disabled={isTestingLicense || !licenseKey}
                     className="inline-flex items-center justify-center gap-1.5 rounded-md bg-emerald-600 px-3 py-1.5 text-sm font-medium text-white shadow-sm hover:bg-emerald-700 disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     {isTestingLicense ? (

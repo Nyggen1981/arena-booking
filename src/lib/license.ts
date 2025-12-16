@@ -30,18 +30,21 @@ let cachedResult: LicenseValidationResult | null = null
 let cacheTimestamp: number = 0
 const CACHE_DURATION = 5 * 60 * 1000 // 5 minutter
 
+// Hardkodet lisensserver URL
+const LICENSE_SERVER_URL = "https://arena-booking-lisence-server.vercel.app"
+
 // Cache for database config
-let cachedDbConfig: { serverUrl: string; licenseKey: string; orgSlug: string } | null = null
+let cachedLicenseKey: string | null = null
 let dbConfigTimestamp: number = 0
 const DB_CONFIG_CACHE_DURATION = 60 * 1000 // 1 minutt
 
 /**
- * Henter lisenskonfigurasjon fra database eller env
+ * Henter lisensnøkkel fra database eller env
  */
-async function getLicenseConfig(): Promise<{ serverUrl: string | null; licenseKey: string | null; orgSlug: string | null }> {
+async function getLicenseKey(): Promise<string | null> {
   // Sjekk cache først
-  if (cachedDbConfig && Date.now() - dbConfigTimestamp < DB_CONFIG_CACHE_DURATION) {
-    return cachedDbConfig
+  if (cachedLicenseKey && Date.now() - dbConfigTimestamp < DB_CONFIG_CACHE_DURATION) {
+    return cachedLicenseKey
   }
 
   // Prøv å hente fra database
@@ -49,31 +52,21 @@ async function getLicenseConfig(): Promise<{ serverUrl: string | null; licenseKe
     const { prisma } = await import("./prisma")
     const org = await prisma.organization.findFirst({
       select: {
-        licenseServerUrl: true,
-        licenseKey: true,
-        licenseOrgSlug: true
+        licenseKey: true
       }
     })
 
-    if (org?.licenseServerUrl && org?.licenseKey && org?.licenseOrgSlug) {
-      cachedDbConfig = {
-        serverUrl: org.licenseServerUrl,
-        licenseKey: org.licenseKey,
-        orgSlug: org.licenseOrgSlug
-      }
+    if (org?.licenseKey) {
+      cachedLicenseKey = org.licenseKey
       dbConfigTimestamp = Date.now()
-      return cachedDbConfig
+      return cachedLicenseKey
     }
   } catch (error) {
     console.log("[License] Could not read config from database, falling back to env")
   }
 
-  // Fallback til miljøvariabler
-  return {
-    serverUrl: process.env.LICENSE_SERVER_URL || null,
-    licenseKey: process.env.LICENSE_KEY || null,
-    orgSlug: process.env.ORG_SLUG || null
-  }
+  // Fallback til miljøvariabel
+  return process.env.LICENSE_KEY || null
 }
 
 /**
@@ -81,18 +74,15 @@ async function getLicenseConfig(): Promise<{ serverUrl: string | null; licenseKe
  * Cacher resultatet i 5 minutter for å redusere API-kall
  */
 export async function validateLicense(forceRefresh = false): Promise<LicenseValidationResult> {
-  // Hent konfigurasjon (fra database eller env)
-  const config = await getLicenseConfig()
-  const serverUrl = config.serverUrl
-  const licenseKey = config.licenseKey
-  const orgSlug = config.orgSlug
+  // Hent lisensnøkkel fra database eller env
+  const licenseKey = await getLicenseKey()
 
   // Sjekk om vi er i utviklingsmodus (kun lokalt)
   const isDevelopment = process.env.NODE_ENV === "development"
   const allowUnlicensed = process.env.ALLOW_UNLICENSED === "true"
 
-  // Hvis ingen lisensserver er konfigurert
-  if (!serverUrl || !licenseKey || !orgSlug) {
+  // Hvis ingen lisensnøkkel er konfigurert
+  if (!licenseKey) {
     // Kun tillat i lokal utvikling eller hvis eksplisitt tillatt
     if (isDevelopment || allowUnlicensed) {
       console.log("[License] No license configured - running in development mode")
@@ -122,13 +112,12 @@ export async function validateLicense(forceRefresh = false): Promise<LicenseVali
     // Hent statistikk fra databasen for å sende med
     const stats = await getLicenseStats()
 
-    const response = await fetch(`${serverUrl}/api/license/validate`, {
+    const response = await fetch(`${LICENSE_SERVER_URL}/api/license/validate`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        slug: orgSlug,
         licenseKey: licenseKey,
-        appVersion: process.env.npm_package_version || "1.0.15",
+        appVersion: process.env.npm_package_version || "1.0.19",
         stats
       }),
       // Timeout etter 10 sekunder

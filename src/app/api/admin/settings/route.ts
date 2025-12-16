@@ -33,9 +33,7 @@ export async function GET() {
           smtpUser: true,
           smtpPass: true,
           smtpFrom: true,
-          licenseServerUrl: true,
           licenseKey: true,
-          licenseOrgSlug: true,
           createdAt: true,
           updatedAt: true,
           isActive: true,
@@ -103,9 +101,7 @@ export async function PUT(request: Request) {
       smtpUser,
       smtpPass,
       smtpFrom,
-      licenseServerUrl,
-      licenseKey,
-      licenseOrgSlug
+      licenseKey
     } = await request.json()
 
     // Check if slug is already taken by another org
@@ -135,9 +131,7 @@ export async function PUT(request: Request) {
         smtpUser: smtpUser || null,
         smtpPass: smtpPass || null,
         smtpFrom: smtpFrom || null,
-        licenseServerUrl: licenseServerUrl || null,
         licenseKey: licenseKey || null,
-        licenseOrgSlug: licenseOrgSlug || null,
       }
     })
 
