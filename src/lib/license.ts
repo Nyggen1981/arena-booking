@@ -32,7 +32,7 @@ let cacheTimestamp: number = 0
 const CACHE_DURATION = 5 * 60 * 1000 // 5 minutter
 
 // Hardkodet lisensserver URL
-const LICENSE_SERVER_URL = "https://arena-booking-lisence-server.vercel.app"
+const LICENSE_SERVER_URL = "https://license.arena-booking.no"
 
 // Cache for database config
 let cachedLicenseKey: string | null = null
