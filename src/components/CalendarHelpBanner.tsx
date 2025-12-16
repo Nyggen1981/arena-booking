@@ -33,10 +33,11 @@ export function CalendarHelpBanner() {
     <div className="mb-6 p-4 bg-blue-50 border border-blue-200 rounded-xl relative">
       <button
         onClick={handleDismiss}
-        className="absolute top-3 right-3 p-1 text-blue-400 hover:text-blue-600 transition-colors"
+        className="absolute top-2 right-2 p-1.5 text-blue-600 hover:text-blue-800 hover:bg-blue-100 rounded transition-colors z-10"
         aria-label="Lukk"
+        title="Lukk"
       >
-        <X className="w-4 h-4" />
+        <X className="w-5 h-5" />
       </button>
       
       <div className="flex items-start gap-3 pr-8">
