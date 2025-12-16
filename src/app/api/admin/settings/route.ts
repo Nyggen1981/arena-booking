@@ -64,12 +64,16 @@ export async function GET() {
     }
 
     return NextResponse.json(org)
-  } catch (error) {
+  } catch (error: any) {
     console.error("Error fetching organization settings:", error)
     return NextResponse.json(
       { 
         error: "Kunne ikke laste innstillinger",
-        details: error instanceof Error ? error.message : "Unknown error"
+        details: error?.message || "Unknown error",
+        code: error?.code || "UNKNOWN",
+        name: error?.name || "Error",
+        stack: error?.stack?.split('\n').slice(0, 3) || [],
+        version: "2024-12-16-v2" // Version marker to verify deployment
       },
       { status: 500 }
     )
