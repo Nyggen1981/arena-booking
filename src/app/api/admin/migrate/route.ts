@@ -111,23 +111,25 @@ export async function GET() {
   }
 
   try {
-    const tableExists = await prisma.$queryRaw<Array<{ exists: boolean }>>`
-      SELECT EXISTS (
-        SELECT FROM information_schema.tables 
-        WHERE table_schema = 'public' 
-        AND table_name = 'ResourceModerator'
-      ) as exists;
-    `
-
-    return NextResponse.json({
-      exists: tableExists[0]?.exists || false
-    })
+    // Try to query the table - if it doesn't exist, Prisma will throw an error
+    // This is safer than using raw SQL which might fail if there are permission issues
+    try {
+      await prisma.$queryRaw`SELECT 1 FROM "ResourceModerator" LIMIT 1`
+      return NextResponse.json({ exists: true })
+    } catch (error: any) {
+      // If error is about table not existing, return false
+      if (error?.message?.includes("does not exist") || 
+          error?.message?.includes("relation") ||
+          error?.code === "P2021") {
+        return NextResponse.json({ exists: false })
+      }
+      // Otherwise, re-throw the error
+      throw error
+    }
   } catch (error) {
     console.error("Check migration error:", error)
-    return NextResponse.json(
-      { error: "Kunne ikke sjekke tabell-status" },
-      { status: 500 }
-    )
+    // Return exists: null to indicate we couldn't check (non-critical)
+    return NextResponse.json({ exists: null })
   }
 }
 

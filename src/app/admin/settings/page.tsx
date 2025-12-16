@@ -99,12 +99,14 @@ export default function AdminSettingsPage() {
 
   useEffect(() => {
     if (session?.user?.role === "admin") {
-      Promise.all([
-        fetch("/api/admin/settings").then(res => res.json()),
-        fetch("/api/admin/migrate").then(res => res.json()).catch(() => ({ exists: null }))
-      ]).then(([orgData, migrateData]) => {
+      // Load organization settings first (critical)
+      fetch("/api/admin/settings")
+        .then(res => {
+          if (!res.ok) throw new Error("Failed to load settings")
+          return res.json()
+        })
+        .then(orgData => {
           setOrg(orgData)
-          setTableExists(migrateData.exists)
           setName(orgData.name || "")
           setSlug(orgData.slug || "")
           setLogo(orgData.logo || null)
@@ -121,7 +123,22 @@ export default function AdminSettingsPage() {
           
           setIsLoading(false)
         })
-        .catch(() => setIsLoading(false))
+        .catch((error) => {
+          console.error("Error loading settings:", error)
+          setError("Kunne ikke laste innstillinger")
+          setIsLoading(false)
+        })
+
+      // Check migration status separately (non-critical)
+      fetch("/api/admin/migrate")
+        .then(res => res.json())
+        .then(data => {
+          setTableExists(data.exists)
+        })
+        .catch(() => {
+          // Migration check failed, but that's OK - just set to null
+          setTableExists(null)
+        })
 
       // Load email templates
       fetchEmailTemplates()
