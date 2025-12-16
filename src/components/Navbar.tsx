@@ -36,6 +36,8 @@ export function Navbar() {
   const [unreadBookings, setUnreadBookings] = useState(0)
 
   const isAdmin = session?.user?.role === "admin"
+  const isModerator = session?.user?.role === "moderator"
+  const canAccessAdmin = isAdmin || isModerator
   const isLoggedIn = !!session
 
   useEffect(() => {
@@ -54,9 +56,9 @@ export function Navbar() {
       .catch(() => {})
   }, [])
 
-  // Fetch pending bookings count for admin
+  // Fetch pending bookings count for admin and moderators
   useEffect(() => {
-    if (isAdmin) {
+    if (canAccessAdmin) {
       const fetchPendingCount = async () => {
         try {
           const response = await fetch("/api/admin/bookings/pending-count")
@@ -74,7 +76,7 @@ export function Navbar() {
       const interval = setInterval(fetchPendingCount, 30000)
       return () => clearInterval(interval)
     }
-  }, [isAdmin])
+  }, [canAccessAdmin])
 
   // Fetch unread bookings count for logged-in users
   useEffect(() => {
@@ -180,13 +182,17 @@ export function Navbar() {
                   Tidslinje
                 </Link>
 
-                {isAdmin && (
+                {canAccessAdmin && (
                   <Link 
                     href="/admin" 
-                    className="relative flex items-center gap-2 px-4 py-2 rounded-lg text-blue-600 hover:text-blue-700 hover:bg-blue-50 transition-colors"
+                    className={`relative flex items-center gap-2 px-4 py-2 rounded-lg transition-colors ${
+                      isAdmin 
+                        ? "text-blue-600 hover:text-blue-700 hover:bg-blue-50" 
+                        : "text-purple-600 hover:text-purple-700 hover:bg-purple-50"
+                    }`}
                   >
                     <Settings className="w-4 h-4" />
-                    Admin
+                    {isAdmin ? "Admin" : "Moderator"}
                     {pendingCount > 0 && (
                       <span className="absolute -top-1 -right-1 flex items-center justify-center min-w-[20px] h-5 px-1.5 bg-red-500 text-white text-xs font-bold rounded-full animate-pulse">
                         {pendingCount > 99 ? "99+" : pendingCount}
@@ -281,14 +287,18 @@ export function Navbar() {
                   Tidslinje
                 </Link>
 
-                {isAdmin && (
+                {canAccessAdmin && (
                   <Link 
                     href="/admin" 
-                    className="relative flex items-center gap-3 px-4 py-3 rounded-lg text-blue-600 hover:bg-blue-50"
+                    className={`relative flex items-center gap-3 px-4 py-3 rounded-lg ${
+                      isAdmin 
+                        ? "text-blue-600 hover:bg-blue-50" 
+                        : "text-purple-600 hover:bg-purple-50"
+                    }`}
                     onClick={() => setMobileMenuOpen(false)}
                   >
                     <Settings className="w-5 h-5" />
-                    Admin
+                    {isAdmin ? "Admin" : "Moderator"}
                     {pendingCount > 0 && (
                       <span className="flex items-center justify-center min-w-[20px] h-5 px-1.5 bg-red-500 text-white text-xs font-bold rounded-full">
                         {pendingCount}
