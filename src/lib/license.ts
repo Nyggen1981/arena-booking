@@ -6,6 +6,7 @@ export interface LicenseValidationResult {
   organization?: string
   expiresAt?: string
   daysRemaining?: number
+  licenseType?: string // "free", "trial", "standard", "premium"
   limits?: {
     maxUsers: number | null
     maxResources: number | null
@@ -255,10 +256,12 @@ export function clearLicenseCache(): void {
  * Henter lisensinfo for visning i UI (server-side)
  */
 export async function getLicenseInfo(): Promise<{
+  valid: boolean
   status: LicenseValidationResult["status"]
   organization: string
   expiresAt: string | null
   daysRemaining: number | null
+  licenseType: string | null
   showWarning: boolean
   warningMessage: string | null
   limits: LicenseValidationResult["limits"]
@@ -283,10 +286,12 @@ export async function getLicenseInfo(): Promise<{
   }
 
   return {
+    valid: license.valid,
     status: license.status,
     organization: license.organization || "Ukjent",
     expiresAt: license.expiresAt || null,
     daysRemaining: license.daysRemaining ?? null,
+    licenseType: license.licenseType || null,
     showWarning,
     warningMessage,
     limits: license.limits

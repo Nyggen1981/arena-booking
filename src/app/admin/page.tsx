@@ -12,6 +12,7 @@ import {
   Layers
 } from "lucide-react"
 import { BookingManagement } from "@/components/BookingManagement"
+import { LicenseStatusCard } from "@/components/LicenseStatusCard"
 
 async function getModeratorResources(userId: string) {
   const moderatorResources = await prisma.resourceModerator.findMany({
@@ -97,6 +98,13 @@ export default async function AdminPage() {
                 <p className="text-sm text-amber-700">
                   Du er ikke tildelt noen fasiliteter ennå. Kontakt administrator.
                 </p>
+              </div>
+            )}
+
+            {/* Admin: License status */}
+            {isAdmin && (
+              <div className="mb-6">
+                <LicenseStatusCard />
               </div>
             )}
 
