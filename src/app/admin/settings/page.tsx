@@ -974,7 +974,7 @@ export default function AdminSettingsPage() {
         </div>
 
         {/* License Settings */}
-        <div className="card p-6 md:p-8 mt-6">
+        <div id="license" className="card p-6 md:p-8 mt-6 scroll-mt-20">
           <div className="flex items-center gap-3 mb-6">
             <div className="w-12 h-12 rounded-xl bg-emerald-100 flex items-center justify-center">
               <Key className="w-6 h-6 text-emerald-600" />
