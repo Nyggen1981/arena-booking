@@ -232,7 +232,7 @@ export function PublicCalendar({ categories, resources, bookings }: Props) {
               >
                 <ChevronLeft className="w-5 h-5" />
               </button>
-              <h2 className="font-semibold text-gray-900 min-w-[200px] text-center">
+              <h2 className="font-semibold text-gray-900 min-w-[140px] sm:min-w-[200px] text-center text-sm sm:text-base">
                 {viewMode === "week" 
                   ? `${format(weekStart, "d. MMM", { locale: nb })} - ${format(addDays(weekStart, 6), "d. MMM yyyy", { locale: nb })}`
                   : format(currentDate, "MMMM yyyy", { locale: nb })

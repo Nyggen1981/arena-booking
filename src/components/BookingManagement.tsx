@@ -242,16 +242,16 @@ export function BookingManagement({ initialBookings, showTabs = true }: BookingM
     <div>
       {/* Tabs */}
       {showTabs && (
-        <div className="flex gap-2 mb-6">
+        <div className="flex gap-2 mb-6 overflow-x-auto pb-1 scrollbar-hide">
           <button
             onClick={() => setActiveTab("pending")}
-            className={`px-4 py-2 rounded-lg font-medium transition-colors flex items-center gap-2 ${
+            className={`px-3 sm:px-4 py-2 rounded-lg font-medium transition-colors flex items-center gap-1.5 sm:gap-2 whitespace-nowrap text-sm sm:text-base flex-shrink-0 ${
               activeTab === "pending"
                 ? "bg-amber-100 text-amber-700"
                 : "bg-gray-100 text-gray-600 hover:bg-gray-200"
             }`}
           >
-            <Clock className="w-4 h-4" />
+            <Clock className="w-4 h-4 flex-shrink-0" />
             Ventende
             {pendingCount > 0 && (
               <span className="bg-amber-500 text-white text-xs px-2 py-0.5 rounded-full">
@@ -261,13 +261,13 @@ export function BookingManagement({ initialBookings, showTabs = true }: BookingM
           </button>
           <button
             onClick={() => setActiveTab("approved")}
-            className={`px-4 py-2 rounded-lg font-medium transition-colors flex items-center gap-2 ${
+            className={`px-3 sm:px-4 py-2 rounded-lg font-medium transition-colors flex items-center gap-1.5 sm:gap-2 whitespace-nowrap text-sm sm:text-base flex-shrink-0 ${
               activeTab === "approved"
                 ? "bg-green-100 text-green-700"
                 : "bg-gray-100 text-gray-600 hover:bg-gray-200"
             }`}
           >
-            <CheckCircle2 className="w-4 h-4" />
+            <CheckCircle2 className="w-4 h-4 flex-shrink-0" />
             Godkjente
             {approvedCount > 0 && (
               <span className="bg-green-500 text-white text-xs px-2 py-0.5 rounded-full">
@@ -277,13 +277,13 @@ export function BookingManagement({ initialBookings, showTabs = true }: BookingM
           </button>
           <button
             onClick={() => setActiveTab("rejected")}
-            className={`px-4 py-2 rounded-lg font-medium transition-colors flex items-center gap-2 ${
+            className={`px-3 sm:px-4 py-2 rounded-lg font-medium transition-colors flex items-center gap-1.5 sm:gap-2 whitespace-nowrap text-sm sm:text-base flex-shrink-0 ${
               activeTab === "rejected"
                 ? "bg-red-100 text-red-700"
                 : "bg-gray-100 text-gray-600 hover:bg-gray-200"
             }`}
           >
-            <XCircle className="w-4 h-4" />
+            <XCircle className="w-4 h-4 flex-shrink-0" />
             Avslåtte
             {rejectedCount > 0 && (
               <span className="bg-red-500 text-white text-xs px-2 py-0.5 rounded-full">
@@ -293,13 +293,13 @@ export function BookingManagement({ initialBookings, showTabs = true }: BookingM
           </button>
           <button
             onClick={() => setActiveTab("history")}
-            className={`px-4 py-2 rounded-lg font-medium transition-colors flex items-center gap-2 ${
+            className={`px-3 sm:px-4 py-2 rounded-lg font-medium transition-colors flex items-center gap-1.5 sm:gap-2 whitespace-nowrap text-sm sm:text-base flex-shrink-0 ${
               activeTab === "history"
                 ? "bg-gray-200 text-gray-700"
                 : "bg-gray-100 text-gray-600 hover:bg-gray-200"
             }`}
           >
-            <History className="w-4 h-4" />
+            <History className="w-4 h-4 flex-shrink-0" />
             Historikk
             {historyCount > 0 && (
               <span className="bg-gray-500 text-white text-xs px-2 py-0.5 rounded-full">
@@ -367,12 +367,12 @@ export function BookingManagement({ initialBookings, showTabs = true }: BookingM
                 selectedIds.has(booking.id) ? "ring-2 ring-blue-500 bg-blue-50/50" : ""
               }`}
             >
-              <div className="flex items-start justify-between gap-4">
+              <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3 sm:gap-4">
                 {/* Checkbox for deletable tabs */}
                 {canDelete && (
                   <button
                     onClick={() => toggleSelection(booking.id)}
-                    className="flex-shrink-0 mt-1"
+                    className="flex-shrink-0 self-start"
                   >
                     {selectedIds.has(booking.id) ? (
                       <CheckSquare className="w-5 h-5 text-blue-600" />
@@ -411,7 +411,7 @@ export function BookingManagement({ initialBookings, showTabs = true }: BookingM
                 </div>
 
                 {/* Actions */}
-                <div className="flex items-center gap-2 flex-shrink-0">
+                <div className="flex items-center gap-2 flex-shrink-0 self-end sm:self-center">
                   {activeTab === "history" ? (
                     // Show status badge + delete button for historical bookings
                     <>

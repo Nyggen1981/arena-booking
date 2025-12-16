@@ -201,17 +201,18 @@ export default function AdminUsersPage() {
         </div>
 
         {/* Tabs */}
-        <div className="flex gap-2 mb-6">
+        <div className="flex gap-2 mb-6 overflow-x-auto pb-1 scrollbar-hide">
           <button
             onClick={() => setActiveTab("pending")}
-            className={`px-4 py-2 rounded-lg font-medium flex items-center gap-2 transition-colors ${
+            className={`px-3 sm:px-4 py-2 rounded-lg font-medium flex items-center gap-1.5 sm:gap-2 transition-colors whitespace-nowrap text-sm sm:text-base flex-shrink-0 ${
               activeTab === "pending"
                 ? "bg-amber-100 text-amber-800"
                 : "bg-white text-gray-600 hover:bg-gray-100"
             }`}
           >
-            <Clock className="w-4 h-4" />
-            Venter på godkjenning
+            <Clock className="w-4 h-4 flex-shrink-0" />
+            <span className="hidden sm:inline">Venter på godkjenning</span>
+            <span className="sm:hidden">Ventende</span>
             {pendingUsers.length > 0 && (
               <span className="bg-amber-500 text-white text-xs px-2 py-0.5 rounded-full">
                 {pendingUsers.length}
@@ -220,14 +221,16 @@ export default function AdminUsersPage() {
           </button>
           <button
             onClick={() => setActiveTab("approved")}
-            className={`px-4 py-2 rounded-lg font-medium flex items-center gap-2 transition-colors ${
+            className={`px-3 sm:px-4 py-2 rounded-lg font-medium flex items-center gap-1.5 sm:gap-2 transition-colors whitespace-nowrap text-sm sm:text-base flex-shrink-0 ${
               activeTab === "approved"
                 ? "bg-blue-100 text-blue-800"
                 : "bg-white text-gray-600 hover:bg-gray-100"
             }`}
           >
-            <UserCheck className="w-4 h-4" />
-            Godkjente brukere ({approvedUsers.length})
+            <UserCheck className="w-4 h-4 flex-shrink-0" />
+            <span className="hidden sm:inline">Godkjente brukere</span>
+            <span className="sm:hidden">Godkjente</span>
+            <span className="text-xs sm:text-sm">({approvedUsers.length})</span>
           </button>
         </div>
 
