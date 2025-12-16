@@ -12,43 +12,73 @@ export const authOptions: NextAuthOptions = {
         password: { label: "Password", type: "password" }
       },
       async authorize(credentials) {
-        if (!credentials?.email || !credentials?.password) {
+        try {
+          if (!credentials?.email || !credentials?.password) {
+            return null
+          }
+
+          // Use select instead of include to avoid relation validation issues
+          const user = await prisma.user.findUnique({
+            where: { email: credentials.email },
+            select: {
+              id: true,
+              email: true,
+              name: true,
+              password: true,
+              role: true,
+              isApproved: true,
+              organizationId: true,
+              organization: {
+                select: {
+                  id: true,
+                  name: true,
+                  slug: true,
+                  tagline: true,
+                  primaryColor: true
+                }
+              }
+            }
+          })
+
+          if (!user) {
+            return null
+          }
+
+          const isPasswordValid = await bcrypt.compare(
+            credentials.password,
+            user.password
+          )
+
+          if (!isPasswordValid) {
+            return null
+          }
+
+          // Check if user is approved (admins and organization creators are always approved)
+          if (!user.isApproved && user.role !== "admin") {
+            throw new Error("Din konto venter på godkjenning fra administrator")
+          }
+
+          if (!user.organization) {
+            console.error("User has no organization:", user.id)
+            return null
+          }
+
+          return {
+            id: user.id,
+            email: user.email,
+            name: user.name,
+            role: user.role,
+            organizationId: user.organizationId,
+            organizationName: user.organization.name,
+            organizationSlug: user.organization.slug,
+            organizationTagline: user.organization.tagline || "Kalender",
+            organizationColor: user.organization.primaryColor,
+          }
+        } catch (error) {
+          console.error("Auth error:", error)
+          // Return null on any error to show generic "wrong email/password" message
+          // This prevents leaking information about the error
           return null
-        }
-
-        const user = await prisma.user.findUnique({
-          where: { email: credentials.email },
-          include: { organization: true }
-        })
-
-        if (!user) {
-          return null
-        }
-
-        const isPasswordValid = await bcrypt.compare(
-          credentials.password,
-          user.password
-        )
-
-        if (!isPasswordValid) {
-          return null
-        }
-
-        // Check if user is approved (admins and organization creators are always approved)
-        if (!user.isApproved && user.role !== "admin") {
-          throw new Error("Din konto venter på godkjenning fra administrator")
-        }
-
-        return {
-          id: user.id,
-          email: user.email,
-          name: user.name,
-          role: user.role,
-          organizationId: user.organizationId,
-          organizationName: user.organization.name,
-          organizationSlug: user.organization.slug,
-          organizationTagline: (user.organization as { tagline?: string }).tagline || "Kalender",
-          organizationColor: user.organization.primaryColor,
         }
       }
     })
