@@ -45,7 +45,26 @@ export async function GET() {
 
     return NextResponse.json(org)
   } catch (error) {
+    // Log detailed error information
     console.error("Error fetching organization settings:", error)
+    
+    if (error instanceof Error) {
+      const errorCode = (error as any)?.code || ""
+      console.error("Error details:", {
+        message: error.message,
+        code: errorCode,
+        stack: error.stack,
+        name: error.name
+      })
+      
+      // Check for specific Prisma errors
+      if (errorCode === "P2021" || errorCode === "P1001") {
+        console.error("Database connection or schema error detected")
+      }
+    } else {
+      console.error("Full error object:", JSON.stringify(error, null, 2))
+    }
+    
     return NextResponse.json(
       { 
         error: "Kunne ikke laste innstillinger",

@@ -62,14 +62,22 @@ export async function POST(request: Request) {
     }, { status: 201 })
 
   } catch (error) {
+    // Log full error details for debugging
     console.error("Registration error:", error)
     
-    // Provide more specific error messages
     if (error instanceof Error) {
       const errorMessage = error.message || ""
+      const errorCode = (error as any)?.code || ""
+      
+      console.error("Registration error details:", {
+        message: errorMessage,
+        code: errorCode,
+        stack: error.stack,
+        name: error.name
+      })
       
       // Check for Prisma unique constraint errors
-      if (errorMessage.includes("Unique constraint") || errorMessage.includes("P2002")) {
+      if (errorCode === "P2002" || errorMessage.includes("Unique constraint")) {
         if (errorMessage.includes("email")) {
           return NextResponse.json(
             { error: "E-postadressen er allerede registrert" },
@@ -79,7 +87,7 @@ export async function POST(request: Request) {
       }
       
       // Check for database connection errors
-      if (errorMessage.includes("connect") || errorMessage.includes("timeout") || errorMessage.includes("Can't reach database") || errorMessage.includes("ECONNREFUSED")) {
+      if (errorCode === "P1001" || errorMessage.includes("connect") || errorMessage.includes("timeout") || errorMessage.includes("Can't reach database") || errorMessage.includes("ECONNREFUSED")) {
         return NextResponse.json(
           { error: "Kunne ikke koble til database. Prøv igjen om litt." },
           { status: 503 }
@@ -87,7 +95,8 @@ export async function POST(request: Request) {
       }
       
       // Check for Prisma schema errors (migration needed)
-      if (errorMessage.includes("Unknown arg") || errorMessage.includes("does not exist") || errorMessage.includes("P2021") || errorMessage.includes("P1001") || errorMessage.includes("table") && errorMessage.includes("does not exist")) {
+      if (errorCode === "P2021" || errorCode === "P1001" || errorMessage.includes("Unknown arg") || errorMessage.includes("does not exist") || (errorMessage.includes("table") && errorMessage.includes("does not exist"))) {
+        console.error("Schema error detected - likely missing ResourceModerator table")
         return NextResponse.json(
           { error: "Database-skjemaet er ikke oppdatert. Kontakt administrator." },
           { status: 500 }
@@ -95,31 +104,23 @@ export async function POST(request: Request) {
       }
       
       // Check for foreign key constraint errors
-      if (errorMessage.includes("Foreign key constraint") || errorMessage.includes("P2003")) {
+      if (errorCode === "P2003" || errorMessage.includes("Foreign key constraint")) {
         return NextResponse.json(
           { error: "Klubbkoden er ugyldig. Sjekk at du har skrevet riktig kode." },
           { status: 400 }
         )
       }
       
-      // Return the actual error message if it's user-friendly
-      if (errorMessage && !errorMessage.includes("Prisma") && !errorMessage.includes("P") && !errorMessage.includes("Error:")) {
+      // Check for relation errors (missing table)
+      if (errorCode === "P2017" || errorMessage.includes("relation") || errorMessage.includes("ResourceModerator")) {
+        console.error("Relation error detected - ResourceModerator table may be missing")
         return NextResponse.json(
-          { error: errorMessage },
+          { error: "Database-skjemaet er ikke oppdatert. Kontakt administrator." },
           { status: 500 }
         )
       }
-    }
-    
-    // Log full error for debugging (including stack trace)
-    if (error instanceof Error) {
-      console.error("Registration error details:", {
-        message: error.message,
-        stack: error.stack,
-        name: error.name
-      })
     } else {
-      console.error("Full registration error:", JSON.stringify(error, null, 2))
+      console.error("Full registration error (non-Error object):", JSON.stringify(error, null, 2))
     }
     
     return NextResponse.json(
