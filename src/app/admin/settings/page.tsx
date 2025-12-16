@@ -83,6 +83,11 @@ export default function AdminSettingsPage() {
   // SMTP test state
   const [isTestingSmtp, setIsTestingSmtp] = useState(false)
   const [smtpTestResult, setSmtpTestResult] = useState<{ success: boolean; message: string } | null>(null)
+  
+  // Migration state
+  const [isRunningMigration, setIsRunningMigration] = useState(false)
+  const [migrationStatus, setMigrationStatus] = useState<{ success: boolean; message: string } | null>(null)
+  const [tableExists, setTableExists] = useState<boolean | null>(null)
 
   useEffect(() => {
     if (status === "unauthenticated") {
@@ -94,23 +99,25 @@ export default function AdminSettingsPage() {
 
   useEffect(() => {
     if (session?.user?.role === "admin") {
-      fetch("/api/admin/settings")
-        .then(res => res.json())
-        .then(data => {
-          setOrg(data)
-          setName(data.name || "")
-          setSlug(data.slug || "")
-          setLogo(data.logo || null)
-          setTagline(data.tagline || "Kalender")
-          setPrimaryColor(data.primaryColor || "#2563eb")
-          setSecondaryColor(data.secondaryColor || "#1e40af")
+      Promise.all([
+        fetch("/api/admin/settings").then(res => res.json()),
+        fetch("/api/admin/migrate").then(res => res.json()).catch(() => ({ exists: null }))
+      ]).then(([orgData, migrateData]) => {
+          setOrg(orgData)
+          setTableExists(migrateData.exists)
+          setName(orgData.name || "")
+          setSlug(orgData.slug || "")
+          setLogo(orgData.logo || null)
+          setTagline(orgData.tagline || "Kalender")
+          setPrimaryColor(orgData.primaryColor || "#2563eb")
+          setSecondaryColor(orgData.secondaryColor || "#1e40af")
           
           // Load SMTP settings
-          setSmtpHost(data.smtpHost || "")
-          setSmtpPort(data.smtpPort?.toString() || "587")
-          setSmtpUser(data.smtpUser || "")
-          setSmtpPass(data.smtpPass || "")
-          setSmtpFrom(data.smtpFrom || "")
+          setSmtpHost(orgData.smtpHost || "")
+          setSmtpPort(orgData.smtpPort?.toString() || "587")
+          setSmtpUser(orgData.smtpUser || "")
+          setSmtpPass(orgData.smtpPass || "")
+          setSmtpFrom(orgData.smtpFrom || "")
           
           setIsLoading(false)
         })
@@ -229,6 +236,55 @@ export default function AdminSettingsPage() {
 
     // Refresh templates
     await fetchEmailTemplates()
+  }
+
+  const checkMigrationStatus = async () => {
+    try {
+      const response = await fetch("/api/admin/migrate")
+      const data = await response.json()
+      setTableExists(data.exists)
+    } catch (error) {
+      console.error("Error checking migration status:", error)
+    }
+  }
+  
+  const runMigration = async () => {
+    if (!confirm("Dette vil opprette ResourceModerator-tabellen i databasen. Fortsette?")) {
+      return
+    }
+    
+    setIsRunningMigration(true)
+    setMigrationStatus(null)
+    
+    try {
+      const response = await fetch("/api/admin/migrate", {
+        method: "POST"
+      })
+      
+      const data = await response.json()
+      
+      if (response.ok) {
+        setMigrationStatus({
+          success: true,
+          message: data.message || "Migrasjon fullført!"
+        })
+        setTableExists(true)
+      } else {
+        setMigrationStatus({
+          success: false,
+          message: data.error || "Migrasjon feilet"
+        })
+      }
+    } catch (error) {
+      setMigrationStatus({
+        success: false,
+        message: "Kunne ikke kjøre migrasjon. Se server logs for detaljer."
+      })
+    } finally {
+      setIsRunningMigration(false)
+      // Refresh status after a moment
+      setTimeout(checkMigrationStatus, 1000)
+    }
   }
 
   const handleLogoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -912,6 +968,83 @@ export default function AdminSettingsPage() {
             <strong>Tips:</strong> Bruk eksport som backup før du gjør store endringer. 
             Import vil ikke overskrive eksisterende data.
           </p>
+        </div>
+
+        {/* Database Migration */}
+        <div className="card p-6 md:p-8 mt-6">
+          <div className="flex items-center gap-3 mb-6">
+            <div className="w-12 h-12 rounded-xl bg-green-100 flex items-center justify-center">
+              <Database className="w-6 h-6 text-green-600" />
+            </div>
+            <div>
+              <h2 className="text-xl font-bold text-gray-900">Database Migrasjon</h2>
+              <p className="text-gray-500 text-sm">Oppdater database-skjemaet</p>
+            </div>
+          </div>
+
+          {migrationStatus && (
+            <div className={`p-4 rounded-xl mb-6 flex items-center gap-2 ${
+              migrationStatus.success
+                ? "bg-green-50 border border-green-100 text-green-700"
+                : "bg-red-50 border border-red-100 text-red-700"
+            }`}>
+              {migrationStatus.success ? (
+                <CheckCircle2 className="w-5 h-5 flex-shrink-0" />
+              ) : (
+                <AlertCircle className="w-5 h-5 flex-shrink-0" />
+              )}
+              {migrationStatus.message}
+            </div>
+          )}
+
+          <div className="p-4 bg-gray-50 rounded-xl">
+            <div className="flex items-center justify-between mb-4">
+              <div>
+                <h3 className="font-semibold text-gray-900 mb-1">ResourceModerator-tabell</h3>
+                <p className="text-sm text-gray-600">
+                  {tableExists === null 
+                    ? "Sjekker status..." 
+                    : tableExists 
+                    ? "✅ Tabellen eksisterer allerede" 
+                    : "⚠️ Tabellen mangler - må opprettes"}
+                </p>
+              </div>
+            </div>
+            
+            {tableExists === false && (
+              <div className="space-y-3">
+                <p className="text-sm text-gray-700">
+                  ResourceModerator-tabellen er nødvendig for moderator-funksjonaliteten. 
+                  Klikk på knappen under for å opprette den automatisk.
+                </p>
+                <button
+                  onClick={runMigration}
+                  disabled={isRunningMigration}
+                  className="btn bg-green-600 hover:bg-green-700 text-white"
+                >
+                  {isRunningMigration ? (
+                    <>
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                      Kjører migrasjon...
+                    </>
+                  ) : (
+                    <>
+                      <Database className="w-4 h-4" />
+                      Opprett ResourceModerator-tabell
+                    </>
+                  )}
+                </button>
+              </div>
+            )}
+            
+            {tableExists === true && (
+              <div className="p-3 bg-green-50 rounded-lg">
+                <p className="text-sm text-green-700">
+                  ✅ Database-skjemaet er oppdatert. Registrering skal nå fungere.
+                </p>
+              </div>
+            )}
+          </div>
         </div>
 
       </div>
