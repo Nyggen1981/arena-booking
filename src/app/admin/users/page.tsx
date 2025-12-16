@@ -102,9 +102,16 @@ export default function AdminUsersPage() {
   }
 
   const changeRole = async (userId: string, newRole: string) => {
-    const confirmMessage = newRole === "user" 
-      ? "Dette vil fjerne alle moderator-tilganger for denne brukeren. Fortsette?"
-      : `Er du sikker på at du vil endre rollen til ${newRole === "admin" ? "administrator" : "moderator"}?`
+    const roleNames: Record<string, string> = {
+      user: "bruker",
+      moderator: "moderator", 
+      admin: "administrator"
+    }
+    
+    let confirmMessage = `Er du sikker på at du vil endre rollen til ${roleNames[newRole]}?`
+    if (newRole === "user") {
+      confirmMessage = "Dette vil fjerne alle moderator-tilganger for denne brukeren. Fortsette?"
+    }
     
     if (!confirm(confirmMessage)) {
       return
@@ -515,7 +522,16 @@ function UserCard({
 
               {openMenu === user.id && (
                 <div className="absolute right-0 top-full mt-1 w-48 bg-white rounded-xl shadow-lg border border-gray-200 py-1 z-10 animate-fadeIn">
-                  {user.role === "user" && (
+                  {user.role !== "user" && (
+                    <button
+                      onClick={() => onChangeRole(user.id, "user")}
+                      className="flex items-center gap-2 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 w-full text-left"
+                    >
+                      <User className="w-4 h-4" />
+                      Gjør til bruker
+                    </button>
+                  )}
+                  {user.role !== "moderator" && (
                     <button
                       onClick={() => onChangeRole(user.id, "moderator")}
                       className="flex items-center gap-2 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 w-full text-left"
@@ -524,40 +540,13 @@ function UserCard({
                       Gjør til moderator
                     </button>
                   )}
-                  {user.role === "user" && (
+                  {user.role !== "admin" && (
                     <button
                       onClick={() => onChangeRole(user.id, "admin")}
                       className="flex items-center gap-2 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 w-full text-left"
                     >
                       <Shield className="w-4 h-4" />
                       Gjør til admin
-                    </button>
-                  )}
-                  {user.role === "moderator" && (
-                    <button
-                      onClick={() => onChangeRole(user.id, "user")}
-                      className="flex items-center gap-2 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 w-full text-left"
-                    >
-                      <ShieldOff className="w-4 h-4" />
-                      Fjern moderator-tilgang
-                    </button>
-                  )}
-                  {user.role === "moderator" && (
-                    <button
-                      onClick={() => onChangeRole(user.id, "admin")}
-                      className="flex items-center gap-2 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 w-full text-left"
-                    >
-                      <Shield className="w-4 h-4" />
-                      Gjør til admin
-                    </button>
-                  )}
-                  {user.role === "admin" && (
-                    <button
-                      onClick={() => onChangeRole(user.id, "user")}
-                      className="flex items-center gap-2 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 w-full text-left"
-                    >
-                      <ShieldOff className="w-4 h-4" />
-                      Gjør til bruker
                     </button>
                   )}
                   <button
