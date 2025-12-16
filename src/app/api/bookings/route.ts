@@ -5,12 +5,22 @@ import { authOptions } from "@/lib/auth"
 import { addWeeks, addMonths, format } from "date-fns"
 import { nb } from "date-fns/locale"
 import { sendEmail, getNewBookingRequestEmail } from "@/lib/email"
+import { validateLicense } from "@/lib/license"
 
 export async function POST(request: Request) {
   const session = await getServerSession(authOptions)
 
   if (!session?.user) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+  }
+
+  // Sjekk lisens - blokker booking hvis ugyldig
+  const license = await validateLicense()
+  if (!license.valid) {
+    return NextResponse.json(
+      { error: "Lisensen er ikke aktiv. Kontakt administrator." },
+      { status: 403 }
+    )
   }
 
   try {
