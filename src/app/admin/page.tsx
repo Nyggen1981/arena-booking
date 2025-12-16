@@ -17,22 +17,44 @@ import {
 import { PendingBookingsList } from "@/components/PendingBookingsList"
 
 async function getStats(organizationId: string, userId?: string, isModerator?: boolean) {
-  // NOTE: ResourceModerator temporarily disabled - moderators see all resources for now
+  // Get moderator's assigned resources if applicable
+  let resourceIds: string[] | undefined
+  if (isModerator && userId) {
+    const moderatorResources = await prisma.resourceModerator.findMany({
+      where: { userId },
+      select: { resourceId: true }
+    })
+    resourceIds = moderatorResources.map(mr => mr.resourceId)
+  }
+
   const [
     resourceCount,
     pendingBookings,
     approvedBookings,
     userCount
   ] = await Promise.all([
-    prisma.resource.count({ where: { organizationId, isActive: true } }),
-    prisma.booking.count({ where: { organizationId, status: "pending" } }),
-    prisma.booking.count({ 
-      where: { 
-        organizationId, 
-        status: "approved",
-        startTime: { gte: new Date() }
-      } 
-    }),
+    isModerator && resourceIds 
+      ? prisma.resource.count({ where: { organizationId, isActive: true, id: { in: resourceIds } } })
+      : prisma.resource.count({ where: { organizationId, isActive: true } }),
+    isModerator && resourceIds
+      ? prisma.booking.count({ where: { organizationId, status: "pending", resourceId: { in: resourceIds } } })
+      : prisma.booking.count({ where: { organizationId, status: "pending" } }),
+    isModerator && resourceIds
+      ? prisma.booking.count({ 
+          where: { 
+            organizationId, 
+            status: "approved",
+            startTime: { gte: new Date() },
+            resourceId: { in: resourceIds }
+          } 
+        })
+      : prisma.booking.count({ 
+          where: { 
+            organizationId, 
+            status: "approved",
+            startTime: { gte: new Date() }
+          } 
+        }),
     isModerator ? Promise.resolve(0) : prisma.user.count({ where: { organizationId } })
   ])
 
@@ -40,21 +62,24 @@ async function getStats(organizationId: string, userId?: string, isModerator?: b
 }
 
 async function getPendingBookings(organizationId: string, userId?: string, isModerator?: boolean) {
-  // NOTE: ResourceModerator temporarily disabled - moderators see all bookings for now
-  const resourceIds: string[] | undefined = undefined
-  if (false && isModerator && userId) {
-    // This code is temporarily disabled until ResourceModerator table is properly migrated
-    // const moderatorResources = await prisma.resourceModerator.findMany({
-    //   where: { userId },
-    //   select: { resourceId: true }
-    // })
-    // resourceIds = moderatorResources.map(mr => mr.resourceId)
+  // Get moderator's assigned resources if applicable
+  let resourceIds: string[] | undefined
+  if (isModerator && userId) {
+    const moderatorResources = await prisma.resourceModerator.findMany({
+      where: { userId },
+      select: { resourceId: true }
+    })
+    resourceIds = moderatorResources.map(mr => mr.resourceId)
+    if (resourceIds.length === 0) {
+      return []
+    }
   }
 
   return prisma.booking.findMany({
     where: { 
       organizationId, 
-      status: "pending"
+      status: "pending",
+      ...(isModerator && resourceIds ? { resourceId: { in: resourceIds } } : {})
     },
     select: {
       id: true,

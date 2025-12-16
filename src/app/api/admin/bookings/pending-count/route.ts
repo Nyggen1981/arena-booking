@@ -17,13 +17,25 @@ export async function GET() {
     return NextResponse.json({ count: 0 })
   }
 
-  // NOTE: ResourceModerator temporarily disabled - moderators see all pending bookings for now
+  // Get moderator's assigned resources
+  let resourceIds: string[] | undefined
+  if (isModerator) {
+    const moderatorResources = await prisma.resourceModerator.findMany({
+      where: { userId: session.user.id },
+      select: { resourceId: true }
+    })
+    resourceIds = moderatorResources.map(mr => mr.resourceId)
+    if (resourceIds.length === 0) {
+      return NextResponse.json({ count: 0 })
+    }
+  }
 
   const count = await prisma.booking.count({
     where: {
       status: "pending",
       resource: {
-        organizationId: session.user.organizationId
+        organizationId: session.user.organizationId,
+        ...(isModerator && resourceIds ? { id: { in: resourceIds } } : {})
       }
     }
   })

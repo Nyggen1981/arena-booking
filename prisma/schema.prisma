@@ -60,7 +60,7 @@ model User {
   bookings          Booking[]
   approvedBookings  Booking[] @relation("ApprovedBy")
   preferences       UserPreferences?
-  // moderatedResources ResourceModerator[] // TEMPORARILY DISABLED - will be added with proper migration
+  moderatedResources ResourceModerator[]
 
   @@index([organizationId, isApproved])
 }
@@ -132,7 +132,7 @@ model Resource {
 
   parts    ResourcePart[]
   bookings Booking[]
-  // moderators ResourceModerator[] // TEMPORARILY DISABLED - will be added with proper migration
+  moderators ResourceModerator[]
 
   // Indexes for faster queries
   @@index([organizationId, isActive])
@@ -229,21 +229,20 @@ model Booking {
   @@index([resourceId, status, resourcePartId]) // For filtering by part
 }
 
-// Resource Moderator - TEMPORARILY DISABLED
-// This model will be added back with proper database migration
-// model ResourceModerator {
-//   id         String   @id @default(cuid())
-//   userId     String
-//   user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-//   resourceId String
-//   resource   Resource @relation(fields: [resourceId], references: [id], onDelete: Cascade)
-//   createdAt  DateTime @default(now())
-//   updatedAt  DateTime @updatedAt
-//
-//   @@unique([userId, resourceId])
-//   @@index([userId])
-//   @@index([resourceId])
-// }
+// Resource Moderator - Links moderators to specific resources they can manage
+model ResourceModerator {
+  id         String   @id @default(cuid())
+  userId     String
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  resourceId String
+  resource   Resource @relation(fields: [resourceId], references: [id], onDelete: Cascade)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@unique([userId, resourceId])
+  @@index([userId])
+  @@index([resourceId])
+}
 
 // Email templates for customizing automated emails
 model EmailTemplate {

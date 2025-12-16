@@ -20,12 +20,24 @@ export async function GET(request: Request) {
   const { searchParams } = new URL(request.url)
   const status = searchParams.get("status")
 
-  // NOTE: ResourceModerator temporarily disabled - moderators see all bookings for now
+  // Get moderator's assigned resources
+  let resourceIds: string[] | undefined
+  if (isModerator) {
+    const moderatorResources = await prisma.resourceModerator.findMany({
+      where: { userId: session.user.id },
+      select: { resourceId: true }
+    })
+    resourceIds = moderatorResources.map(mr => mr.resourceId)
+    if (resourceIds.length === 0) {
+      return NextResponse.json([])
+    }
+  }
 
   const bookings = await prisma.booking.findMany({
     where: {
       organizationId: session.user.organizationId,
-      ...(status === "pending" ? { status: "pending" } : {})
+      ...(status === "pending" ? { status: "pending" } : {}),
+      ...(isModerator && resourceIds ? { resourceId: { in: resourceIds } } : {})
     },
     include: {
       resource: true,
