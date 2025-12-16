@@ -11,7 +11,8 @@ import {
   Loader2,
   Calendar,
   User,
-  Building2
+  Building2,
+  History
 } from "lucide-react"
 
 interface Booking {
@@ -43,8 +44,10 @@ interface BookingManagementProps {
 export function BookingManagement({ initialBookings, showTabs = true }: BookingManagementProps) {
   const [bookings, setBookings] = useState<Booking[]>(initialBookings || [])
   const [isLoading, setIsLoading] = useState(!initialBookings)
-  const [activeTab, setActiveTab] = useState<"pending" | "approved" | "rejected">("pending")
+  const [activeTab, setActiveTab] = useState<"pending" | "approved" | "rejected" | "history">("pending")
   const [processingId, setProcessingId] = useState<string | null>(null)
+  
+  const now = new Date()
 
   useEffect(() => {
     fetchBookings()
@@ -88,15 +91,25 @@ export function BookingManagement({ initialBookings, showTabs = true }: BookingM
   }
 
   const filteredBookings = bookings.filter(b => {
-    if (activeTab === "pending") return b.status === "pending"
-    if (activeTab === "approved") return b.status === "approved"
-    if (activeTab === "rejected") return b.status === "rejected" || b.status === "cancelled"
+    const isPast = new Date(b.endTime) < now
+    
+    if (activeTab === "pending") return b.status === "pending" && !isPast
+    if (activeTab === "approved") return b.status === "approved" && !isPast
+    if (activeTab === "rejected") return (b.status === "rejected" || b.status === "cancelled") && !isPast
+    if (activeTab === "history") return isPast
     return true
+  }).sort((a, b) => {
+    // Sort by date - newest first for history, oldest first for others
+    if (activeTab === "history") {
+      return new Date(b.startTime).getTime() - new Date(a.startTime).getTime()
+    }
+    return new Date(a.startTime).getTime() - new Date(b.startTime).getTime()
   })
 
-  const pendingCount = bookings.filter(b => b.status === "pending").length
-  const approvedCount = bookings.filter(b => b.status === "approved").length
-  const rejectedCount = bookings.filter(b => b.status === "rejected" || b.status === "cancelled").length
+  const pendingCount = bookings.filter(b => b.status === "pending" && new Date(b.endTime) >= now).length
+  const approvedCount = bookings.filter(b => b.status === "approved" && new Date(b.endTime) >= now).length
+  const rejectedCount = bookings.filter(b => (b.status === "rejected" || b.status === "cancelled") && new Date(b.endTime) >= now).length
+  const historyCount = bookings.filter(b => new Date(b.endTime) < now).length
 
   if (isLoading) {
     return (
@@ -159,6 +172,22 @@ export function BookingManagement({ initialBookings, showTabs = true }: BookingM
               </span>
             )}
           </button>
+          <button
+            onClick={() => setActiveTab("history")}
+            className={`px-4 py-2 rounded-lg font-medium transition-colors flex items-center gap-2 ${
+              activeTab === "history"
+                ? "bg-gray-200 text-gray-700"
+                : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+            }`}
+          >
+            <History className="w-4 h-4" />
+            Historikk
+            {historyCount > 0 && (
+              <span className="bg-gray-500 text-white text-xs px-2 py-0.5 rounded-full">
+                {historyCount}
+              </span>
+            )}
+          </button>
         </div>
       )}
 
@@ -169,11 +198,13 @@ export function BookingManagement({ initialBookings, showTabs = true }: BookingM
             {activeTab === "pending" && <Clock className="w-8 h-8 text-gray-400" />}
             {activeTab === "approved" && <CheckCircle2 className="w-8 h-8 text-gray-400" />}
             {activeTab === "rejected" && <XCircle className="w-8 h-8 text-gray-400" />}
+            {activeTab === "history" && <History className="w-8 h-8 text-gray-400" />}
           </div>
           <p className="text-gray-500">
             {activeTab === "pending" && "Ingen ventende bookinger"}
-            {activeTab === "approved" && "Ingen godkjente bookinger"}
+            {activeTab === "approved" && "Ingen kommende godkjente bookinger"}
             {activeTab === "rejected" && "Ingen avslåtte bookinger"}
+            {activeTab === "history" && "Ingen tidligere bookinger"}
           </p>
         </div>
       ) : (
@@ -214,48 +245,66 @@ export function BookingManagement({ initialBookings, showTabs = true }: BookingM
 
                 {/* Actions */}
                 <div className="flex items-center gap-2 flex-shrink-0">
-                  {booking.status === "pending" && (
-                    <>
-                      <button
-                        onClick={() => handleAction(booking.id, "approve")}
-                        disabled={processingId === booking.id}
-                        className="p-2 rounded-lg bg-green-100 text-green-600 hover:bg-green-200 transition-colors disabled:opacity-50"
-                        title="Godkjenn"
-                      >
-                        {processingId === booking.id ? (
-                          <Loader2 className="w-5 h-5 animate-spin" />
-                        ) : (
-                          <CheckCircle2 className="w-5 h-5" />
-                        )}
-                      </button>
-                      <button
-                        onClick={() => handleAction(booking.id, "reject")}
-                        disabled={processingId === booking.id}
-                        className="p-2 rounded-lg bg-red-100 text-red-600 hover:bg-red-200 transition-colors disabled:opacity-50"
-                        title="Avslå"
-                      >
-                        <XCircle className="w-5 h-5" />
-                      </button>
-                    </>
-                  )}
-                  {booking.status === "approved" && (
-                    <button
-                      onClick={() => handleAction(booking.id, "cancel")}
-                      disabled={processingId === booking.id}
-                      className="p-2 rounded-lg bg-gray-100 text-gray-600 hover:bg-red-100 hover:text-red-600 transition-colors disabled:opacity-50"
-                      title="Kanseller"
-                    >
-                      {processingId === booking.id ? (
-                        <Loader2 className="w-5 h-5 animate-spin" />
-                      ) : (
-                        <Trash2 className="w-5 h-5" />
-                      )}
-                    </button>
-                  )}
-                  {(booking.status === "rejected" || booking.status === "cancelled") && (
-                    <span className="px-3 py-1 rounded-full bg-red-100 text-red-600 text-sm">
-                      {booking.status === "cancelled" ? "Kansellert" : "Avslått"}
+                  {activeTab === "history" ? (
+                    // Show status badge for historical bookings
+                    <span className={`px-3 py-1 rounded-full text-sm ${
+                      booking.status === "approved" 
+                        ? "bg-green-100 text-green-600" 
+                        : booking.status === "cancelled"
+                        ? "bg-gray-100 text-gray-600"
+                        : "bg-red-100 text-red-600"
+                    }`}>
+                      {booking.status === "approved" && "Gjennomført"}
+                      {booking.status === "cancelled" && "Kansellert"}
+                      {booking.status === "rejected" && "Avslått"}
+                      {booking.status === "pending" && "Utløpt"}
                     </span>
+                  ) : (
+                    <>
+                      {booking.status === "pending" && (
+                        <>
+                          <button
+                            onClick={() => handleAction(booking.id, "approve")}
+                            disabled={processingId === booking.id}
+                            className="p-2 rounded-lg bg-green-100 text-green-600 hover:bg-green-200 transition-colors disabled:opacity-50"
+                            title="Godkjenn"
+                          >
+                            {processingId === booking.id ? (
+                              <Loader2 className="w-5 h-5 animate-spin" />
+                            ) : (
+                              <CheckCircle2 className="w-5 h-5" />
+                            )}
+                          </button>
+                          <button
+                            onClick={() => handleAction(booking.id, "reject")}
+                            disabled={processingId === booking.id}
+                            className="p-2 rounded-lg bg-red-100 text-red-600 hover:bg-red-200 transition-colors disabled:opacity-50"
+                            title="Avslå"
+                          >
+                            <XCircle className="w-5 h-5" />
+                          </button>
+                        </>
+                      )}
+                      {booking.status === "approved" && (
+                        <button
+                          onClick={() => handleAction(booking.id, "cancel")}
+                          disabled={processingId === booking.id}
+                          className="p-2 rounded-lg bg-gray-100 text-gray-600 hover:bg-red-100 hover:text-red-600 transition-colors disabled:opacity-50"
+                          title="Kanseller"
+                        >
+                          {processingId === booking.id ? (
+                            <Loader2 className="w-5 h-5 animate-spin" />
+                          ) : (
+                            <Trash2 className="w-5 h-5" />
+                          )}
+                        </button>
+                      )}
+                      {(booking.status === "rejected" || booking.status === "cancelled") && (
+                        <span className="px-3 py-1 rounded-full bg-red-100 text-red-600 text-sm">
+                          {booking.status === "cancelled" ? "Kansellert" : "Avslått"}
+                        </span>
+                      )}
+                    </>
                   )}
                 </div>
               </div>
