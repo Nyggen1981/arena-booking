@@ -115,6 +115,9 @@ async function getPendingBookings(organizationId: string, userId?: string, isMod
   })
 }
 
+// Force dynamic rendering since we use getServerSession and database queries
+export const dynamic = 'force-dynamic'
+
 export default async function AdminPage() {
   try {
     const session = await getServerSession(authOptions)
