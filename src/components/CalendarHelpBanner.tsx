@@ -4,12 +4,14 @@ import { useState, useEffect } from "react"
 import { X, Info } from "lucide-react"
 
 export function CalendarHelpBanner() {
-  const [isDismissed, setIsDismissed] = useState(true)
+  const [isDismissed, setIsDismissed] = useState(false)
+  const [isLoading, setIsLoading] = useState(true)
 
   useEffect(() => {
     // Sjekk om brukeren har krysse ut advarselen
     const dismissed = localStorage.getItem("calendar-help-dismissed")
     setIsDismissed(dismissed === "true")
+    setIsLoading(false)
   }, [])
 
   const handleDismiss = () => {
@@ -17,6 +19,12 @@ export function CalendarHelpBanner() {
     setIsDismissed(true)
   }
 
+  // Ikke vis mens vi laster (for å unngå flash)
+  if (isLoading) {
+    return null
+  }
+
+  // Ikke vis hvis brukeren har krysse ut
   if (isDismissed) {
     return null
   }
