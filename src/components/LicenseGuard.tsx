@@ -149,9 +149,9 @@ export function LicenseGuard({ children }: LicenseGuardProps) {
               </h1>
               <p className="text-slate-400">
                 {licenseStatus.status === "expired" 
-                  ? "Lisensen har utløpt. Forny for å fortsette." 
+                  ? "Lisensen har utløpt. Kontakt leverandør for å fornye." 
                   : licenseStatus.status === "suspended"
-                    ? "Lisensen er suspendert. Kontakt support."
+                    ? "Lisensen er suspendert. Kontakt leverandør."
                     : "Legg inn lisensnøkkel for å aktivere appen."}
               </p>
             </div>
@@ -187,7 +187,7 @@ export function LicenseGuard({ children }: LicenseGuardProps) {
               </div>
 
               <p className="text-xs text-gray-500 text-center mt-6">
-                Har du ikke lisensnøkkel? Kontakt din Arena Booking-leverandør.
+                Kontakt din Arena Booking-leverandør for lisensnøkkel eller fornyelse.
               </p>
             </div>
           </div>
@@ -217,8 +217,8 @@ export function LicenseGuard({ children }: LicenseGuardProps) {
           </h1>
           <p className="text-slate-400 mb-8">
             {licenseStatus.status === "expired" 
-              ? "Abonnementet har utløpt. Kontakt administrator for mer informasjon."
-              : "Systemet er midlertidig utilgjengelig. Kontakt administrator."}
+              ? "Abonnementet har utløpt. Kontakt din klubb for mer informasjon."
+              : "Systemet er midlertidig utilgjengelig. Kontakt din klubb."}
           </p>
           <div className="flex flex-col gap-3 items-center">
             <button
@@ -238,7 +238,7 @@ export function LicenseGuard({ children }: LicenseGuardProps) {
             </button>
           </div>
           <p className="text-slate-500 text-sm mt-6">
-            Trykk &quot;Sjekk på nytt&quot; når administrator har aktivert lisensen
+            Trykk &quot;Sjekk på nytt&quot; når abonnementet er fornyet
           </p>
         </div>
       </div>

@@ -1073,7 +1073,7 @@ export default function AdminSettingsPage() {
             {licenseKey && licenseInfo && licenseInfo.daysRemaining !== null && licenseInfo.daysRemaining <= 14 && licenseInfo.daysRemaining > 0 && (
               <div className="bg-amber-50 border border-amber-200 rounded-lg p-4">
                 <p className="text-sm text-amber-800">
-                  <strong>⚠️ Lisensen utløper snart!</strong> Kontakt leverandør for å fornye.
+                  <strong>⚠️ Lisensen utløper snart!</strong> Kontakt din Arena Booking-leverandør for fornyelse.
                 </p>
               </div>
             )}
