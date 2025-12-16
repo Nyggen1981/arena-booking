@@ -45,37 +45,43 @@ export async function GET() {
       // If Prisma fails (e.g., due to missing relations), try raw SQL
       console.warn("Prisma query failed, trying raw SQL:", prismaError.message)
       
-      const result = await prisma.$queryRaw<Array<{
-        id: string
-        name: string
-        slug: string
-        logo: string | null
-        tagline: string
-        primaryColor: string
-        secondaryColor: string
-        smtpHost: string | null
-        smtpPort: number | null
-        smtpUser: string | null
-        smtpPass: string | null
-        smtpFrom: string | null
-        createdAt: Date
-        updatedAt: Date
-        isActive: boolean
-        subscriptionEndsAt: Date | null
-        graceEndsAt: Date | null
-      }>>`
-        SELECT 
-          id, name, slug, logo, tagline, 
-          "primaryColor", "secondaryColor",
-          "smtpHost", "smtpPort", "smtpUser", "smtpPass", "smtpFrom",
-          "createdAt", "updatedAt", "isActive",
-          "subscriptionEndsAt", "graceEndsAt"
-        FROM "Organization"
-        WHERE id = ${session.user.organizationId}
-        LIMIT 1
-      `
-      
-      org = result[0] || null
+      try {
+        const result = await prisma.$queryRaw<Array<{
+          id: string
+          name: string
+          slug: string
+          logo: string | null
+          tagline: string
+          primaryColor: string
+          secondaryColor: string
+          smtpHost: string | null
+          smtpPort: number | null
+          smtpUser: string | null
+          smtpPass: string | null
+          smtpFrom: string | null
+          createdAt: Date
+          updatedAt: Date
+          isActive: boolean
+          subscriptionEndsAt: Date | null
+          graceEndsAt: Date | null
+        }>>`
+          SELECT 
+            id, name, slug, logo, tagline, 
+            "primaryColor", "secondaryColor",
+            "smtpHost", "smtpPort", "smtpUser", "smtpPass", "smtpFrom",
+            "createdAt", "updatedAt", "isActive",
+            "subscriptionEndsAt", "graceEndsAt"
+          FROM "Organization"
+          WHERE id = ${session.user.organizationId}
+          LIMIT 1
+        `
+        
+        org = result[0] || null
+      } catch (sqlError: any) {
+        console.error("Raw SQL query also failed:", sqlError.message)
+        // Re-throw the original Prisma error, not the SQL error
+        throw prismaError
+      }
     }
 
     if (!org) {
