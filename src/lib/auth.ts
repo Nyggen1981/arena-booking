@@ -75,9 +75,12 @@ export const authOptions: NextAuthOptions = {
             organizationColor: user.organization.primaryColor,
           }
         } catch (error) {
+          // Re-throw specific error messages (like "not approved") so they show to the user
+          if (error instanceof Error && error.message.includes("godkjenning")) {
+            throw error
+          }
+          // Log other errors but show generic message
           console.error("Auth error:", error)
-          // Return null on any error to show generic "wrong email/password" message
-          // This prevents leaking information about the error
           return null
         }
       }
