@@ -1,9 +1,9 @@
 "use client"
 
 import { useSession, signOut } from "next-auth/react"
-import { useState, useEffect, createContext, useContext, ReactNode } from "react"
+import { useState, useEffect, createContext, useContext, ReactNode, useCallback } from "react"
 import { usePathname, useRouter } from "next/navigation"
-import { AlertTriangle, Key, Settings, LogOut } from "lucide-react"
+import { AlertTriangle, Key, Settings, LogOut, RefreshCw } from "lucide-react"
 
 interface LicenseStatus {
   valid: boolean
@@ -51,14 +51,10 @@ export function LicenseGuard({ children }: LicenseGuardProps) {
   const isAdminSettingsPath = pathname?.startsWith(ADMIN_LICENSE_PATH)
   const isAdmin = session?.user?.role === "admin"
 
-  useEffect(() => {
-    // Not logged in - no license check needed
-    if (sessionStatus !== "authenticated") {
-      setLicenseStatus({ valid: true, status: "active", isLoading: false })
-      return
-    }
+  const [isRefreshing, setIsRefreshing] = useState(false)
 
-    // Fetch license status
+  // Fetch license status function
+  const fetchLicenseStatus = useCallback(() => {
     fetch("/api/license/status")
       .then(res => res.json())
       .then(data => {
@@ -74,6 +70,22 @@ export function LicenseGuard({ children }: LicenseGuardProps) {
         // On network error, assume valid to not lock out users accidentally
         setLicenseStatus({ valid: true, status: "error", isLoading: false })
       })
+  }
+
+  useEffect(() => {
+    // Not logged in - no license check needed
+    if (sessionStatus !== "authenticated") {
+      setLicenseStatus({ valid: true, status: "active", isLoading: false })
+      return
+    }
+
+    // Initial fetch
+    fetchLicenseStatus()
+
+    // Re-check every 30 seconds (important for when admin activates license)
+    const interval = setInterval(fetchLicenseStatus, 30000)
+    
+    return () => clearInterval(interval)
   }, [sessionStatus])
 
   // Still loading session or license - show children (will show loading states)
@@ -186,6 +198,14 @@ export function LicenseGuard({ children }: LicenseGuardProps) {
     )
   }
 
+  // Manual refresh handler
+  const handleManualRefresh = async () => {
+    setIsRefreshing(true)
+    await new Promise(resolve => setTimeout(resolve, 500)) // Small delay for UX
+    fetchLicenseStatus()
+    setTimeout(() => setIsRefreshing(false), 1000)
+  }
+
   // Non-admin users - completely blocked
   return (
     <LicenseContext.Provider value={licenseStatus}>
@@ -202,13 +222,26 @@ export function LicenseGuard({ children }: LicenseGuardProps) {
               ? "Abonnementet har utløpt. Kontakt administrator for mer informasjon."
               : "Systemet er midlertidig utilgjengelig. Kontakt administrator."}
           </p>
-          <button
-            onClick={() => signOut({ callbackUrl: "/" })}
-            className="inline-flex items-center gap-2 px-6 py-3 bg-white/10 text-white rounded-xl font-medium hover:bg-white/20 transition-colors"
-          >
-            <LogOut className="w-4 h-4" />
-            Logg ut
-          </button>
+          <div className="flex flex-col gap-3 items-center">
+            <button
+              onClick={handleManualRefresh}
+              disabled={isRefreshing}
+              className="inline-flex items-center gap-2 px-6 py-3 bg-blue-600 text-white rounded-xl font-medium hover:bg-blue-700 transition-colors disabled:opacity-50"
+            >
+              <RefreshCw className={`w-4 h-4 ${isRefreshing ? 'animate-spin' : ''}`} />
+              {isRefreshing ? "Sjekker..." : "Sjekk på nytt"}
+            </button>
+            <button
+              onClick={() => signOut({ callbackUrl: "/" })}
+              className="inline-flex items-center gap-2 px-6 py-3 bg-white/10 text-white rounded-xl font-medium hover:bg-white/20 transition-colors"
+            >
+              <LogOut className="w-4 h-4" />
+              Logg ut
+            </button>
+          </div>
+          <p className="text-slate-500 text-sm mt-6">
+            Sjekker automatisk hvert 30. sekund
+          </p>
         </div>
       </div>
     </LicenseContext.Provider>
