@@ -87,14 +87,29 @@ export async function validateLicense(forceRefresh = false): Promise<LicenseVali
   const licenseKey = config.licenseKey
   const orgSlug = config.orgSlug
 
-  // Hvis ingen lisensserver er konfigurert, tillat alt (development mode)
+  // Sjekk om vi er i utviklingsmodus (kun lokalt)
+  const isDevelopment = process.env.NODE_ENV === "development"
+  const allowUnlicensed = process.env.ALLOW_UNLICENSED === "true"
+
+  // Hvis ingen lisensserver er konfigurert
   if (!serverUrl || !licenseKey || !orgSlug) {
-    console.log("[License] No license server configured - running in development mode")
+    // Kun tillat i lokal utvikling eller hvis eksplisitt tillatt
+    if (isDevelopment || allowUnlicensed) {
+      console.log("[License] No license configured - running in development mode")
+      return {
+        valid: true,
+        status: "active",
+        organization: "Development Mode",
+        message: "Utviklingsmodus - ingen lisensvalidering"
+      }
+    }
+
+    // I produksjon uten lisens = blokkert
+    console.log("[License] No license configured in production - blocking access")
     return {
-      valid: true,
-      status: "active",
-      organization: "Development Mode",
-      message: "Ingen lisensserver konfigurert"
+      valid: false,
+      status: "invalid",
+      message: "Ingen lisens konfigurert. Kontakt administrator for å aktivere."
     }
   }
 
@@ -264,7 +279,10 @@ export async function getLicenseInfo(): Promise<{
   let showWarning = false
   let warningMessage: string | null = null
 
-  if (license.status === "grace") {
+  if (license.status === "invalid") {
+    showWarning = true
+    warningMessage = license.message || "Ingen gyldig lisens. Kontakt administrator for å aktivere."
+  } else if (license.status === "grace") {
     showWarning = true
     warningMessage = license.message || `Lisensen har utløpt. ${license.daysRemaining} dager igjen av grace period.`
   } else if (license.status === "expired" || license.status === "suspended") {

@@ -48,7 +48,7 @@ export function LicenseWarningBanner() {
   if (!licenseInfo?.showWarning || dismissed) return null
 
   // Velg styling basert på status
-  const isBlocking = licenseInfo.status === "expired" || licenseInfo.status === "suspended"
+  const isBlocking = licenseInfo.status === "expired" || licenseInfo.status === "suspended" || licenseInfo.status === "invalid"
   const isGrace = licenseInfo.status === "grace"
 
   const bgColor = isBlocking 
