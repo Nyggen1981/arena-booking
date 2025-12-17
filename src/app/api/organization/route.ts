@@ -13,6 +13,7 @@ export async function GET() {
         logo: true,
         tagline: true,
         primaryColor: true,
+        requireUserApproval: true,
       }
     })
 

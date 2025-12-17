@@ -28,7 +28,8 @@ function RegisterForm() {
   const [error, setError] = useState("")
   const [orgExists, setOrgExists] = useState(false)
   const [existingOrgName, setExistingOrgName] = useState("")
-  const [needsApproval, setNeedsApproval] = useState(true)
+  const [orgRequiresApproval, setOrgRequiresApproval] = useState(true) // Organization's setting
+  const [needsApproval, setNeedsApproval] = useState(true) // Result after registration
 
   // Check if organization exists on page load
   useEffect(() => {
@@ -40,6 +41,7 @@ function RegisterForm() {
           if (data && data.name) {
             setOrgExists(true)
             setExistingOrgName(data.name)
+            setOrgRequiresApproval(data.requireUserApproval !== false)
             setStep("join") // Organization exists, go to join
           } else {
             setOrgExists(false)
@@ -351,12 +353,14 @@ function RegisterForm() {
                 </label>
               </div>
 
-              {/* Info about approval */}
-              <div className="p-4 bg-amber-50 border border-amber-200 rounded-xl">
-                <p className="text-sm text-amber-800">
-                  <strong>Merk:</strong> Etter registrering må en administrator godkjenne kontoen din før du kan logge inn og booke.
-                </p>
-              </div>
+              {/* Info about approval - only show if org requires approval */}
+              {orgRequiresApproval && (
+                <div className="p-4 bg-amber-50 border border-amber-200 rounded-xl">
+                  <p className="text-sm text-amber-800">
+                    <strong>Merk:</strong> Etter registrering må en administrator godkjenne kontoen din før du kan logge inn og booke.
+                  </p>
+                </div>
+              )}
 
               <button
                 type="submit"
@@ -366,12 +370,12 @@ function RegisterForm() {
                 {isLoading ? (
                   <>
                     <Loader2 className="w-5 h-5 animate-spin" />
-                    Sender søknad...
+                    {orgRequiresApproval ? "Sender søknad..." : "Registrerer..."}
                   </>
                 ) : (
                   <>
                     <CheckCircle2 className="w-5 h-5" />
-                    Send søknad
+                    {orgRequiresApproval ? "Send søknad" : "Registrer deg"}
                   </>
                 )}
               </button>
