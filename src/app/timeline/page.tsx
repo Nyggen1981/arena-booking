@@ -7,7 +7,7 @@ import { Navbar } from "@/components/Navbar"
 import { Footer } from "@/components/Footer"
 import { format, parseISO, startOfDay, addDays, setHours } from "date-fns"
 import { nb } from "date-fns/locale"
-import { Calendar, ChevronLeft, ChevronRight, GanttChart, Filter } from "lucide-react"
+import { Calendar, ChevronLeft, ChevronRight, GanttChart, Filter, X, Clock, User, MapPin } from "lucide-react"
 
 interface Booking {
   id: string
@@ -80,6 +80,7 @@ export default function TimelinePage() {
   const [isLoading, setIsLoading] = useState(true)
   const [selectedResources, setSelectedResources] = useState<Set<string>>(new Set())
   const [showFilter, setShowFilter] = useState(false)
+  const [selectedBooking, setSelectedBooking] = useState<Booking | null>(null)
 
   useEffect(() => {
     if (status === "unauthenticated") {
@@ -679,15 +680,16 @@ export default function TimelinePage() {
                                 const timeStr = `${format(startTime, "HH:mm")} - ${format(endTime, "HH:mm")}`
                                 
                                 return (
-                                  <div
+                                  <button
                                     key={booking.id}
-                                    className="absolute top-1 bottom-1 rounded px-2 py-1 text-white text-xs font-medium cursor-pointer hover:shadow-lg transition-shadow overflow-hidden"
+                                    onClick={() => setSelectedBooking(booking)}
+                                    className="absolute top-1 bottom-1 rounded px-2 py-1 text-white text-xs font-medium cursor-pointer hover:shadow-lg hover:scale-[1.02] transition-all overflow-hidden text-left"
                                     style={{
                                       ...style,
                                       backgroundColor: isPending ? `${color}80` : color,
                                       border: isPending ? `2px dashed ${color}` : 'none',
                                     }}
-                                    title={`${booking.title}\n${timeStr}\n${booking.user.name || booking.user.email}\n${isPending ? "Venter på godkjenning" : "Godkjent"}`}
+                                    title={`Klikk for mer info`}
                                   >
                                     <div className="truncate font-semibold">{booking.title}</div>
                                     <div className="truncate text-[10px] opacity-90">
@@ -698,7 +700,7 @@ export default function TimelinePage() {
                                         {booking.user.name}
                                       </div>
                                     )}
-                                  </div>
+                                  </button>
                                 )
                               })}
                             </div>
@@ -712,6 +714,112 @@ export default function TimelinePage() {
           )}
         </div>
       </main>
+
+      {/* Booking Detail Modal */}
+      {selectedBooking && (
+        <div 
+          className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
+          onClick={() => setSelectedBooking(null)}
+        >
+          <div 
+            className="bg-white rounded-xl max-w-md w-full shadow-2xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Header */}
+            <div 
+              className="p-5 rounded-t-xl"
+              style={{ 
+                backgroundColor: selectedBooking.resource.color || selectedBooking.resource.category?.color || "#3b82f6" 
+              }}
+            >
+              <div className="flex items-start justify-between">
+                <div>
+                  <p className="text-white/80 text-sm font-medium">
+                    {selectedBooking.resource.name}
+                    {selectedBooking.resourcePart && ` • ${selectedBooking.resourcePart.name}`}
+                  </p>
+                  <h3 className="text-xl font-bold text-white mt-1">
+                    {selectedBooking.title}
+                  </h3>
+                </div>
+                <button
+                  onClick={() => setSelectedBooking(null)}
+                  className="p-1 rounded-full hover:bg-white/20 transition-colors"
+                >
+                  <X className="w-5 h-5 text-white" />
+                </button>
+              </div>
+            </div>
+
+            {/* Content */}
+            <div className="p-5 space-y-4">
+              {/* Status */}
+              <div className="flex items-center gap-2">
+                <span className={`inline-flex items-center gap-1 px-3 py-1 rounded-full text-sm font-medium ${
+                  selectedBooking.status === "pending" 
+                    ? "bg-amber-100 text-amber-700" 
+                    : "bg-green-100 text-green-700"
+                }`}>
+                  {selectedBooking.status === "pending" ? "⏳ Venter på godkjenning" : "✓ Godkjent"}
+                </span>
+              </div>
+
+              {/* Details */}
+              <div className="space-y-3 text-sm">
+                {/* Date and time */}
+                <div className="flex items-start gap-3 text-gray-600">
+                  <Calendar className="w-4 h-4 text-gray-400 mt-0.5" />
+                  <div>
+                    <p className="font-medium text-gray-900">
+                      {format(parseISO(selectedBooking.startTime), "EEEE d. MMMM yyyy", { locale: nb })}
+                    </p>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-3 text-gray-600">
+                  <Clock className="w-4 h-4 text-gray-400" />
+                  <span>
+                    {format(parseISO(selectedBooking.startTime), "HH:mm")} - {format(parseISO(selectedBooking.endTime), "HH:mm")}
+                  </span>
+                </div>
+
+                {/* Location */}
+                <div className="flex items-start gap-3 text-gray-600">
+                  <MapPin className="w-4 h-4 text-gray-400 mt-0.5" />
+                  <div>
+                    <p className="font-medium text-gray-900">{selectedBooking.resource.name}</p>
+                    {selectedBooking.resourcePart && (
+                      <p className="text-gray-500">{selectedBooking.resourcePart.name}</p>
+                    )}
+                    {selectedBooking.resource.category && (
+                      <p className="text-gray-400 text-xs mt-0.5">{selectedBooking.resource.category.name}</p>
+                    )}
+                  </div>
+                </div>
+
+                {/* User */}
+                <div className="flex items-start gap-3 text-gray-600">
+                  <User className="w-4 h-4 text-gray-400 mt-0.5" />
+                  <div>
+                    <p className="font-medium text-gray-900">{selectedBooking.user.name || "Ukjent bruker"}</p>
+                    <p className="text-gray-500 text-xs">{selectedBooking.user.email}</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Footer */}
+            <div className="p-4 border-t bg-gray-50 rounded-b-xl">
+              <button
+                onClick={() => setSelectedBooking(null)}
+                className="w-full px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+              >
+                Lukk
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       <Footer />
     </div>
