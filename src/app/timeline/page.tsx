@@ -32,6 +32,7 @@ interface Booking {
   resourcePart: {
     id: string
     name: string
+    parentId?: string | null
   } | null
   user: {
     id: string
@@ -52,7 +53,17 @@ interface Resource {
   parts: Array<{
     id: string
     name: string
+    parentId?: string | null
+    children?: Array<{ id: string; name: string }>
   }>
+}
+
+interface BlockedSlot {
+  startTime: string
+  endTime: string
+  partId: string | null
+  blockedBy: string
+  bookingId: string
 }
 
 interface TimelineData {
@@ -127,6 +138,7 @@ export default function TimelinePage() {
 
     const grouped: Array<{
       resource: Resource
+      allBookings: Booking[]
       parts: Array<{
         part: { id: string; name: string } | null
         bookings: Booking[]
@@ -181,7 +193,7 @@ export default function TimelinePage() {
       })
 
       if (parts.length > 0) {
-        grouped.push({ resource, parts })
+        grouped.push({ resource, allBookings: resourceBookings, parts })
       }
     })
 
@@ -241,6 +253,90 @@ export default function TimelinePage() {
     const dayDuration = 24 * 60 * 60 * 1000
     return { dayStart, dayEnd, dayDuration }
   }, [selectedDate])
+
+  // Calculate blocked slots for a specific resource
+  const getBlockedSlotsForPart = useCallback((resourceId: string, partId: string | null, allBookings: Booking[], resource: Resource): BlockedSlot[] => {
+    const slots: BlockedSlot[] = []
+    const resourceBookings = allBookings.filter(b => b.resource.id === resourceId)
+    
+    resourceBookings.forEach(booking => {
+      // If booking is for whole facility (no part), all parts are blocked
+      if (!booking.resourcePart) {
+        if (partId !== null) {
+          // This part is blocked by whole facility booking
+          slots.push({
+            startTime: booking.startTime,
+            endTime: booking.endTime,
+            partId: partId,
+            blockedBy: `Hele ${resource.name}`,
+            bookingId: booking.id
+          })
+        }
+      } else {
+        // Booking is for a specific part
+        if (partId === null) {
+          // Whole facility is blocked by part booking
+          slots.push({
+            startTime: booking.startTime,
+            endTime: booking.endTime,
+            partId: null,
+            blockedBy: booking.resourcePart.name,
+            bookingId: booking.id
+          })
+        } else {
+          // Check if this part is blocked by parent/child booking
+          const bookedPart = resource.parts.find(p => p.id === booking.resourcePart?.id)
+          
+          // If booking is for a parent, this child is blocked
+          if (bookedPart?.children?.some(c => c.id === partId)) {
+            slots.push({
+              startTime: booking.startTime,
+              endTime: booking.endTime,
+              partId: partId,
+              blockedBy: bookedPart.name,
+              bookingId: booking.id
+            })
+          }
+          
+          // If booking is for a child, parent is blocked
+          if (booking.resourcePart.parentId === partId) {
+            slots.push({
+              startTime: booking.startTime,
+              endTime: booking.endTime,
+              partId: partId,
+              blockedBy: booking.resourcePart.name,
+              bookingId: booking.id
+            })
+          }
+        }
+      }
+    })
+    
+    return slots
+  }, [])
+
+  // Get blocked slot style (similar to booking style)
+  const getBlockedSlotStyle = useCallback((slot: BlockedSlot) => {
+    const slotStart = parseISO(slot.startTime)
+    const slotEnd = parseISO(slot.endTime)
+    const { dayStart, dayEnd, dayDuration } = dayBoundaries
+
+    // Clamp times to the day
+    const startTime = slotStart < dayStart ? dayStart : slotStart
+    const endTime = slotEnd > dayEnd ? dayEnd : slotEnd
+
+    const startOffset = startTime.getTime() - dayStart.getTime()
+    const duration = endTime.getTime() - startTime.getTime()
+
+    const leftPercent = (startOffset / dayDuration) * 100
+    const widthPercent = (duration / dayDuration) * 100
+
+    return {
+      left: `${leftPercent}%`,
+      width: `${Math.max(0.3, widthPercent)}%`,
+      minWidth: '20px'
+    }
+  }, [dayBoundaries])
 
   // Calculate booking position and width with horizontal spacing - memoized
   const getBookingStyle = useCallback((booking: Booking, allBookings: Booking[]) => {
@@ -496,7 +592,7 @@ export default function TimelinePage() {
 
                 {/* Timeline Rows */}
                 <div className="divide-y divide-gray-100" style={{ minWidth: '1200px' }}>
-                    {groupedData.map(({ resource, parts }) => (
+                    {groupedData.map(({ resource, allBookings, parts }) => (
                       <div key={resource.id}>
                         {/* Resource Header */}
                         <div className="bg-gray-50 border-b border-gray-200">
@@ -548,6 +644,30 @@ export default function TimelinePage() {
                                   style={{ left: `${((index + 1) / 24) * 100}%` }}
                                 />
                               ))}
+
+                              {/* Blocked Slots */}
+                              {getBlockedSlotsForPart(resource.id, part?.id || null, allBookings, resource).map((slot, index) => {
+                                const style = getBlockedSlotStyle(slot)
+                                return (
+                                  <div
+                                    key={`blocked-${slot.bookingId}-${index}`}
+                                    className="absolute top-1 bottom-1 rounded px-1 text-xs overflow-hidden"
+                                    style={{
+                                      ...style,
+                                      backgroundColor: 'rgba(156, 163, 175, 0.3)',
+                                      backgroundImage: 'repeating-linear-gradient(45deg, transparent, transparent 4px, rgba(156, 163, 175, 0.2) 4px, rgba(156, 163, 175, 0.2) 8px)',
+                                      border: '1px dashed #9ca3af',
+                                      zIndex: 5,
+                                    }}
+                                    title={`Blokkert av: ${slot.blockedBy}`}
+                                  >
+                                    <div className="flex items-center gap-1 h-full text-gray-500">
+                                      <span>🔒</span>
+                                      <span className="truncate text-[10px] font-medium">Blokkert</span>
+                                    </div>
+                                  </div>
+                                )
+                              })}
 
                               {/* Bookings */}
                               {bookings.map((booking) => {

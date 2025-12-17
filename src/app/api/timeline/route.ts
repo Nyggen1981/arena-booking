@@ -72,7 +72,8 @@ export async function GET(request: Request) {
       resourcePart: {
         select: {
           id: true,
-          name: true
+          name: true,
+          parentId: true
         }
       },
       user: {
@@ -102,7 +103,12 @@ export async function GET(request: Request) {
         where: { isActive: true },
         select: {
           id: true,
-          name: true
+          name: true,
+          parentId: true,
+          children: {
+            where: { isActive: true },
+            select: { id: true, name: true }
+          }
         },
         orderBy: { name: "asc" }
       }

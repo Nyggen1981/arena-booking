@@ -255,14 +255,12 @@ export function CalendarView({ categories, resources, bookings: initialBookings 
 
   // Get blocked slots for the selected part view
   const getBlockedSlotsForDay = useCallback((day: Date) => {
+    // Don't show blocked slots when viewing "Alle deler" - actual bookings show the full picture
+    if (!selectedPartId) return []
+    
     return blockedSlots.filter(slot => {
       const start = parseISO(slot.startTime)
       if (!isSameDay(day, start)) return false
-      
-      // If viewing all parts (selectedPartId = null), show blocks for whole facility
-      if (!selectedPartId) {
-        return slot.partId === null
-      }
       
       // If viewing a specific part, show blocks for that part
       return slot.partId === selectedPartId
