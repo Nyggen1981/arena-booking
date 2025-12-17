@@ -170,6 +170,7 @@ export function PublicCalendar({ categories, resources, bookings }: Props) {
           <div className="pr-10">
             <p className="font-medium mb-1">Slik finner du frem i kalenderen:</p>
             <p className="text-blue-700">Velg først en kategori, deretter en fasilitet. Hvis fasiliteten har underdeler, kan du velge en spesifikk del eller se alle deler.</p>
+            <p className="text-blue-700 mt-2"><strong>Vil du booke?</strong> Registrer deg eller logg inn for å reservere fasiliteter.</p>
           </div>
         </div>
       )}

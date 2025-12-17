@@ -117,7 +117,7 @@ export function getDefaultEmailTemplates() {
               <p>Logg inn i admin-panelet for å godkjenne eller avslå bookingen.</p>
             </div>
             <div class="footer">
-              <p>Med vennlig hilsen,<br/>Arena Booking</p>
+              <p>Med vennlig hilsen,<br/>{{organizationName}}</p>
             </div>
           </div>
         </body>
@@ -164,7 +164,7 @@ export function getDefaultEmailTemplates() {
               <p>Vi gleder oss til å se deg!</p>
             </div>
             <div class="footer">
-              <p>Med vennlig hilsen,<br/>Arena Booking</p>
+              <p>Med vennlig hilsen,<br/>{{organizationName}}</p>
             </div>
           </div>
         </body>
@@ -205,7 +205,7 @@ export function getDefaultEmailTemplates() {
               <p>Ta kontakt hvis du har spørsmål eller ønsker å booke en annen tid.</p>
             </div>
             <div class="footer">
-              <p>Med vennlig hilsen,<br/>Arena Booking</p>
+              <p>Med vennlig hilsen,<br/>{{organizationName}}</p>
             </div>
           </div>
         </body>
@@ -246,7 +246,7 @@ export function getDefaultEmailTemplates() {
               <p>Ta kontakt hvis du har spørsmål.</p>
             </div>
             <div class="footer">
-              <p>Med vennlig hilsen,<br/>Arena Booking</p>
+              <p>Med vennlig hilsen,<br/>{{organizationName}}</p>
             </div>
           </div>
         </body>
@@ -285,7 +285,7 @@ export function getDefaultEmailTemplates() {
               </div>
             </div>
             <div class="footer">
-              <p>Med vennlig hilsen,<br/>Arena Booking</p>
+              <p>Med vennlig hilsen,<br/>{{organizationName}}</p>
             </div>
           </div>
         </body>
