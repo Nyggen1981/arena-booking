@@ -29,7 +29,12 @@ const getResources = unstable_cache(
             where: { isActive: true },
             select: {
               id: true,
-              name: true
+              name: true,
+              parentId: true,
+              children: {
+                where: { isActive: true },
+                select: { id: true, name: true }
+              }
             },
             orderBy: { name: "asc" }
           }
@@ -81,8 +86,9 @@ const getPublicBookings = unstable_cache(
           startTime: true,
           endTime: true,
           resourceId: true,
+          resourcePartId: true,
           resource: { select: { name: true } },
-          resourcePart: { select: { name: true } }
+          resourcePart: { select: { id: true, name: true } }
         },
         orderBy: { startTime: "asc" }
       })
@@ -139,7 +145,12 @@ export default async function PublicHomePage() {
               color: r.color || r.category?.color || '#3b82f6',
               categoryId: r.categoryId,
               categoryName: r.category?.name,
-              parts: r.parts.map(p => ({ id: p.id, name: p.name }))
+              parts: r.parts.map(p => ({ 
+                id: p.id, 
+                name: p.name,
+                parentId: p.parentId,
+                children: p.children
+              }))
             }))}
             bookings={bookings.map(b => ({
               id: b.id,
@@ -148,6 +159,7 @@ export default async function PublicHomePage() {
               endTime: (b.endTime instanceof Date ? b.endTime : new Date(b.endTime)).toISOString(),
               resourceId: b.resourceId,
               resourceName: b.resource.name,
+              resourcePartId: b.resourcePartId,
               resourcePartName: b.resourcePart?.name
             }))}
           />
