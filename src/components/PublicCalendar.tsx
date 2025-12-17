@@ -384,7 +384,7 @@ export function PublicCalendar({ categories, resources, bookings }: Props) {
           {/* Time grid with sticky header */}
           <div ref={weekViewScrollRef} className="max-h-[650px] overflow-y-auto pr-[17px]">
             {/* Header - sticky */}
-            <div className="grid bg-gray-50 border-b border-gray-200 sticky top-0 z-10 gap-x-2" style={{ gridTemplateColumns: '60px repeat(7, 1fr)' }}>
+            <div className="grid bg-gray-50 border-b border-gray-200 sticky top-0 z-10" style={{ gridTemplateColumns: '60px repeat(7, 1fr)' }}>
               <div className="p-3 text-center text-sm font-medium text-gray-500" />
               {weekDays.map((day) => (
                 <div 
@@ -407,7 +407,7 @@ export function PublicCalendar({ categories, resources, bookings }: Props) {
 
             {/* Time rows */}
             {hours.map((hour) => (
-              <div key={hour} className="grid border-b border-gray-100 last:border-b-0 gap-x-2" style={{ gridTemplateColumns: '60px repeat(7, 1fr)' }}>
+              <div key={hour} className="grid border-b border-gray-100 last:border-b-0" style={{ gridTemplateColumns: '60px repeat(7, 1fr)' }}>
                 <div className="p-2 text-right text-xs text-gray-400 pr-3 font-medium">
                   {hour.toString().padStart(2, "0")}:00
                 </div>
@@ -532,15 +532,15 @@ export function PublicCalendar({ categories, resources, bookings }: Props) {
                           const gapBetweenPx = hasOverlap ? 3 : 0 // More gap horizontally (3px) vs vertical (1px)
                           const bookingWidthPercent = 100 / groupSize
                           const marginRight = index < groupSize - 1 ? gapBetweenPx : 0
-                          // Center single boxes, keep side-by-side for overlapping
                           const isSingleBox = groupSize === 1
-                          const leftPercent = isSingleBox ? 50 : (index * bookingWidthPercent)
-                          // No margin from column lines - boxes fill the column
+                          // Horizontal padding for spacing between boxes and column edges
+                          const horizontalPadding = 4 // 2px on each side
+                          // No margin from column lines - boxes fill the column with small padding
                           const boxWidth = isSingleBox 
-                            ? '100%' 
+                            ? `calc(100% - ${horizontalPadding}px)` 
                             : (marginRight > 0 
-                              ? `calc(${bookingWidthPercent}% - ${marginRight}px)` 
-                              : `${bookingWidthPercent}%`)
+                              ? `calc(${bookingWidthPercent}% - ${marginRight + horizontalPadding}px)` 
+                              : `calc(${bookingWidthPercent}% - ${horizontalPadding}px)`)
 
                           return (
                             <button
@@ -549,8 +549,7 @@ export function PublicCalendar({ categories, resources, bookings }: Props) {
                               className="absolute rounded px-1.5 py-1 text-xs overflow-hidden cursor-pointer z-10 pointer-events-auto text-left booking-event"
                               style={{
                                 top: `${topPx}px`,
-                                left: isSingleBox ? '50%' : `${leftPercent}%`,
-                                transform: isSingleBox ? 'translateX(-50%)' : 'none',
+                                left: isSingleBox ? '2px' : `calc(${index * bookingWidthPercent}% + 2px)`,
                                 width: boxWidth,
                                 height: `${Math.max(heightPx, 36)}px`,
                                 backgroundColor: resourceColor,
@@ -560,7 +559,6 @@ export function PublicCalendar({ categories, resources, bookings }: Props) {
                                 flexDirection: 'column',
                                 justifyContent: 'flex-start',
                                 alignItems: 'flex-start',
-                                marginRight: `${marginRight}px`
                               }}
                             >
                               <p className="font-semibold truncate text-[11px]">{booking.title}</p>
