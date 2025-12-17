@@ -181,8 +181,12 @@ function RegisterForm() {
               <Calendar className="w-8 h-8 text-white" />
             </div>
           </Link>
-          <h1 className="mt-4 text-3xl font-bold text-white">Søk om tilgang</h1>
-          <p className="mt-2 text-emerald-100">Registrer deg for å booke fasiliteter</p>
+          <h1 className="mt-4 text-3xl font-bold text-white">
+            {step === "loading" ? "Registrer deg" : orgRequiresApproval ? "Søk om tilgang" : "Registrer deg"}
+          </h1>
+          <p className="mt-2 text-emerald-100">
+            {orgRequiresApproval ? "Registrer deg for å booke fasiliteter" : "Opprett konto for å booke fasiliteter"}
+          </p>
         </div>
 
         {/* Loading state */}
@@ -383,7 +387,7 @@ function RegisterForm() {
 
             <div className="mt-6 pt-6 border-t border-gray-100 text-center">
               <p className="text-sm text-gray-500">
-                Allerede godkjent?{" "}
+                {orgRequiresApproval ? "Allerede godkjent?" : "Har du allerede en konto?"}{" "}
                 <Link href="/login" className="text-emerald-600 hover:text-emerald-700 font-medium">
                   Logg inn
                 </Link>
