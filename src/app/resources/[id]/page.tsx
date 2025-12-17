@@ -48,7 +48,12 @@ async function getResource(id: string) {
             name: true,
             description: true,
             capacity: true,
-            mapCoordinates: true
+            mapCoordinates: true,
+            parentId: true,
+            children: {
+              where: { isActive: true },
+              select: { id: true, name: true }
+            }
           },
           orderBy: { name: "asc" }
         },
@@ -66,9 +71,12 @@ async function getResource(id: string) {
             isRecurring: true,
             parentBookingId: true,
             userId: true,
+            resourcePartId: true,
             resourcePart: {
               select: {
-                name: true
+                id: true,
+                name: true,
+                parentId: true
               }
             },
             user: {
@@ -205,14 +213,21 @@ export default async function ResourcePage({ params }: Props) {
                   startTime: (b.startTime instanceof Date ? b.startTime : new Date(b.startTime)).toISOString(),
                   endTime: (b.endTime instanceof Date ? b.endTime : new Date(b.endTime)).toISOString(),
                   status: b.status,
+                  resourcePartId: b.resourcePartId,
                   resourcePartName: b.resourcePart?.name,
+                  resourcePartParentId: b.resourcePart?.parentId,
                   userId: b.userId,
                   userName: b.user?.name,
                   userEmail: b.user?.email,
                   isRecurring: b.isRecurring || false,
                   parentBookingId: b.parentBookingId
                 }))}
-                parts={resource.parts.map(p => ({ id: p.id, name: p.name }))}
+                parts={resource.parts.map(p => ({ 
+                  id: p.id, 
+                  name: p.name,
+                  parentId: p.parentId,
+                  children: p.children
+                }))}
               />
             </div>
           </div>

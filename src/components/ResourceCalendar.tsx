@@ -29,7 +29,9 @@ interface Booking {
   startTime: string
   endTime: string
   status: string
+  resourcePartId?: string | null
   resourcePartName?: string | null
+  resourcePartParentId?: string | null
   userId?: string | null
   userName?: string | null
   userEmail?: string | null
@@ -40,6 +42,16 @@ interface Booking {
 interface Part {
   id: string
   name: string
+  parentId?: string | null
+  children?: { id: string; name: string }[]
+}
+
+interface BlockedSlot {
+  startTime: string
+  endTime: string
+  partId: string | null // null = whole facility
+  blockedBy: string // booking title or "Hele [facility]" / "[Part name]"
+  bookingId: string
 }
 
 interface Props {
@@ -99,6 +111,93 @@ export function ResourceCalendar({ resourceId, resourceName, bookings, parts }: 
       }
     })
   }, [bookings, selectedPart, weekDays, monthDays, viewMode])
+
+  // Calculate blocked slots based on hierarchy
+  const blockedSlots = useMemo(() => {
+    const slots: BlockedSlot[] = []
+    
+    bookings.forEach(booking => {
+      // If booking is for whole facility (no part), all parts are blocked
+      if (!booking.resourcePartId) {
+        parts.forEach(part => {
+          slots.push({
+            startTime: booking.startTime,
+            endTime: booking.endTime,
+            partId: part.id,
+            blockedBy: `Hele ${resourceName}`,
+            bookingId: booking.id
+          })
+          // Also block children of this part
+          if (part.children) {
+            part.children.forEach(child => {
+              slots.push({
+                startTime: booking.startTime,
+                endTime: booking.endTime,
+                partId: child.id,
+                blockedBy: `Hele ${resourceName}`,
+                bookingId: booking.id
+              })
+            })
+          }
+        })
+      } else {
+        // Booking is for a specific part
+        const bookedPart = parts.find(p => p.id === booking.resourcePartId)
+        
+        // Block whole facility
+        slots.push({
+          startTime: booking.startTime,
+          endTime: booking.endTime,
+          partId: null, // null = whole facility
+          blockedBy: booking.resourcePartName || "En del",
+          bookingId: booking.id
+        })
+        
+        // If booking is for a parent part, block all children
+        if (bookedPart?.children && bookedPart.children.length > 0) {
+          bookedPart.children.forEach(child => {
+            slots.push({
+              startTime: booking.startTime,
+              endTime: booking.endTime,
+              partId: child.id,
+              blockedBy: bookedPart.name,
+              bookingId: booking.id
+            })
+          })
+        }
+        
+        // If booking is for a child part, block parent
+        if (booking.resourcePartParentId) {
+          slots.push({
+            startTime: booking.startTime,
+            endTime: booking.endTime,
+            partId: booking.resourcePartParentId,
+            blockedBy: booking.resourcePartName || "En del",
+            bookingId: booking.id
+          })
+        }
+      }
+    })
+    
+    return slots
+  }, [bookings, parts, resourceName])
+
+  // Get blocked slots for the selected part view
+  const getBlockedSlotsForDay = useCallback((day: Date) => {
+    return blockedSlots.filter(slot => {
+      const start = parseISO(slot.startTime)
+      if (!isSameDay(day, start)) return false
+      
+      // If viewing all parts (selectedPart = null), show blocks for whole facility
+      if (!selectedPart) {
+        return slot.partId === null
+      }
+      
+      // If viewing a specific part, show blocks for that part
+      const part = parts.find(p => p.name === selectedPart)
+      return part && slot.partId === part.id
+    })
+  }, [blockedSlots, selectedPart, parts])
 
   const getBookingsForDay = useCallback((day: Date) => {
     return filteredBookings.filter(booking => {
@@ -349,6 +448,13 @@ export function ResourceCalendar({ resourceId, resourceName, bookings, parts }: 
                     return start.getHours() === hour
                   })
                   
+                  // Get blocked slots for this day
+                  const dayBlockedSlots = getBlockedSlotsForDay(day)
+                  const blockedSlotsStartingThisHour = dayBlockedSlots.filter(slot => {
+                    const start = parseISO(slot.startTime)
+                    return start.getHours() === hour
+                  })
+                  
                   return (
                     <div 
                       key={`${day.toISOString()}-${hour}`} 
@@ -356,6 +462,43 @@ export function ResourceCalendar({ resourceId, resourceName, bookings, parts }: 
                         isToday(day) ? 'bg-blue-50/30' : ''
                       }`}
                     >
+                      {/* Blocked slots indicator */}
+                      {blockedSlotsStartingThisHour.map((slot, index) => {
+                        const start = parseISO(slot.startTime)
+                        const end = parseISO(slot.endTime)
+                        const durationHours = (end.getTime() - start.getTime()) / (1000 * 60 * 60)
+                        
+                        const gapPx = 1
+                        const cellHeight = 48
+                        const topPx = (start.getMinutes() / 60) * cellHeight + gapPx
+                        const heightPx = durationHours * cellHeight - (gapPx * 2)
+                        
+                        return (
+                          <div
+                            key={`blocked-${slot.bookingId}-${index}`}
+                            className="absolute rounded-md px-2 py-1 text-xs overflow-hidden"
+                            style={{
+                              top: `${topPx}px`,
+                              left: '2px',
+                              width: 'calc(100% - 4px)',
+                              height: `${Math.max(heightPx, 24)}px`,
+                              backgroundColor: 'rgba(156, 163, 175, 0.3)',
+                              backgroundImage: 'repeating-linear-gradient(45deg, transparent, transparent 4px, rgba(156, 163, 175, 0.2) 4px, rgba(156, 163, 175, 0.2) 8px)',
+                              border: '1px dashed #9ca3af',
+                              color: '#6b7280',
+                              zIndex: 5,
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: '4px',
+                            }}
+                            title={`Blokkert av: ${slot.blockedBy}`}
+                          >
+                            <span className="text-xs">🔒</span>
+                            <span className="truncate text-xs font-medium">Blokkert</span>
+                          </div>
+                        )
+                      })}
+                      
                       {bookingsStartingThisHour.map((booking) => {
                           const start = parseISO(booking.startTime)
                           const end = parseISO(booking.endTime)

@@ -48,9 +48,15 @@ const getResources = unstable_cache(
             }
           },
           parts: {
+            where: { isActive: true },
             select: {
               id: true,
-              name: true
+              name: true,
+              parentId: true,
+              children: {
+                where: { isActive: true },
+                select: { id: true, name: true }
+              }
             }
           }
         }
@@ -134,7 +140,12 @@ export default async function CalendarPage() {
             color: r.color || r.category?.color || '#3b82f6',
             categoryId: r.categoryId,
             categoryName: r.category?.name,
-            parts: r.parts.map(p => ({ id: p.id, name: p.name }))
+            parts: r.parts.map(p => ({ 
+              id: p.id, 
+              name: p.name,
+              parentId: p.parentId,
+              children: p.children
+            }))
           }))}
           bookings={bookings.map(b => ({
             id: b.id,
@@ -144,6 +155,7 @@ export default async function CalendarPage() {
             status: b.status,
             resourceId: b.resourceId,
             resourceName: b.resource.name,
+            resourcePartId: b.resourcePartId,
             resourcePartName: b.resourcePart?.name,
             isRecurring: b.isRecurring,
             parentBookingId: b.parentBookingId,
