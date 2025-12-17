@@ -1,7 +1,7 @@
 "use client"
 
 import { useSession } from "next-auth/react"
-import { useEffect, useState, useMemo, useCallback } from "react"
+import { useEffect, useState, useMemo, useCallback, useRef } from "react"
 import { useRouter } from "next/navigation"
 import { Navbar } from "@/components/Navbar"
 import { Footer } from "@/components/Footer"
@@ -81,12 +81,30 @@ export default function TimelinePage() {
   const [selectedResources, setSelectedResources] = useState<Set<string>>(new Set())
   const [showFilter, setShowFilter] = useState(false)
   const [selectedBooking, setSelectedBooking] = useState<Booking | null>(null)
+  const [showCurrentTime, setShowCurrentTime] = useState(false)
+  const [currentTime, setCurrentTime] = useState(new Date())
+  const timelineContainerRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
     if (status === "unauthenticated") {
       router.push("/login?callbackUrl=/timeline")
     }
   }, [status, router])
+
+  // Load showCurrentTime preference from localStorage
+  useEffect(() => {
+    const saved = localStorage.getItem("timeline-show-current-time")
+    if (saved !== null) {
+      setShowCurrentTime(saved === "true")
+    }
+  }, [])
+
+  // Update current time every minute
+  useEffect(() => {
+    const updateTime = () => setCurrentTime(new Date())
+    const interval = setInterval(updateTime, 60000) // Update every minute
+    return () => clearInterval(interval)
+  }, [])
 
   const fetchTimelineData = useCallback(async () => {
     setIsLoading(true)
@@ -388,6 +406,31 @@ export default function TimelinePage() {
     setSelectedDate(prev => addDays(prev, days))
   }, [])
 
+  // Toggle current time indicator
+  const toggleCurrentTime = useCallback(() => {
+    setShowCurrentTime(prev => {
+      const newValue = !prev
+      localStorage.setItem("timeline-show-current-time", String(newValue))
+      return newValue
+    })
+  }, [])
+
+  // Calculate current time position as percentage of day
+  const currentTimePosition = useMemo(() => {
+    const now = currentTime
+    const todayStart = startOfDay(selectedDate)
+    const isToday = format(now, "yyyy-MM-dd") === format(selectedDate, "yyyy-MM-dd")
+    
+    if (!isToday) return null
+    
+    const hours = now.getHours()
+    const minutes = now.getMinutes()
+    const totalMinutes = hours * 60 + minutes
+    const dayMinutes = 24 * 60
+    
+    return (totalMinutes / dayMinutes) * 100
+  }, [currentTime, selectedDate])
+
   const handleDatePickerClick = useCallback(() => {
     const input = document.getElementById('timeline-date-input') as HTMLInputElement
     if (input) {
@@ -495,6 +538,24 @@ export default function TimelinePage() {
                 </button>
               </div>
             </div>
+            
+            {/* Current time toggle */}
+            <div className="flex items-center gap-2">
+              <label className="flex items-center gap-2 cursor-pointer select-none">
+                <input
+                  type="checkbox"
+                  checked={showCurrentTime}
+                  onChange={toggleCurrentTime}
+                  className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                />
+                <span className="text-sm text-gray-600">Vis nåtid</span>
+              </label>
+              {showCurrentTime && currentTimePosition !== null && (
+                <span className="text-xs text-gray-500">
+                  ({format(currentTime, "HH:mm")})
+                </span>
+              )}
+            </div>
           </div>
 
           {/* Filter Panel - Compact */}
@@ -567,7 +628,7 @@ export default function TimelinePage() {
           ) : (
             <div className="bg-white rounded-xl border border-gray-200 shadow-sm">
               {/* Scrollable container with sticky header */}
-              <div className="max-h-[70vh] overflow-y-auto overflow-x-auto rounded-xl">
+              <div ref={timelineContainerRef} className="max-h-[70vh] overflow-y-auto overflow-x-auto rounded-xl relative">
                 {/* Time Header - sticky within scroll container */}
                 <div className="sticky top-0 z-20 bg-gray-50 border-b border-gray-200">
                   <div className="flex" style={{ minWidth: '1200px' }}>
@@ -590,6 +651,39 @@ export default function TimelinePage() {
                     </div>
                   </div>
                 </div>
+
+                {/* Current Time Indicator Line */}
+                {showCurrentTime && currentTimePosition !== null && (
+                  <div 
+                    className="absolute top-0 bottom-0 z-30 pointer-events-none hidden sm:block"
+                    style={{ 
+                      left: `calc(256px + (100% - 256px) * ${currentTimePosition / 100})`,
+                    }}
+                  >
+                    {/* Time indicator dot at top */}
+                    <div className="sticky top-0 z-40">
+                      <div className="absolute left-1/2 -translate-x-1/2 -top-1 w-4 h-4 bg-red-500 rounded-full shadow-lg border-2 border-white" />
+                    </div>
+                    {/* Vertical line */}
+                    <div className="absolute top-0 bottom-0 left-1/2 -translate-x-1/2 w-0.5 bg-red-500" />
+                  </div>
+                )}
+                {/* Mobile version with smaller resource column */}
+                {showCurrentTime && currentTimePosition !== null && (
+                  <div 
+                    className="absolute top-0 bottom-0 z-30 pointer-events-none sm:hidden"
+                    style={{ 
+                      left: `calc(192px + (100% - 192px) * ${currentTimePosition / 100})`,
+                    }}
+                  >
+                    {/* Time indicator dot at top */}
+                    <div className="sticky top-0 z-40">
+                      <div className="absolute left-1/2 -translate-x-1/2 -top-1 w-4 h-4 bg-red-500 rounded-full shadow-lg border-2 border-white" />
+                    </div>
+                    {/* Vertical line */}
+                    <div className="absolute top-0 bottom-0 left-1/2 -translate-x-1/2 w-0.5 bg-red-500" />
+                  </div>
+                )}
 
                 {/* Timeline Rows */}
                 <div className="divide-y divide-gray-100" style={{ minWidth: '1200px' }}>
