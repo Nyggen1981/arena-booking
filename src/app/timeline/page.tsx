@@ -652,10 +652,10 @@ export default function TimelinePage() {
                   </div>
                 </div>
 
-                {/* Current Time Indicator Line */}
+                {/* Current Time Indicator Dot in Header */}
                 {showCurrentTime && currentTimePosition !== null && (
                   <div 
-                    className="absolute top-0 bottom-0 z-30 pointer-events-none hidden sm:block"
+                    className="absolute top-0 z-30 pointer-events-none"
                     style={{ 
                       left: `calc(256px + (100% - 256px) * ${currentTimePosition / 100})`,
                     }}
@@ -664,14 +664,12 @@ export default function TimelinePage() {
                     <div className="sticky top-0 z-40">
                       <div className="absolute left-1/2 -translate-x-1/2 -top-1 w-4 h-4 bg-red-500 rounded-full shadow-lg border-2 border-white" />
                     </div>
-                    {/* Vertical line */}
-                    <div className="absolute top-0 bottom-0 left-1/2 -translate-x-1/2 w-0.5 bg-red-500" />
                   </div>
                 )}
                 {/* Mobile version with smaller resource column */}
                 {showCurrentTime && currentTimePosition !== null && (
                   <div 
-                    className="absolute top-0 bottom-0 z-30 pointer-events-none sm:hidden"
+                    className="absolute top-0 z-30 pointer-events-none sm:hidden"
                     style={{ 
                       left: `calc(192px + (100% - 192px) * ${currentTimePosition / 100})`,
                     }}
@@ -680,8 +678,6 @@ export default function TimelinePage() {
                     <div className="sticky top-0 z-40">
                       <div className="absolute left-1/2 -translate-x-1/2 -top-1 w-4 h-4 bg-red-500 rounded-full shadow-lg border-2 border-white" />
                     </div>
-                    {/* Vertical line */}
-                    <div className="absolute top-0 bottom-0 left-1/2 -translate-x-1/2 w-0.5 bg-red-500" />
                   </div>
                 )}
 
@@ -690,7 +686,7 @@ export default function TimelinePage() {
                     {groupedData.map(({ resource, allBookings, parts }) => (
                       <div key={resource.id}>
                         {/* Resource Header */}
-                        <div className="bg-gray-50 border-b border-gray-200">
+                        <div className="bg-gray-50 border-b border-gray-200 relative">
                           <div className="flex">
                             <div className="w-48 sm:w-64 flex-shrink-0 p-2 sm:p-3 border-r border-gray-200">
                               <div className="font-semibold text-gray-900 flex items-center gap-2 text-sm sm:text-base">
@@ -708,7 +704,20 @@ export default function TimelinePage() {
                                 </div>
                               )}
                             </div>
-                            <div className="flex-1"></div>
+                            <div className="flex-1 relative">
+                              {/* Current Time Indicator Line in Resource Header */}
+                              {showCurrentTime && currentTimePosition !== null && (
+                                <div 
+                                  className="absolute top-0 bottom-0 z-25 pointer-events-none"
+                                  style={{ 
+                                    left: `${currentTimePosition}%`,
+                                    width: '2px',
+                                  }}
+                                >
+                                  <div className="absolute top-0 bottom-0 left-1/2 -translate-x-1/2 w-0.5 bg-red-500" />
+                                </div>
+                              )}
+                            </div>
                           </div>
                         </div>
 
@@ -739,6 +748,19 @@ export default function TimelinePage() {
                                   style={{ left: `${((index + 1) / 24) * 100}%` }}
                                 />
                               ))}
+
+                              {/* Current Time Indicator Line */}
+                              {showCurrentTime && currentTimePosition !== null && (
+                                <div 
+                                  className="absolute top-0 bottom-0 z-25 pointer-events-none"
+                                  style={{ 
+                                    left: `${currentTimePosition}%`,
+                                    width: '2px',
+                                  }}
+                                >
+                                  <div className="absolute top-0 bottom-0 left-1/2 -translate-x-1/2 w-0.5 bg-red-500" />
+                                </div>
+                              )}
 
                               {/* Blocked Slots */}
                               {getBlockedSlotsForPart(resource.id, part?.id || null, allBookings, resource).map((slot, index) => {
