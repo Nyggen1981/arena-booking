@@ -27,6 +27,9 @@ yarn-error.log*
 .env
 .env*.local
 
+# Deployment credentials (ALDRI COMMIT DETTE!)
+deployment/databases.local.json
+
 # Vercel
 .vercel
 

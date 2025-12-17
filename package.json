@@ -9,6 +9,7 @@
     "start": "next start",
     "lint": "eslint",
     "db:push": "prisma db push",
+    "db:push:all": "npx tsx deployment/sync-all-databases.ts",
     "db:seed": "npx tsx prisma/seed.ts",
     "db:studio": "prisma studio"
   },

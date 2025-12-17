@@ -37,6 +37,7 @@ interface Organization {
   tagline: string
   primaryColor: string
   secondaryColor: string
+  requireUserApproval?: boolean
   smtpHost?: string | null
   smtpPort?: number | null
   smtpUser?: string | null
@@ -73,6 +74,7 @@ export default function AdminSettingsPage() {
   const [tagline, setTagline] = useState("Kalender")
   const [primaryColor, setPrimaryColor] = useState("#2563eb")
   const [secondaryColor, setSecondaryColor] = useState("#1e40af")
+  const [requireUserApproval, setRequireUserApproval] = useState(true)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   // SMTP settings state
@@ -124,6 +126,7 @@ export default function AdminSettingsPage() {
           setTagline(orgData.tagline || "Kalender")
           setPrimaryColor(orgData.primaryColor || "#2563eb")
           setSecondaryColor(orgData.secondaryColor || "#1e40af")
+          setRequireUserApproval(orgData.requireUserApproval !== false) // Default to true
           
           // Load SMTP settings
           setSmtpHost(orgData.smtpHost || "")
@@ -363,6 +366,7 @@ export default function AdminSettingsPage() {
           tagline,
           primaryColor,
           secondaryColor,
+          requireUserApproval,
           smtpHost: smtpHost || null,
           smtpPort: smtpPort || null,
           smtpUser: smtpUser || null,
@@ -620,6 +624,39 @@ export default function AdminSettingsPage() {
                     Eksempel-knapp
                   </button>
                 </div>
+              </div>
+            </div>
+
+            {/* User Registration Settings */}
+            <div className="space-y-4">
+              <h2 className="font-semibold text-gray-900 border-b pb-2 flex items-center gap-2">
+                <Settings className="w-5 h-5 text-gray-400" />
+                Brukerregistrering
+              </h2>
+              
+              <div className="flex items-center justify-between p-4 bg-gray-50 rounded-xl">
+                <div>
+                  <h3 className="font-medium text-gray-900">Krev godkjenning av nye brukere</h3>
+                  <p className="text-sm text-gray-500 mt-1">
+                    {requireUserApproval 
+                      ? "Nye brukere må godkjennes av admin før de kan logge inn"
+                      : "Nye brukere får automatisk tilgang etter registrering"
+                    }
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setRequireUserApproval(!requireUserApproval)}
+                  className={`relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 ${
+                    requireUserApproval ? 'bg-blue-600' : 'bg-gray-200'
+                  }`}
+                >
+                  <span
+                    className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
+                      requireUserApproval ? 'translate-x-5' : 'translate-x-0'
+                    }`}
+                  />
+                </button>
               </div>
             </div>
 

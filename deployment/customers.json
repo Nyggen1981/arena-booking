@@ -1,0 +1,31 @@
+{
+  "description": "Liste over alle kunder/instanser av Arena Booking",
+  "lastUpdated": "2024-12-17",
+  "customers": [
+    {
+      "id": "sauda-il",
+      "name": "Sauda IL",
+      "slug": "sauda-il",
+      "environment": "production",
+      "vercelProject": "arena-booking",
+      "vercelUrl": "https://arena-booking.vercel.app",
+      "neonProject": "arena-booking",
+      "neonBranch": "main",
+      "envVarPrefix": "PROD_",
+      "notes": "Hovedproduksjon - første kunde"
+    },
+    {
+      "id": "testkunde",
+      "name": "Test Kunde",
+      "slug": "testkunde",
+      "environment": "staging",
+      "vercelProject": "arena-booking-test",
+      "vercelUrl": "https://arena-booking-test.vercel.app",
+      "neonProject": "testkunde",
+      "neonBranch": "main",
+      "envVarPrefix": "TEST_",
+      "notes": "Test-instans for nye kunder"
+    }
+  ]
+}
+

@@ -7,10 +7,10 @@ export async function POST(request: Request) {
   try {
     const { name, email, phone, password, orgSlug } = await request.json()
 
-    // Validate required fields
-    if (!email || !password || !orgSlug) {
+    // Validate required fields (orgSlug is now optional - will auto-detect)
+    if (!email || !password) {
       return NextResponse.json(
-        { error: "E-post, passord og klubbkode er påkrevd" },
+        { error: "E-post og passord er påkrevd" },
         { status: 400 }
       )
     }
@@ -37,24 +37,40 @@ export async function POST(request: Request) {
       )
     }
 
-    // Find organization by slug
-    const organization = await prisma.organization.findUnique({ 
-      where: { slug: orgSlug },
-      select: {
-        id: true,
-        name: true
-      }
-    })
+    // Find organization - either by slug or auto-detect (single org per instance)
+    let organization
+    if (orgSlug) {
+      organization = await prisma.organization.findUnique({ 
+        where: { slug: orgSlug },
+        select: {
+          id: true,
+          name: true,
+          requireUserApproval: true
+        }
+      })
+    } else {
+      // Auto-detect: get the first (and typically only) organization
+      organization = await prisma.organization.findFirst({
+        select: {
+          id: true,
+          name: true,
+          requireUserApproval: true
+        }
+      })
+    }
     
     if (!organization) {
       return NextResponse.json(
-        { error: "Fant ingen klubb med denne koden. Sjekk at du har skrevet riktig." },
+        { error: "Ingen klubb er satt opp ennå. Kontakt administrator." },
         { status: 404 }
       )
     }
 
     // Hash password
     const hashedPassword = await bcrypt.hash(password, 10)
+
+    // Check if user needs approval based on organization settings
+    const needsApproval = organization.requireUserApproval
 
     // Create user
     const user = await prisma.user.create({
@@ -64,20 +80,26 @@ export async function POST(request: Request) {
         phone,
         password: hashedPassword,
         role: "user",
-        organizationId: organization.id
+        organizationId: organization.id,
+        isApproved: !needsApproval, // Auto-approve if org doesn't require approval
+        approvedAt: !needsApproval ? new Date() : null
       },
       select: {
         id: true,
         email: true,
         name: true,
-        role: true
+        role: true,
+        isApproved: true
       }
     })
 
     return NextResponse.json({
       success: true,
       user,
-      message: `Velkommen til ${organization.name}!`
+      needsApproval: needsApproval,
+      message: needsApproval 
+        ? `Din konto hos ${organization.name} er opprettet! Du vil få tilgang når administrator godkjenner deg.`
+        : `Velkommen til ${organization.name}! Du kan nå logge inn.`
     }, { status: 201 })
 
   } catch (error) {

@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, Suspense } from "react"
+import { useState, Suspense, useEffect } from "react"
 import { signIn } from "next-auth/react"
 import { useRouter, useSearchParams } from "next/navigation"
 import Link from "next/link"
@@ -23,9 +23,45 @@ function RegisterForm() {
   const searchParams = useSearchParams()
   const orgSlug = searchParams.get("org")
   
-  const [step, setStep] = useState<"choose" | "join" | "create" | "success">(orgSlug ? "join" : "choose")
+  const [step, setStep] = useState<"loading" | "choose" | "join" | "create" | "success">("loading")
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState("")
+  const [orgExists, setOrgExists] = useState(false)
+  const [existingOrgName, setExistingOrgName] = useState("")
+  const [needsApproval, setNeedsApproval] = useState(true)
+
+  // Check if organization exists on page load
+  useEffect(() => {
+    const checkOrg = async () => {
+      try {
+        const res = await fetch("/api/organization")
+        if (res.ok) {
+          const data = await res.json()
+          if (data && data.name) {
+            setOrgExists(true)
+            setExistingOrgName(data.name)
+            setStep("join") // Organization exists, go to join
+          } else {
+            setOrgExists(false)
+            setStep("create") // No organization, must create one
+          }
+        } else {
+          setOrgExists(false)
+          setStep("create") // No organization, must create one
+        }
+      } catch {
+        setOrgExists(false)
+        setStep("create") // Error checking, assume no org
+      }
+    }
+    
+    if (orgSlug) {
+      setStep("join") // If slug is provided in URL, go to join
+      setOrgExists(true)
+    } else {
+      checkOrg()
+    }
+  }, [orgSlug])
 
   // User form
   const [name, setName] = useState("")
@@ -73,7 +109,7 @@ function RegisterForm() {
 
       const body = step === "create" 
         ? { name, email, phone, password, orgName, orgSlug: orgSlugInput }
-        : { name, email, phone, password, orgSlug: joinCode }
+        : { name, email, phone, password } // No slug needed - API auto-detects
 
       const response = await fetch(endpoint, {
         method: "POST",
@@ -102,7 +138,26 @@ function RegisterForm() {
         }
       }
 
-      // For regular users joining a club, show success message
+      // For regular users joining a club
+      // Check if approval is needed based on API response
+      setNeedsApproval(data.needsApproval !== false)
+      
+      if (data.needsApproval === false) {
+        // User is auto-approved, auto-login
+        const result = await signIn("credentials", {
+          email,
+          password,
+          redirect: false,
+        })
+
+        if (!result?.error) {
+          router.push("/resources")
+          router.refresh()
+          return
+        }
+      }
+
+      // Show success message (either waiting for approval or confirming registration)
       setStep("success")
     } catch (err) {
       setError(err instanceof Error ? err.message : "Noe gikk galt")
@@ -128,6 +183,14 @@ function RegisterForm() {
           <p className="mt-2 text-emerald-100">Registrer deg for å booke fasiliteter</p>
         </div>
 
+        {/* Loading state */}
+        {step === "loading" && (
+          <div className="card p-8 animate-fadeIn text-center">
+            <div className="w-12 h-12 border-4 border-emerald-200 border-t-emerald-600 rounded-full animate-spin mx-auto mb-4" />
+            <p className="text-gray-600">Sjekker tilgjengelighet...</p>
+          </div>
+        )}
+
         {/* Success message after registration */}
         {step === "success" && (
           <div className="card p-8 animate-fadeIn text-center">
@@ -135,89 +198,40 @@ function RegisterForm() {
               <CheckCircle2 className="w-8 h-8 text-emerald-600" />
             </div>
             <h2 className="text-xl font-bold text-gray-900 mb-2">
-              Søknad sendt!
+              {needsApproval ? "Søknad sendt!" : "Registrering fullført!"}
             </h2>
             <p className="text-gray-600 mb-6">
-              Din registrering er mottatt og venter på godkjenning fra en administrator. 
-              Du vil få tilgang til å logge inn og booke når søknaden er godkjent.
+              {needsApproval 
+                ? "Din registrering er mottatt og venter på godkjenning fra en administrator. Du vil få tilgang til å logge inn og booke når søknaden er godkjent."
+                : "Din konto er opprettet og du kan nå logge inn og begynne å booke fasiliteter."
+              }
             </p>
-            <Link href="/" className="btn btn-primary">
-              <Calendar className="w-5 h-5" />
-              Tilbake til forsiden
-            </Link>
-          </div>
-        )}
-
-        {/* Step chooser */}
-        {step === "choose" && (
-          <div className="card p-8 animate-fadeIn">
-            <h2 className="text-lg font-semibold text-gray-900 mb-6 text-center">
-              Hvordan vil du komme i gang?
-            </h2>
-            <div className="space-y-4">
-              <button
-                onClick={() => setStep("join")}
-                className="w-full p-4 rounded-xl border-2 border-gray-200 hover:border-emerald-500 hover:bg-emerald-50 transition-all text-left group"
-              >
-                <div className="flex items-start gap-4">
-                  <div className="w-12 h-12 rounded-xl bg-emerald-100 flex items-center justify-center group-hover:bg-emerald-200 transition-colors">
-                    <User className="w-6 h-6 text-emerald-600" />
-                  </div>
-                  <div>
-                    <p className="font-semibold text-gray-900">Bli med i eksisterende klubb</p>
-                    <p className="text-sm text-gray-500 mt-1">
-                      Klubben din bruker allerede Arena Booking
-                    </p>
-                  </div>
-                </div>
-              </button>
-
-              <button
-                onClick={() => setStep("create")}
-                className="w-full p-4 rounded-xl border-2 border-gray-200 hover:border-blue-500 hover:bg-blue-50 transition-all text-left group"
-              >
-                <div className="flex items-start gap-4">
-                  <div className="w-12 h-12 rounded-xl bg-blue-100 flex items-center justify-center group-hover:bg-blue-200 transition-colors">
-                    <Building2 className="w-6 h-6 text-blue-600" />
-                  </div>
-                  <div>
-                    <p className="font-semibold text-gray-900">Opprett ny klubb</p>
-                    <p className="text-sm text-gray-500 mt-1">
-                      Start Arena Booking for din klubb
-                    </p>
-                  </div>
-                </div>
-              </button>
-            </div>
-
-            <div className="mt-6 pt-6 border-t border-gray-100 text-center">
-              <p className="text-sm text-gray-500">
-                Har du allerede en konto?{" "}
-                <Link href="/login" className="text-emerald-600 hover:text-emerald-700 font-medium">
-                  Logg inn
-                </Link>
-              </p>
-            </div>
+            {needsApproval ? (
+              <Link href="/" className="btn btn-primary">
+                <Calendar className="w-5 h-5" />
+                Tilbake til forsiden
+              </Link>
+            ) : (
+              <Link href="/login" className="btn btn-primary">
+                <User className="w-5 h-5" />
+                Logg inn
+              </Link>
+            )}
           </div>
         )}
 
         {/* Join existing organization */}
         {step === "join" && (
           <div className="card p-8 animate-fadeIn">
-            <button
-              onClick={() => setStep("choose")}
-              className="text-sm text-gray-500 hover:text-gray-700 mb-4"
-            >
-              ← Tilbake
-            </button>
-
             <div className="flex items-center gap-3 mb-6">
               <div className="w-10 h-10 rounded-xl bg-emerald-100 flex items-center justify-center">
                 <User className="w-5 h-5 text-emerald-600" />
               </div>
               <div>
-                <h2 className="font-semibold text-gray-900">Bli med i klubb</h2>
-                <p className="text-sm text-gray-500">Registrer deg som bruker</p>
+                <h2 className="font-semibold text-gray-900">Registrer deg</h2>
+                <p className="text-sm text-gray-500">
+                  {existingOrgName ? `Bli med i ${existingOrgName}` : "Opprett din bruker"}
+                </p>
               </div>
             </div>
 
@@ -228,24 +242,6 @@ function RegisterForm() {
                   <p className="text-sm">{error}</p>
                 </div>
               )}
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  <Building2 className="w-4 h-4 inline mr-1" />
-                  Klubbkode *
-                </label>
-                <input
-                  type="text"
-                  value={joinCode}
-                  onChange={(e) => setJoinCode(e.target.value.toLowerCase())}
-                  className="input"
-                  placeholder="f.eks. lyn"
-                  required
-                />
-                <p className="text-xs text-gray-500 mt-1">
-                  Spør klubben din om deres kode
-                </p>
-              </div>
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
