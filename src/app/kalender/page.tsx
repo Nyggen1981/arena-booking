@@ -1467,8 +1467,8 @@ export default function CalendarPage() {
                   <Clock className="w-4 h-4 text-gray-400" />
                   {format(parseISO(selectedBooking.startTime), "HH:mm")} - {format(parseISO(selectedBooking.endTime), "HH:mm")}
                 </div>
-                {/* GDPR: Only show user info to admins and moderators */}
-                {canManageBookings && selectedBooking.user?.name && (
+                {/* GDPR: Show user info to admins/moderators OR if it's your own booking */}
+                {(canManageBookings || selectedBooking.userId === session?.user?.id) && selectedBooking.user?.name && (
                   <div className="flex items-center gap-2 text-gray-600">
                     <User className="w-4 h-4 text-gray-400" />
                     {selectedBooking.user.name}

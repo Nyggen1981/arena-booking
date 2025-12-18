@@ -733,8 +733,8 @@ export function ResourceCalendar({ resourceId, resourceName, bookings: initialBo
                   <Clock className="w-4 h-4 text-gray-400" />
                   {format(parseISO(selectedBooking.startTime), "HH:mm")} - {format(parseISO(selectedBooking.endTime), "HH:mm")}
                 </div>
-                {/* GDPR: Only show user info to admins and moderators */}
-                {canManageBookings && selectedBooking.userName && (
+                {/* GDPR: Show user info to admins/moderators OR if it's your own booking */}
+                {(canManageBookings || selectedBooking.userId === session?.user?.id) && selectedBooking.userName && (
                   <div className="flex items-center gap-2 text-gray-600">
                     <User className="w-4 h-4 text-gray-400" />
                     {selectedBooking.userName}
