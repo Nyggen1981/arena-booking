@@ -331,6 +331,7 @@ export function ResourceCalendar({ resourceId, resourceName, bookings: initialBo
             b.id === bookingId ? { ...b, status: "rejected" } : b
           ))
         }
+        setSelectedBooking(null) // Close the modal after action
         setIsProcessing(false)
       } else {
         const error = await response.json()
