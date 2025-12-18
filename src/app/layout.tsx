@@ -9,7 +9,7 @@ const outfit = Outfit({
 });
 
 export const metadata: Metadata = {
-  title: "Sportflow Booking - Enkel booking for idrettslag",
+  title: "SportFlow Booking - Enkel booking for idrettslag",
   description: "Book treningsøkter, haller og fasiliteter for ditt idrettslag",
 };
 

@@ -1,4 +1,3 @@
-import { Calendar } from "lucide-react"
 import Link from "next/link"
 import Image from "next/image"
 import packageJson from "../../package.json"
@@ -9,34 +8,34 @@ export function Footer() {
   return (
     <footer className="bg-slate-900 text-white mt-auto">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-5">
-        <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
-          {/* Sportflow Booking Brand - Left */}
+        <div className="flex flex-col sm:flex-row items-end justify-between gap-4 relative">
+          {/* SportFlow Booking Brand - Left */}
           <div className="flex items-center gap-3">
-            <div className="flex items-center gap-2">
+            <div className="w-14 h-14 rounded-xl bg-slate-900 flex items-center justify-center">
               <Image 
-                src="/sf-logo.png" 
+                src="/kvadratisk-logo.png" 
                 alt="SF Logo" 
-                width={40} 
-                height={40} 
+                width={56} 
+                height={56} 
                 className="object-contain"
               />
-              <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center">
-                <Calendar className="w-5 h-5 text-white" />
-              </div>
             </div>
             <div>
-              <h3 className="font-bold text-base">Sportflow Booking</h3>
+              <h3 className="font-bold text-base">SportFlow Booking</h3>
               <p className="text-slate-400 text-xs">Profesjonell booking for idrettslag</p>
             </div>
           </div>
 
-          {/* Version - Center */}
-          <p className="text-xs text-slate-600 order-last sm:order-none">
-            v{VERSION}
-          </p>
+          {/* Version - Center (absolute positioned) */}
+          <div className="absolute left-1/2 transform -translate-x-1/2 hidden sm:flex flex-col items-center" style={{ bottom: 0 }}>
+            <div className="h-4 opacity-0 pointer-events-none">Personvernpolicy</div>
+            <p className="text-xs text-slate-600 mt-1">
+              v{VERSION}
+            </p>
+          </div>
 
           {/* Links and Copyright - Right */}
-          <div className="text-center sm:text-right">
+          <div className="text-center sm:text-right flex flex-col items-end">
             <Link 
               href="/personvern" 
               className="text-xs text-slate-400 hover:text-slate-300 transition-colors"
@@ -44,7 +43,7 @@ export function Footer() {
               Personvernpolicy
             </Link>
             <p className="text-xs text-slate-500 mt-1">
-              &copy; {new Date().getFullYear()} Sportflow Booking. Alle rettigheter reservert.
+              &copy; {new Date().getFullYear()} SportFlow Booking. Alle rettigheter reservert.
             </p>
           </div>
         </div>

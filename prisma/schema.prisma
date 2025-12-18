@@ -45,6 +45,14 @@ model Organization {
   resources Resource[]
   bookings  Booking[]
   emailTemplates EmailTemplate[]
+  invoices  Invoice[]
+  payments  Payment[]
+  
+  // Vipps API settings
+  vippsClientId     String?  // Vipps API client ID
+  vippsClientSecret String?  // Vipps API client secret (encrypted)
+  vippsSubscriptionKey String?  // Vipps subscription key
+  vippsTestMode     Boolean  @default(true)  // Use Vipps test environment
 }
 
 // User with role-based access
@@ -113,6 +121,10 @@ model Resource {
   prisInfo    String?    // Text shown under "Prisinfo"
   visPrisInfo Boolean?   // Whether price info should be shown
   
+  // Pricing for booking
+  pricePerHour Decimal?  // Price per hour in NOK
+  requiresPayment Boolean @default(false)  // Whether payment is required for bookings
+  
   // Part booking settings
   blockPartsWhenWholeBooked Boolean @default(true)  // When whole facility is booked, block all parts
   blockWholeWhenPartBooked  Boolean @default(true)  // When a part is booked, block "whole facility" option
@@ -166,6 +178,9 @@ model ResourcePart {
 
   resourceId String
   resource   Resource @relation(fields: [resourceId], references: [id], onDelete: Cascade)
+
+  // Pricing for this part
+  pricePerHour Decimal?  // Price per hour in NOK (overrides resource price if set)
 
   bookings Booking[]
   
@@ -221,6 +236,12 @@ model Booking {
   approvedById String?
   approvedBy   User?   @relation("ApprovedBy", fields: [approvedById], references: [id])
 
+  // Payment and invoicing
+  invoiceId String?
+  invoice   Invoice? @relation(fields: [invoiceId], references: [id])
+  payments  Payment[]
+  totalAmount Decimal?  // Total price for this booking in NOK
+
   // Indexes for faster queries
   @@index([resourceId, status, startTime])
   @@index([userId])
@@ -265,4 +286,117 @@ model EmailTemplate {
 
   @@unique([organizationId, templateType])
   @@index([organizationId])
+}
+
+// Invoice - Faktura for betalinger
+model Invoice {
+  id            String   @id @default(cuid())
+  invoiceNumber String   @unique  // Human-readable invoice number (e.g., "2024-001")
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  
+  // Invoice details
+  status        InvoiceStatus @default(DRAFT)  // DRAFT, SENT, PAID, OVERDUE, CANCELLED
+  dueDate       DateTime
+  paidAt        DateTime?
+  
+  // Amounts
+  subtotal      Decimal   // Amount before tax
+  taxRate       Decimal   @default(0.25)  // MVA rate (25% default for Norway)
+  taxAmount     Decimal   // Calculated tax amount
+  totalAmount   Decimal   // Total including tax
+  
+  // Billing information
+  billingName   String
+  billingEmail  String
+  billingPhone  String?
+  billingAddress String?
+  
+  // Notes
+  notes         String?
+  
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  
+  bookings      Booking[]
+  payments      Payment[]
+  
+  @@index([organizationId])
+  @@index([status])
+  @@index([dueDate])
+  @@index([invoiceNumber])
+}
+
+enum InvoiceStatus {
+  DRAFT
+  SENT
+  PAID
+  OVERDUE
+  CANCELLED
+}
+
+// Payment - Betalinger (Vipps, kort, etc.)
+model Payment {
+  id            String   @id @default(cuid())
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  
+  // What is being paid for
+  invoiceId     String?
+  invoice       Invoice? @relation(fields: [invoiceId], references: [id])
+  bookingId     String?
+  booking       Booking? @relation(fields: [bookingId], references: [id])
+  paymentType   PaymentType  // BOOKING, REFEREE, KIOSK, MEMBERSHIP, OTHER
+  
+  // Payment details
+  amount        Decimal   // Amount in NOK
+  currency      String    @default("NOK")
+  status        PaymentStatus @default(PENDING)
+  
+  // Payment method
+  paymentMethod PaymentMethod
+  
+  // Vipps integration
+  vippsOrderId  String?  // Vipps order ID
+  vippsTransactionId String?  // Vipps transaction ID
+  
+  // Metadata
+  description   String?
+  metadata      Json?    // Additional payment data (webhook responses, etc.)
+  
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  completedAt   DateTime?
+  
+  @@index([organizationId])
+  @@index([invoiceId])
+  @@index([bookingId])
+  @@index([status])
+  @@index([paymentMethod])
+  @@index([vippsOrderId])
+}
+
+enum PaymentType {
+  BOOKING
+  REFEREE
+  KIOSK
+  MEMBERSHIP
+  OTHER
+}
+
+enum PaymentStatus {
+  PENDING
+  PROCESSING
+  COMPLETED
+  FAILED
+  REFUNDED
+  CANCELLED
+}
+
+enum PaymentMethod {
+  VIPPS
+  CARD
+  BANK_TRANSFER
+  CASH
+  OTHER
 }
