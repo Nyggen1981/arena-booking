@@ -10,6 +10,9 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
   }
 
+  // GDPR: Only admins and moderators can see user info on bookings
+  const canSeeUserInfo = session.user.role === "admin" || session.user.role === "moderator"
+
   const { searchParams } = new URL(request.url)
   const dateParam = searchParams.get("date")
   const startDateParam = searchParams.get("startDate")
@@ -97,13 +100,18 @@ export async function GET(request: Request) {
           parentId: true
         }
       },
-      user: {
-        select: {
-          id: true,
-          name: true,
-          email: true
+      // GDPR: Only include user info for admins/moderators
+      ...(canSeeUserInfo ? {
+        user: {
+          select: {
+            id: true,
+            name: true,
+            email: true
+          }
         }
-      }
+      } : {
+        userId: true
+      })
     },
       orderBy: { startTime: "asc" }
     }),

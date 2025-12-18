@@ -111,13 +111,9 @@ export async function GET(request: Request) {
               parentId: true
             }
           },
-          user: {
-            select: {
-              id: true,
-              name: true,
-              email: true
-            }
-          }
+          // GDPR: Only include userId for public API (to check if booking is own)
+          // Name and email are hidden from public view
+          userId: true
         },
         orderBy: { startTime: "asc" }
       }),

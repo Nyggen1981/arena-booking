@@ -151,39 +151,22 @@ export default function AdminResourcesPage() {
 
         {/* Category filter */}
         {categories.length > 0 && (
-          <div className="mb-6 flex flex-wrap items-center gap-2">
-            <span className="text-sm text-gray-500">Filtrer:</span>
-            <button
-              onClick={() => setSelectedCategory("")}
-              className={`px-3 py-1.5 rounded-full text-sm font-medium transition-colors ${
-                selectedCategory === ""
-                  ? "bg-gray-900 text-white"
-                  : "bg-gray-100 text-gray-600 hover:bg-gray-200"
-              }`}
+          <div className="mb-6">
+            <select
+              value={selectedCategory}
+              onChange={(e) => setSelectedCategory(e.target.value)}
+              className="px-3 sm:px-4 py-2 border border-gray-300 rounded-lg text-sm font-medium text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
             >
-              Alle ({resources.length})
-            </button>
-            {categories.map((category) => {
-              const count = resources.filter(r => r.category?.id === category.id).length
-              return (
-                <button
-                  key={category.id}
-                  onClick={() => setSelectedCategory(category.id)}
-                  className={`px-3 py-1.5 rounded-full text-sm font-medium transition-colors flex items-center gap-2 ${
-                    selectedCategory === category.id
-                      ? "text-white"
-                      : "bg-gray-100 text-gray-600 hover:bg-gray-200"
-                  }`}
-                  style={selectedCategory === category.id ? { backgroundColor: category.color } : {}}
-                >
-                  <span 
-                    className="w-2 h-2 rounded-full" 
-                    style={{ backgroundColor: category.color }}
-                  />
-                  {category.name} ({count})
-                </button>
-              )
-            })}
+              <option value="">Alle kategorier ({resources.length})</option>
+              {categories.map((category) => {
+                const count = resources.filter(r => r.category?.id === category.id).length
+                return (
+                  <option key={category.id} value={category.id}>
+                    {category.name} ({count})
+                  </option>
+                )
+              })}
+            </select>
           </div>
         )}
 

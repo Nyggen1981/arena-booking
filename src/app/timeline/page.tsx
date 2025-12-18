@@ -864,14 +864,16 @@ export default function TimelinePage() {
                   </div>
                 </div>
 
-                {/* User */}
-                <div className="flex items-start gap-3 text-gray-600">
-                  <User className="w-4 h-4 text-gray-400 mt-0.5" />
-                  <div>
-                    <p className="font-medium text-gray-900">{selectedBooking.user.name || "Ukjent bruker"}</p>
-                    <p className="text-gray-500 text-xs">{selectedBooking.user.email}</p>
+                {/* GDPR: Only show user info to admins and moderators */}
+                {(session?.user?.role === "admin" || session?.user?.role === "moderator") && selectedBooking.user && (
+                  <div className="flex items-start gap-3 text-gray-600">
+                    <User className="w-4 h-4 text-gray-400 mt-0.5" />
+                    <div>
+                      <p className="font-medium text-gray-900">{selectedBooking.user.name || "Ukjent bruker"}</p>
+                      <p className="text-gray-500 text-xs">{selectedBooking.user.email}</p>
+                    </div>
                   </div>
-                </div>
+                )}
               </div>
             </div>
 
