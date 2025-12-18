@@ -361,7 +361,7 @@ export default function MyBookingsPage() {
                       ))}
                     </select>
                   )}
-                  {resources.length > 1 && (
+                  {resources.length > 0 && (
                     <select
                       value={selectedResourceId || ""}
                       onChange={(e) => setSelectedResourceId(e.target.value || null)}
