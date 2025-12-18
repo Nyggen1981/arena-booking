@@ -88,12 +88,13 @@ class VippsClient {
     }
 
     const data = await response.json()
-    this.accessToken = {
+    const accessToken = {
       ...data,
       expires_at: Date.now() + data.expires_in * 1000,
     }
+    this.accessToken = accessToken
 
-    return this.accessToken.access_token
+    return accessToken.access_token
   }
 
   /**
