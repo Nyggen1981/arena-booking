@@ -79,6 +79,8 @@ export async function GET(request: Request) {
           startTime: true,
           endTime: true,
           status: true,
+          // GDPR: Only include userId for public API (to check if booking is own)
+          // Name and email are hidden from public view
           userId: true,
           isRecurring: true,
           resource: {
@@ -110,10 +112,7 @@ export async function GET(request: Request) {
               name: true,
               parentId: true
             }
-          },
-          // GDPR: Only include userId for public API (to check if booking is own)
-          // Name and email are hidden from public view
-          userId: true
+          }
         },
         orderBy: { startTime: "asc" }
       }),
