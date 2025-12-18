@@ -3,6 +3,12 @@ import type { NextConfig } from "next";
 const nextConfig: NextConfig = {
   /* config options here */
   reactCompiler: true,
+  // Workaround for Windows EPERM issues with .next folder
+  distDir: ".next",
+  // Disable Turbopack to avoid file locking issues on Windows
+  experimental: {
+    turbo: false,
+  },
   async headers() {
     return [
       {

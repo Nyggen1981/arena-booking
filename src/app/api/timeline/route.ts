@@ -12,13 +12,26 @@ export async function GET(request: Request) {
 
   const { searchParams } = new URL(request.url)
   const dateParam = searchParams.get("date")
+  const startDateParam = searchParams.get("startDate")
+  const endDateParam = searchParams.get("endDate")
   
-  // Default to today, or use provided date
-  const targetDate = dateParam ? new Date(dateParam) : new Date()
-  const startOfDay = new Date(targetDate)
-  startOfDay.setHours(0, 0, 0, 0)
-  const endOfDay = new Date(targetDate)
-  endOfDay.setHours(23, 59, 59, 999)
+  let startOfDay: Date
+  let endOfDay: Date
+  
+  if (startDateParam && endDateParam) {
+    // Week or month view
+    startOfDay = new Date(startDateParam)
+    startOfDay.setHours(0, 0, 0, 0)
+    endOfDay = new Date(endDateParam)
+    endOfDay.setHours(23, 59, 59, 999)
+  } else {
+    // Day view (backward compatibility)
+    const targetDate = dateParam ? new Date(dateParam) : new Date()
+    startOfDay = new Date(targetDate)
+    startOfDay.setHours(0, 0, 0, 0)
+    endOfDay = new Date(targetDate)
+    endOfDay.setHours(23, 59, 59, 999)
+  }
 
   const organizationId = session.user.organizationId
 
@@ -46,7 +59,14 @@ export async function GET(request: Request) {
           }
         ]
       },
-    include: {
+    select: {
+      id: true,
+      title: true,
+      startTime: true,
+      endTime: true,
+      status: true,
+      userId: true,
+      isRecurring: true,
       resource: {
         select: {
           id: true,
@@ -123,7 +143,7 @@ export async function GET(request: Request) {
   return NextResponse.json({
     bookings,
     resources,
-    date: targetDate.toISOString()
+    date: startOfDay.toISOString()
   })
 }
 

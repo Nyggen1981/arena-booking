@@ -285,8 +285,8 @@ export default function MyBookingsPage() {
 
       <main className="flex-1">
         <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-          {/* Header */}
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
+        {/* Header */}
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
             <div>
               <h1 className="text-xl sm:text-2xl font-bold text-gray-900">Mine bookinger</h1>
               <p className="text-sm sm:text-base text-gray-500">Oversikt over dine reservasjoner</p>
@@ -548,7 +548,6 @@ export default function MyBookingsPage() {
           )}
         </div>
       </main>
-      <Footer />
 
       {/* Cancel modal */}
       {cancellingId && (
@@ -683,6 +682,8 @@ export default function MyBookingsPage() {
           onSaved={handleBookingSaved}
         />
       )}
+
+      <Footer />
     </div>
   )
 }

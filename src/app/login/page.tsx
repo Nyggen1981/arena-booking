@@ -9,7 +9,7 @@ import { Calendar, Eye, EyeOff, Loader2, AlertCircle } from "lucide-react"
 function LoginForm() {
   const router = useRouter()
   const searchParams = useSearchParams()
-  const callbackUrl = searchParams.get("callbackUrl") || "/resources"
+  const callbackUrl = searchParams.get("callbackUrl") || "/kalender"
   
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")

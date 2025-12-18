@@ -35,7 +35,9 @@ function RegisterForm() {
   useEffect(() => {
     const checkOrg = async () => {
       try {
-        const res = await fetch("/api/organization")
+        // Use slug from URL if provided, otherwise fetch default
+        const url = orgSlug ? `/api/organization?slug=${orgSlug}` : "/api/organization"
+        const res = await fetch(url)
         if (res.ok) {
           const data = await res.json()
           if (data && data.name) {
@@ -57,12 +59,7 @@ function RegisterForm() {
       }
     }
     
-    if (orgSlug) {
-      setStep("join") // If slug is provided in URL, go to join
-      setOrgExists(true)
-    } else {
-      checkOrg()
-    }
+    checkOrg()
   }, [orgSlug])
 
   // User form
@@ -134,7 +131,7 @@ function RegisterForm() {
         })
 
         if (!result?.error) {
-          router.push("/resources")
+          router.push("/kalender")
           router.refresh()
           return
         }
@@ -153,7 +150,7 @@ function RegisterForm() {
         })
 
         if (!result?.error) {
-          router.push("/resources")
+          router.push("/kalender")
           router.refresh()
           return
         }

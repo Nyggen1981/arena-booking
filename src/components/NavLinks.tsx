@@ -60,7 +60,7 @@ export function NavLinks() {
               Fasiliteter
             </Link>
             <Link 
-              href="/calendar" 
+              href="/kalender" 
               className="flex items-center gap-2 px-4 py-2 rounded-lg text-gray-600 hover:text-gray-900 hover:bg-gray-100 transition-colors"
             >
               <Calendar className="w-4 h-4" />
@@ -162,7 +162,7 @@ export function NavLinks() {
                   Fasiliteter
                 </Link>
                 <Link 
-                  href="/calendar" 
+                  href="/kalender" 
                   className="flex items-center gap-3 px-4 py-3 rounded-lg text-gray-600 hover:bg-gray-100"
                   onClick={() => setMobileMenuOpen(false)}
                 >

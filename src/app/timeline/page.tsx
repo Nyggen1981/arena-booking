@@ -81,23 +81,15 @@ export default function TimelinePage() {
   const [selectedResources, setSelectedResources] = useState<Set<string>>(new Set())
   const [showFilter, setShowFilter] = useState(false)
   const [selectedBooking, setSelectedBooking] = useState<Booking | null>(null)
-  const [showCurrentTime, setShowCurrentTime] = useState(false)
   const [currentTime, setCurrentTime] = useState(new Date())
   const timelineContainerRef = useRef<HTMLDivElement>(null)
+  const isInitialLoad = useRef(true)
 
   useEffect(() => {
     if (status === "unauthenticated") {
       router.push("/login?callbackUrl=/timeline")
     }
   }, [status, router])
-
-  // Load showCurrentTime preference from localStorage
-  useEffect(() => {
-    const saved = localStorage.getItem("timeline-show-current-time")
-    if (saved !== null) {
-      setShowCurrentTime(saved === "true")
-    }
-  }, [])
 
   // Update current time every minute
   useEffect(() => {
@@ -109,8 +101,13 @@ export default function TimelinePage() {
   const fetchTimelineData = useCallback(async () => {
     setIsLoading(true)
     try {
-      const dateStr = format(selectedDate, "yyyy-MM-dd")
-      const response = await fetch(`/api/timeline?date=${dateStr}`)
+      const startDate = startOfDay(selectedDate)
+      const endDate = new Date(startDate)
+      endDate.setHours(23, 59, 59, 999)
+      
+      const startStr = format(startDate, "yyyy-MM-dd")
+      const endStr = format(endDate, "yyyy-MM-dd")
+      const response = await fetch(`/api/timeline?startDate=${startStr}&endDate=${endStr}`)
       if (response.ok) {
         const data = await response.json()
         setTimelineData(data)
@@ -132,15 +129,30 @@ export default function TimelinePage() {
   useEffect(() => {
     if (timelineData && timelineData.resources.length > 0) {
       const allResourceIds = new Set(timelineData.resources.map(r => r.id))
-      // Only initialize if no resources are selected yet, or if selected resources don't match available resources
-      const hasValidSelection = selectedResources.size > 0 && 
-        Array.from(selectedResources).every(id => allResourceIds.has(id))
       
-      if (!hasValidSelection) {
+      if (isInitialLoad.current) {
+        // First load: select all by default
         setSelectedResources(allResourceIds)
+        isInitialLoad.current = false
+      } else {
+        // Check if any currently selected resources no longer exist in the data
+        setSelectedResources(prev => {
+          // If user explicitly removed all, keep it empty
+          if (prev.size === 0) {
+            return prev
+          }
+          // Check if any selected resources no longer exist
+          const hasInvalidResources = Array.from(prev).some(id => !allResourceIds.has(id))
+          if (hasInvalidResources) {
+            // Some selected resources were removed from database, reset to all
+            return allResourceIds
+          }
+          // Keep current selection
+          return prev
+        })
       }
     }
-  }, [timelineData, selectedResources])
+  }, [timelineData])
 
   // Generate time slots (00:00 to 23:00, hourly)
   const timeSlots = useMemo(() => {
@@ -406,15 +418,6 @@ export default function TimelinePage() {
     setSelectedDate(prev => addDays(prev, days))
   }, [])
 
-  // Toggle current time indicator
-  const toggleCurrentTime = useCallback(() => {
-    setShowCurrentTime(prev => {
-      const newValue = !prev
-      localStorage.setItem("timeline-show-current-time", String(newValue))
-      return newValue
-    })
-  }, [])
-
   // Calculate current time position as percentage of day
   const currentTimePosition = useMemo(() => {
     const now = currentTime
@@ -539,23 +542,6 @@ export default function TimelinePage() {
               </div>
             </div>
             
-            {/* Current time toggle */}
-            <div className="flex items-center gap-2">
-              <label className="flex items-center gap-2 cursor-pointer select-none">
-                <input
-                  type="checkbox"
-                  checked={showCurrentTime}
-                  onChange={toggleCurrentTime}
-                  className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
-                />
-                <span className="text-sm text-gray-600">Vis nåtid</span>
-              </label>
-              {showCurrentTime && currentTimePosition !== null && (
-                <span className="text-xs text-gray-500">
-                  ({format(currentTime, "HH:mm")})
-                </span>
-              )}
-            </div>
           </div>
 
           {/* Filter Panel - Compact */}
@@ -619,7 +605,7 @@ export default function TimelinePage() {
             </div>
           )}
 
-          {/* Timeline */}
+          {/* Timeline View (Day) */}
           {groupedData.length === 0 ? (
             <div className="card p-12 text-center">
               <GanttChart className="w-16 h-16 text-gray-300 mx-auto mb-4" />
@@ -652,35 +638,6 @@ export default function TimelinePage() {
                   </div>
                 </div>
 
-                {/* Current Time Indicator Dot in Header */}
-                {showCurrentTime && currentTimePosition !== null && (
-                  <div 
-                    className="absolute top-0 z-30 pointer-events-none"
-                    style={{ 
-                      left: `calc(256px + (100% - 256px) * ${currentTimePosition / 100})`,
-                    }}
-                  >
-                    {/* Time indicator dot at top */}
-                    <div className="sticky top-0 z-40">
-                      <div className="absolute left-1/2 -translate-x-1/2 -top-1 w-4 h-4 bg-red-500 rounded-full shadow-lg border-2 border-white" />
-                    </div>
-                  </div>
-                )}
-                {/* Mobile version with smaller resource column */}
-                {showCurrentTime && currentTimePosition !== null && (
-                  <div 
-                    className="absolute top-0 z-30 pointer-events-none sm:hidden"
-                    style={{ 
-                      left: `calc(192px + (100% - 192px) * ${currentTimePosition / 100})`,
-                    }}
-                  >
-                    {/* Time indicator dot at top */}
-                    <div className="sticky top-0 z-40">
-                      <div className="absolute left-1/2 -translate-x-1/2 -top-1 w-4 h-4 bg-red-500 rounded-full shadow-lg border-2 border-white" />
-                    </div>
-                  </div>
-                )}
-
                 {/* Timeline Rows */}
                 <div className="divide-y divide-gray-100" style={{ minWidth: '1200px' }}>
                     {groupedData.map(({ resource, allBookings, parts }) => (
@@ -706,7 +663,7 @@ export default function TimelinePage() {
                             </div>
                             <div className="flex-1 relative">
                               {/* Current Time Indicator Line in Resource Header */}
-                              {showCurrentTime && currentTimePosition !== null && (
+                              {currentTimePosition !== null && (
                                 <div 
                                   className="absolute top-0 bottom-0 z-25 pointer-events-none"
                                   style={{ 
@@ -750,7 +707,7 @@ export default function TimelinePage() {
                               ))}
 
                               {/* Current Time Indicator Line */}
-                              {showCurrentTime && currentTimePosition !== null && (
+                              {currentTimePosition !== null && (
                                 <div 
                                   className="absolute top-0 bottom-0 z-25 pointer-events-none"
                                   style={{ 

@@ -78,8 +78,15 @@ interface TimelineData {
 export default function CalendarPage() {
   const { data: session, status } = useSession()
   const router = useRouter()
+  // User roles - define early so we can use isLoggedIn in initial state
+  const isLoggedIn = session?.user !== undefined
+  const isAdmin = session?.user?.role === "admin"
+  const isModerator = session?.user?.role === "moderator"
+  const canManageBookings = isAdmin || isModerator
+  
   const [selectedDate, setSelectedDate] = useState(new Date())
-  const [viewMode, setViewMode] = useState<"day" | "week" | "month">("day")
+  // Default to month view for public users, day view for logged in users
+  const [viewMode, setViewMode] = useState<"day" | "week" | "month">(isLoggedIn ? "day" : "month")
   const [timelineData, setTimelineData] = useState<TimelineData | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [selectedCategoryId, setSelectedCategoryId] = useState<string | null>(null)
@@ -97,11 +104,6 @@ export default function CalendarPage() {
   const [preferencesLoaded, setPreferencesLoaded] = useState(false)
   const [savingPreferences, setSavingPreferences] = useState(false)
   const [showSaveSuccess, setShowSaveSuccess] = useState(false)
-  // User roles
-  const isAdmin = session?.user?.role === "admin"
-  const isModerator = session?.user?.role === "moderator"
-  const canManageBookings = isAdmin || isModerator
-  const isLoggedIn = session?.user !== undefined
   const timelineContainerRef = useRef<HTMLDivElement>(null)
   const dayViewScrollRef = useRef<HTMLDivElement>(null)
   const weekViewScrollRef = useRef<HTMLDivElement>(null)
