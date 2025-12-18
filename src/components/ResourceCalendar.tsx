@@ -79,6 +79,7 @@ export function ResourceCalendar({ resourceId, resourceName, bookings: initialBo
   const [applyToAll, setApplyToAll] = useState(true)
   const [rejectingBookingId, setRejectingBookingId] = useState<string | null>(null)
   const [rejectReason, setRejectReason] = useState("")
+  const [cancellingBookingId, setCancellingBookingId] = useState<string | null>(null)
   const weekViewScrollRef = useRef<HTMLDivElement>(null)
 
   // Update bookings when initialBookings changes
@@ -826,7 +827,10 @@ export function ResourceCalendar({ resourceId, resourceName, bookings: initialBo
                         </button>
                       )}
                       <button
-                        onClick={() => handleBookingAction(selectedBooking.id, "cancel")}
+                        onClick={() => {
+                          setCancellingBookingId(selectedBooking.id)
+                          setSelectedBooking(null)
+                        }}
                         disabled={isProcessing}
                         className="flex-1 px-4 py-2 bg-white border border-gray-300 text-red-600 rounded-lg font-medium hover:bg-red-50 disabled:opacity-50 transition-colors flex items-center justify-center gap-2"
                       >
@@ -866,7 +870,10 @@ export function ResourceCalendar({ resourceId, resourceName, bookings: initialBo
                         Rediger
                       </button>
                       <button
-                        onClick={() => handleBookingAction(selectedBooking.id, "cancel")}
+                        onClick={() => {
+                          setCancellingBookingId(selectedBooking.id)
+                          setSelectedBooking(null)
+                        }}
                         disabled={isProcessing}
                         className="flex-1 px-4 py-2 bg-white border border-gray-300 text-red-600 rounded-lg font-medium hover:bg-red-50 disabled:opacity-50 transition-colors flex items-center justify-center gap-2"
                       >
@@ -962,6 +969,48 @@ export function ResourceCalendar({ resourceId, resourceName, bookings: initialBo
           </div>
         )
       })()}
+
+      {/* Cancel Confirmation Modal */}
+      {cancellingBookingId && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl max-w-md w-full shadow-2xl p-6 animate-fadeIn">
+            <div className="w-12 h-12 rounded-full bg-red-100 flex items-center justify-center mx-auto mb-4">
+              <Trash2 className="w-6 h-6 text-red-600" />
+            </div>
+            <h3 className="text-lg font-semibold text-gray-900 text-center mb-2">
+              Kanseller booking?
+            </h3>
+            <p className="text-gray-600 text-center mb-6">
+              Er du sikker på at du vil kansellere denne bookingen? Denne handlingen kan ikke angres.
+            </p>
+            <div className="flex gap-3">
+              <button
+                onClick={() => setCancellingBookingId(null)}
+                className="flex-1 px-4 py-2.5 border border-gray-300 rounded-lg text-gray-700 font-medium hover:bg-gray-50 transition-colors"
+              >
+                Avbryt
+              </button>
+              <button
+                onClick={async () => {
+                  await handleBookingAction(cancellingBookingId, "cancel")
+                  setCancellingBookingId(null)
+                }}
+                disabled={isProcessing}
+                className="flex-1 px-4 py-2.5 bg-red-600 text-white rounded-lg font-medium hover:bg-red-700 disabled:opacity-50 transition-colors flex items-center justify-center gap-2"
+              >
+                {isProcessing ? (
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                ) : (
+                  <>
+                    <Trash2 className="w-4 h-4" />
+                    Kanseller
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Edit Booking Modal */}
       {editingBooking && (
