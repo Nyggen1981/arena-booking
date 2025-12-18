@@ -801,12 +801,20 @@ export function ResourceCalendar({ resourceId, resourceName, bookings: initialBo
                         <button
                           onClick={() => { 
                             setEditingBooking({
-                              ...selectedBooking,
-                              resourceId: resourceId,
-                              resourceName: resourceName,
+                              id: selectedBooking.id,
+                              title: selectedBooking.title,
+                              startTime: selectedBooking.startTime,
+                              endTime: selectedBooking.endTime,
+                              status: selectedBooking.status,
                               resourcePartId: selectedBooking.resourcePartId || null,
-                              resourcePartName: selectedBooking.resourcePartName || null
-                            })
+                              resourcePartName: selectedBooking.resourcePartName || null,
+                              resourcePartParentId: selectedBooking.resourcePartParentId || null,
+                              userId: selectedBooking.userId || null,
+                              userName: selectedBooking.userName || null,
+                              userEmail: selectedBooking.userEmail || null,
+                              isRecurring: selectedBooking.isRecurring || false,
+                              parentBookingId: selectedBooking.parentBookingId || null
+                            } as Booking)
                             setSelectedBooking(null)
                           }}
                           className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 transition-colors flex items-center justify-center gap-2"
@@ -834,12 +842,20 @@ export function ResourceCalendar({ resourceId, resourceName, bookings: initialBo
                       <button
                         onClick={() => { 
                           setEditingBooking({
-                            ...selectedBooking,
-                            resourceId: resourceId,
-                            resourceName: resourceName,
+                            id: selectedBooking.id,
+                            title: selectedBooking.title,
+                            startTime: selectedBooking.startTime,
+                            endTime: selectedBooking.endTime,
+                            status: selectedBooking.status,
                             resourcePartId: selectedBooking.resourcePartId || null,
-                            resourcePartName: selectedBooking.resourcePartName || null
-                          })
+                            resourcePartName: selectedBooking.resourcePartName || null,
+                            resourcePartParentId: selectedBooking.resourcePartParentId || null,
+                            userId: selectedBooking.userId || null,
+                            userName: selectedBooking.userName || null,
+                            userEmail: selectedBooking.userEmail || null,
+                            isRecurring: selectedBooking.isRecurring || false,
+                            parentBookingId: selectedBooking.parentBookingId || null
+                          } as Booking)
                           setSelectedBooking(null)
                         }}
                         className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 transition-colors flex items-center justify-center gap-2"
