@@ -85,8 +85,8 @@ export default function CalendarPage() {
   const canManageBookings = isAdmin || isModerator
   
   const [selectedDate, setSelectedDate] = useState(new Date())
-  // Default to month view for public users, day view for logged in users
-  const [viewMode, setViewMode] = useState<"day" | "week" | "month">(isLoggedIn ? "day" : "month")
+  // Default to month view for all users
+  const [viewMode, setViewMode] = useState<"day" | "week" | "month">("month")
   const [timelineData, setTimelineData] = useState<TimelineData | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [selectedCategoryId, setSelectedCategoryId] = useState<string | null>(null)
@@ -158,9 +158,10 @@ export default function CalendarPage() {
     fetchTimelineData()
   }, [fetchTimelineData])
 
-  // Load user preferences on mount
+  // Load user preferences on mount - fetch immediately, don't wait for timelineData
+  // This prevents the flash where we show default view before switching to preferred view
   useEffect(() => {
-    if (isLoggedIn && !preferencesLoaded && timelineData) {
+    if (isLoggedIn && !preferencesLoaded) {
       fetch("/api/user/preferences")
         .then(res => res.json())
         .then(prefs => {
@@ -184,7 +185,7 @@ export default function CalendarPage() {
     } else if (!isLoggedIn) {
       setPreferencesLoaded(true)
     }
-  }, [isLoggedIn, preferencesLoaded, timelineData])
+  }, [isLoggedIn, preferencesLoaded])
 
   // Save preferences
   const savePreferences = useCallback(async () => {
@@ -662,7 +663,8 @@ export default function CalendarPage() {
     }
   }, [selectedDate, viewMode])
 
-  if (status === "loading" || isLoading) {
+  // Wait for preferences to load for logged-in users to prevent view mode flash
+  if (status === "loading" || isLoading || (isLoggedIn && !preferencesLoaded)) {
     return (
       <PageLayout fullWidth>
         <div className="flex-1 flex items-center justify-center min-h-[50vh]">
