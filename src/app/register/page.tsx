@@ -281,7 +281,7 @@ function RegisterForm() {
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
                   <Phone className="w-4 h-4 inline mr-1" />
-                  Telefon
+                  Telefon *
                 </label>
                 <input
                   type="tel"
@@ -290,7 +290,11 @@ function RegisterForm() {
                   className="input"
                   placeholder="99 88 77 66"
                   autoComplete="tel"
+                  required
                 />
+                <p className="text-xs text-gray-500 mt-1">
+                  Brukes for fremtidig Vipps-betaling
+                </p>
               </div>
 
               <div>
@@ -496,7 +500,7 @@ function RegisterForm() {
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
                     <Phone className="w-4 h-4 inline mr-1" />
-                    Telefon
+                    Telefon *
                   </label>
                   <input
                     type="tel"
@@ -505,7 +509,11 @@ function RegisterForm() {
                     className="input"
                     placeholder="99 88 77 66"
                     autoComplete="tel"
+                    required
                   />
+                  <p className="text-xs text-gray-500 mt-1">
+                    Brukes for fremtidig Vipps-betaling
+                  </p>
                 </div>
 
                 <div>
