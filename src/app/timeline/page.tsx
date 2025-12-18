@@ -865,7 +865,7 @@ export default function TimelinePage() {
                 </div>
 
                 {/* GDPR: Show user info to admins/moderators OR if it's your own booking */}
-                {((session?.user?.role === "admin" || session?.user?.role === "moderator") || selectedBooking.userId === session?.user?.id) && selectedBooking.user && (
+                {((session?.user?.role === "admin" || session?.user?.role === "moderator") || selectedBooking.user?.id === session?.user?.id) && selectedBooking.user && (
                   <div className="flex items-center gap-3 text-gray-600">
                     <User className="w-4 h-4 text-gray-400" />
                     <p className="font-medium text-gray-900">{selectedBooking.user.name || "Ukjent bruker"}</p>
