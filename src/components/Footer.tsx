@@ -1,5 +1,6 @@
 import { Calendar } from "lucide-react"
 import Link from "next/link"
+import Image from "next/image"
 import packageJson from "../../package.json"
 
 const VERSION = packageJson.version
@@ -11,8 +12,17 @@ export function Footer() {
         <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
           {/* Sportflow Booking Brand - Left */}
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center">
-              <Calendar className="w-5 h-5 text-white" />
+            <div className="flex items-center gap-2">
+              <Image 
+                src="/sf-logo.png" 
+                alt="SF Logo" 
+                width={40} 
+                height={40} 
+                className="object-contain"
+              />
+              <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center">
+                <Calendar className="w-5 h-5 text-white" />
+              </div>
             </div>
             <div>
               <h3 className="font-bold text-base">Sportflow Booking</h3>
