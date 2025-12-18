@@ -3,8 +3,7 @@
 import { useSession } from "next-auth/react"
 import { useEffect, useState, useMemo, useCallback, useRef } from "react"
 import { useRouter } from "next/navigation"
-import { Navbar } from "@/components/Navbar"
-import { Footer } from "@/components/Footer"
+import { PageLayout } from "@/components/PageLayout"
 import { format, parseISO, startOfDay, addDays, setHours } from "date-fns"
 import { nb } from "date-fns/locale"
 import { Calendar, ChevronLeft, ChevronRight, GanttChart, Filter, X, Clock, User, MapPin } from "lucide-react"
@@ -45,6 +44,7 @@ interface Resource {
   id: string
   name: string
   color: string | null
+  allowWholeBooking: boolean
   category: {
     id: string
     name: string
@@ -206,15 +206,15 @@ export default function TimelinePage() {
         bookings: Booking[]
       }> = []
 
-      // Add whole resource row if there are bookings or if no parts exist
-      if (partsMap.get("whole")!.length > 0 || resource.parts.length === 0) {
+      // Add whole resource row first (hoveddel) only if allowWholeBooking is true
+      if (resource.allowWholeBooking) {
         parts.push({
           part: null,
           bookings: partsMap.get("whole") || []
         })
       }
 
-      // Add part rows
+      // Add part rows after (underdeler)
       resource.parts.forEach(part => {
         const bookings = partsMap.get(part.id) || []
         parts.push({
@@ -451,29 +451,24 @@ export default function TimelinePage() {
 
   if (status === "loading" || isLoading) {
     return (
-      <div className="min-h-screen bg-slate-50 flex flex-col">
-        <Navbar />
-        <div className="flex-1 flex items-center justify-center">
+      <PageLayout fullWidth>
+        <div className="flex-1 flex items-center justify-center min-h-[50vh]">
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
         </div>
-        <Footer />
-      </div>
+      </PageLayout>
     )
   }
 
   return (
-    <div className="min-h-screen bg-slate-50 flex flex-col">
-      <Navbar />
-
-      <main className="flex-1 w-full">
-        <div className="w-full px-4 sm:px-6 lg:px-8 py-6">
+    <PageLayout fullWidth>
+      <div className="w-full px-4 sm:px-6 lg:px-8 py-6">
           {/* Header */}
           <div className="mb-6">
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-4">
               <div className="flex items-center gap-2 sm:gap-4 flex-wrap">
                 <h1 className="text-xl sm:text-2xl font-bold text-gray-900 flex items-center gap-2">
                   <GanttChart className="w-5 h-5 sm:w-6 sm:h-6" />
-                  Tidslinje
+                  Kapasitet
                 </h1>
                 
                 {/* Filter Button */}
@@ -614,7 +609,7 @@ export default function TimelinePage() {
           ) : (
             <div className="bg-white rounded-xl border border-gray-200 shadow-sm">
               {/* Scrollable container with sticky header */}
-              <div ref={timelineContainerRef} className="max-h-[70vh] overflow-y-auto overflow-x-auto rounded-xl relative">
+              <div ref={timelineContainerRef} className="max-h-[calc(100vh-300px)] overflow-y-auto overflow-x-auto rounded-xl relative">
                 {/* Time Header - sticky within scroll container */}
                 <div className="sticky top-0 z-20 bg-gray-50 border-b border-gray-200">
                   <div className="flex" style={{ minWidth: '1200px' }}>
@@ -786,7 +781,6 @@ export default function TimelinePage() {
               </div>
           )}
         </div>
-      </main>
 
       {/* Booking Detail Modal */}
       {selectedBooking && (
@@ -893,9 +887,7 @@ export default function TimelinePage() {
           </div>
         </div>
       )}
-
-      <Footer />
-    </div>
+    </PageLayout>
   )
 }
 

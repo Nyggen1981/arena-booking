@@ -1,6 +1,6 @@
 {
   "name": "arena-booking",
-  "version": "1.1.0",
+  "version": "1.1.1",
   "private": true,
   "scripts": {
     "dev": "next dev",
@@ -11,7 +11,8 @@
     "db:push": "prisma db push",
     "db:push:all": "npx tsx deployment/sync-all-databases.ts",
     "db:seed": "npx tsx prisma/seed.ts",
-    "db:studio": "prisma studio"
+    "db:studio": "prisma studio",
+    "db:migrate": "npx tsx deployment/migrate-database.ts"
   },
   "dependencies": {
     "@babel/runtime": "^7.28.4",

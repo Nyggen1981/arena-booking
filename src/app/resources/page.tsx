@@ -1,6 +1,7 @@
 import { PageLayout } from "@/components/PageLayout"
 import { ResourceFilter } from "@/components/ResourceFilter"
 import { prisma } from "@/lib/prisma"
+import { Building2 } from "lucide-react"
 
 // Revalidate every 60 seconds
 export const revalidate = 60
@@ -49,8 +50,8 @@ export default async function ResourcesPage() {
   // If no resources, show empty state instead of redirecting (to avoid redirect loops)
   if (resources.length === 0) {
     return (
-      <PageLayout>
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16 text-center">
+      <PageLayout maxWidth="max-w-7xl">
+        <div className="py-16 text-center">
           <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
             <svg className="w-8 h-8 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
@@ -64,16 +65,18 @@ export default async function ResourcesPage() {
   }
 
   return (
-    <PageLayout>
-      {/* Page Header */}
-      <div className="bg-white border-b border-gray-200">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-          <h1 className="text-3xl font-bold text-gray-900">Fasiliteter</h1>
-          <p className="text-gray-500 mt-2">
+    <PageLayout maxWidth="max-w-7xl">
+      <div className="py-8">
+        {/* Page Header */}
+        <div className="mb-6">
+          <h1 className="text-xl sm:text-2xl font-bold text-gray-900 flex items-center gap-2">
+            <Building2 className="w-5 h-5 sm:w-6 sm:h-6" />
+            Fasiliteter
+          </h1>
+          <p className="text-sm sm:text-base text-gray-500">
             Utforsk alle tilgjengelige fasiliteter og book din neste treningsøkt
           </p>
         </div>
-      </div>
 
       <ResourceFilter 
         categories={categories.map(c => ({
@@ -98,6 +101,7 @@ export default async function ResourcesPage() {
           parts: r.parts.map(p => ({ id: p.id, name: p.name }))
         }))}
       />
+      </div>
     </PageLayout>
   )
 }

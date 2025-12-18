@@ -77,10 +77,11 @@ export default async function AdminPage() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
             {/* Header */}
             <div className="mb-6">
-              <h1 className="text-2xl font-bold text-gray-900">
+              <h1 className="text-xl sm:text-2xl font-bold text-gray-900 flex items-center gap-2">
+                <Settings className="w-5 h-5 sm:w-6 sm:h-6" />
                 {isModerator ? "Moderator" : "Admin"}
               </h1>
-          <p className="text-gray-500">{session.user.organizationName}</p>
+          <p className="text-sm sm:text-base text-gray-500">{session.user.organizationName}</p>
         </div>
 
             {/* Moderator: Show assigned facilities */}

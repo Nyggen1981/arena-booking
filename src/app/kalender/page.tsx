@@ -3,8 +3,7 @@
 import { useSession } from "next-auth/react"
 import { useEffect, useState, useMemo, useCallback, useRef } from "react"
 import { useRouter } from "next/navigation"
-import { Navbar } from "@/components/Navbar"
-import { Footer } from "@/components/Footer"
+import { PageLayout } from "@/components/PageLayout"
 import { format, parseISO, startOfDay, addDays, setHours, startOfWeek, endOfWeek, startOfMonth, endOfMonth, eachDayOfInterval, isSameDay, isSameWeek, isSameMonth, addWeeks, subWeeks, addMonths, subMonths, isToday, getWeek } from "date-fns"
 import { nb } from "date-fns/locale"
 import { Calendar, ChevronLeft, ChevronRight, GanttChart, Filter, X, Clock, User, MapPin, CheckCircle2, XCircle, Trash2, Loader2, Repeat, Pencil, Star } from "lucide-react"
@@ -48,6 +47,7 @@ interface Resource {
   id: string
   name: string
   color: string | null
+  allowWholeBooking: boolean
   category: {
     id: string
     name: string
@@ -544,6 +544,12 @@ export default function CalendarPage() {
     if (!timelineData) return []
     
     return timelineData.bookings.filter(b => {
+      // Filter out whole facility bookings if allowWholeBooking is false
+      const resource = timelineData.resources.find(r => r.id === b.resource.id)
+      if (resource && !resource.allowWholeBooking && !b.resourcePart) {
+        return false
+      }
+      
       // If a specific part is selected, only show bookings for that part
       if (selectedPartId && selectedResource) {
         const selectedPart = selectedResource.parts.find(p => p.id === selectedPartId)
@@ -658,28 +664,23 @@ export default function CalendarPage() {
 
   if (status === "loading" || isLoading) {
     return (
-      <div className="min-h-screen bg-slate-50 flex flex-col">
-        <Navbar />
-        <div className="flex-1 flex items-center justify-center">
+      <PageLayout fullWidth>
+        <div className="flex-1 flex items-center justify-center min-h-[50vh]">
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
         </div>
-        <Footer />
-      </div>
+      </PageLayout>
     )
   }
 
   return (
-    <div className="min-h-screen bg-slate-50 flex flex-col">
-      <Navbar />
-
-      <main className="flex-1 w-full">
-        <div className="w-full px-4 sm:px-6 lg:px-8 py-6">
+    <PageLayout fullWidth>
+      <div className="w-full px-4 sm:px-6 lg:px-8 py-6">
           {/* Header */}
           <div className="mb-6">
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-4">
               <div className="flex items-center gap-2 sm:gap-4 flex-wrap">
                 <h1 className="text-xl sm:text-2xl font-bold text-gray-900 flex items-center gap-2">
-                  <GanttChart className="w-5 h-5 sm:w-6 sm:h-6" />
+                  <Calendar className="w-5 h-5 sm:w-6 sm:h-6" />
                   Kalender
                 </h1>
                 
@@ -1406,7 +1407,6 @@ export default function CalendarPage() {
           )
           )}
         </div>
-      </main>
 
       {/* Booking Info Modal */}
       {selectedBooking && (
@@ -1716,8 +1716,6 @@ export default function CalendarPage() {
           }}
         />
       )}
-
-      <Footer />
-    </div>
+    </PageLayout>
   )
 }

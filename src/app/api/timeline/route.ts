@@ -72,6 +72,7 @@ export async function GET(request: Request) {
           id: true,
           name: true,
           color: true,
+          allowWholeBooking: true,
           category: {
             select: {
               id: true,
@@ -111,28 +112,32 @@ export async function GET(request: Request) {
         organizationId,
         isActive: true
       },
-    include: {
-      category: {
-        select: {
-          id: true,
-          name: true,
-          color: true
-        }
-      },
-      parts: {
-        where: { isActive: true },
-        select: {
-          id: true,
-          name: true,
-          parentId: true,
-          children: {
-            where: { isActive: true },
-            select: { id: true, name: true }
+      select: {
+        id: true,
+        name: true,
+        color: true,
+        allowWholeBooking: true,
+        category: {
+          select: {
+            id: true,
+            name: true,
+            color: true
           }
         },
-        orderBy: { name: "asc" }
-      }
-    },
+        parts: {
+          where: { isActive: true },
+          select: {
+            id: true,
+            name: true,
+            parentId: true,
+            children: {
+              where: { isActive: true },
+              select: { id: true, name: true }
+            }
+          },
+          orderBy: { name: "asc" }
+        }
+      },
     orderBy: [
       { category: { name: "asc" } },
       { name: "asc" }

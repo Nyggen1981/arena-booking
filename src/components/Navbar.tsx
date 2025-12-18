@@ -155,7 +155,7 @@ export function Navbar() {
                   className="flex items-center gap-2 px-4 py-2 rounded-lg text-gray-600 hover:text-gray-900 hover:bg-gray-100 transition-colors"
                 >
                   <GanttChart className="w-4 h-4" />
-                  Tidslinje
+                  Kapasitet
                 </Link>
                 <Link 
                   href="/resources" 
@@ -253,7 +253,7 @@ export function Navbar() {
                   onClick={() => setMobileMenuOpen(false)}
                 >
                   <GanttChart className="w-5 h-5" />
-                  Tidslinje
+                  Kapasitet
                 </Link>
                 <Link 
                   href="/resources" 

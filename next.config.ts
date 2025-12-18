@@ -5,6 +5,10 @@ const nextConfig: NextConfig = {
   reactCompiler: true,
   // Workaround for Windows EPERM issues with .next folder
   distDir: ".next",
+  // Set turbopack root to prevent lockfile conflicts from parent directory
+  turbopack: {
+    root: ".",
+  },
   async headers() {
     return [
       {

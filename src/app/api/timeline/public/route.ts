@@ -86,6 +86,7 @@ export async function GET(request: Request) {
               id: true,
               name: true,
               color: true,
+              allowWholeBooking: true,
               category: {
                 select: {
                   id: true,
@@ -126,7 +127,11 @@ export async function GET(request: Request) {
           isActive: true,
           showOnPublicCalendar: true // Only resources that should be shown on public calendar
         },
-        include: {
+        select: {
+          id: true,
+          name: true,
+          color: true,
+          allowWholeBooking: true,
           category: {
             select: {
               id: true,

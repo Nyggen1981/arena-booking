@@ -393,7 +393,14 @@ export async function GET() {
           id: true,
           name: true,
           location: true,
-          color: true
+          color: true,
+          category: {
+            select: {
+              id: true,
+              name: true,
+              color: true
+            }
+          }
         }
       },
       resourcePart: {

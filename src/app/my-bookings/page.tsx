@@ -3,8 +3,7 @@
 import { useSession } from "next-auth/react"
 import { useEffect, useState, useMemo, useCallback } from "react"
 import { useRouter } from "next/navigation"
-import { Navbar } from "@/components/Navbar"
-import { Footer } from "@/components/Footer"
+import { PageLayout } from "@/components/PageLayout"
 import Link from "next/link"
 import { 
   Calendar, 
@@ -19,7 +18,7 @@ import {
   ChevronRight,
   Plus,
   Pencil,
-  Filter
+  ClipboardList
 } from "lucide-react"
 import { EditBookingModal } from "@/components/EditBookingModal"
 import { format, isToday, isTomorrow, isThisWeek, parseISO } from "date-fns"
@@ -38,6 +37,11 @@ interface Booking {
     name: string
     location: string | null
     color?: string
+    category: {
+      id: string
+      name: string
+      color: string | null
+    } | null
   }
   resourcePart: { id: string; name: string } | null
 }
@@ -54,21 +58,40 @@ export default function MyBookingsPage() {
   const [deletingId, setDeletingId] = useState<string | null>(null)
   const [editingBooking, setEditingBooking] = useState<Booking | null>(null)
   const [isProcessing, setIsProcessing] = useState(false)
+  const [selectedCategoryId, setSelectedCategoryId] = useState<string | null>(null)
   const [selectedResourceId, setSelectedResourceId] = useState<string | null>(null)
   const [unreadCounts, setUnreadCounts] = useState({ upcoming: 0, history: 0 })
   const [selectedForDelete, setSelectedForDelete] = useState<Set<string>>(new Set())
   const [showBulkDeleteModal, setShowBulkDeleteModal] = useState(false)
 
-  // Get unique resources from bookings
+  // Get unique categories from bookings
+  const categories = useMemo(() => {
+    const categoryMap = new Map<string, { id: string; name: string; color: string | null }>()
+    bookings.forEach(b => {
+      if (b.resource.category && !categoryMap.has(b.resource.category.id)) {
+        categoryMap.set(b.resource.category.id, {
+          id: b.resource.category.id,
+          name: b.resource.category.name,
+          color: b.resource.category.color
+        })
+      }
+    })
+    return Array.from(categoryMap.values()).sort((a, b) => a.name.localeCompare(b.name))
+  }, [bookings])
+
+  // Get unique resources from bookings, filtered by selected category
   const resources = useMemo(() => {
     const resourceMap = new Map<string, { id: string; name: string }>()
-    bookings.forEach(b => {
+    const filteredBookings = selectedCategoryId
+      ? bookings.filter(b => b.resource.category?.id === selectedCategoryId)
+      : bookings
+    filteredBookings.forEach(b => {
       if (!resourceMap.has(b.resource.id)) {
         resourceMap.set(b.resource.id, { id: b.resource.id, name: b.resource.name })
       }
     })
     return Array.from(resourceMap.values()).sort((a, b) => a.name.localeCompare(b.name))
-  }, [bookings])
+  }, [bookings, selectedCategoryId])
 
   useEffect(() => {
     if (status === "unauthenticated") {
@@ -222,9 +245,18 @@ export default function MyBookingsPage() {
   // Categorize and filter bookings
   const { upcoming, history } = useMemo(() => {
     const now = new Date()
-    const filtered = selectedResourceId 
-      ? bookings.filter(b => b.resource.id === selectedResourceId)
-      : bookings
+    let filtered = bookings
+    
+    // Filter by category
+    if (selectedCategoryId) {
+      filtered = filtered.filter(b => b.resource.category?.id === selectedCategoryId)
+    }
+    
+    // Filter by resource
+    if (selectedResourceId) {
+      filtered = filtered.filter(b => b.resource.id === selectedResourceId)
+    }
+    
     return {
       upcoming: filtered.filter(b => 
         new Date(b.startTime) >= now && 
@@ -236,7 +268,7 @@ export default function MyBookingsPage() {
         b.status === "cancelled"
       ).sort((a, b) => new Date(b.startTime).getTime() - new Date(a.startTime).getTime())
     }
-  }, [bookings, selectedResourceId])
+  }, [bookings, selectedCategoryId, selectedResourceId])
 
   const activeBookings = activeTab === "upcoming" ? upcoming : history
 
@@ -269,26 +301,24 @@ export default function MyBookingsPage() {
 
   if (status === "loading" || isLoading) {
     return (
-      <div className="min-h-screen bg-slate-50 flex flex-col">
-        <Navbar />
-        <div className="flex-1 flex items-center justify-center">
+      <PageLayout maxWidth="max-w-7xl">
+        <div className="flex-1 flex items-center justify-center min-h-[50vh]">
           <Loader2 className="w-8 h-8 animate-spin text-blue-600" />
         </div>
-        <Footer />
-      </div>
+      </PageLayout>
     )
   }
 
   return (
-    <div className="min-h-screen bg-slate-50 flex flex-col">
-      <Navbar />
-
-      <main className="flex-1">
-        <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+    <PageLayout maxWidth="max-w-7xl">
+      <div className="py-8">
         {/* Header */}
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
             <div>
-              <h1 className="text-xl sm:text-2xl font-bold text-gray-900">Mine bookinger</h1>
+              <h1 className="text-xl sm:text-2xl font-bold text-gray-900 flex items-center gap-2">
+                <ClipboardList className="w-5 h-5 sm:w-6 sm:h-6" />
+                Mine bookinger
+              </h1>
               <p className="text-sm sm:text-base text-gray-500">Oversikt over dine reservasjoner</p>
             </div>
             <Link 
@@ -313,22 +343,37 @@ export default function MyBookingsPage() {
             <>
               {/* Filter and Tabs */}
               <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
-                {/* Resource filter */}
-                {resources.length > 1 && (
-                  <div className="flex items-center gap-2">
-                    <Filter className="w-4 h-4 text-gray-400" />
+                {/* Filters */}
+                <div className="flex items-center gap-2 sm:gap-3 flex-wrap">
+                  {categories.length > 0 && (
+                    <select
+                      value={selectedCategoryId || ""}
+                      onChange={(e) => {
+                        setSelectedCategoryId(e.target.value || null)
+                        // Reset resource filter when category changes
+                        setSelectedResourceId(null)
+                      }}
+                      className="px-3 sm:px-4 py-2 border border-gray-300 rounded-lg text-sm font-medium text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    >
+                      <option value="">Alle kategorier</option>
+                      {categories.map(c => (
+                        <option key={c.id} value={c.id}>{c.name}</option>
+                      ))}
+                    </select>
+                  )}
+                  {resources.length > 1 && (
                     <select
                       value={selectedResourceId || ""}
                       onChange={(e) => setSelectedResourceId(e.target.value || null)}
-                      className="input py-2 text-sm max-w-[200px]"
+                      className="px-3 sm:px-4 py-2 border border-gray-300 rounded-lg text-sm font-medium text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
                     >
                       <option value="">Alle fasiliteter</option>
                       {resources.map(r => (
                         <option key={r.id} value={r.id}>{r.name}</option>
                       ))}
                     </select>
-                  </div>
-                )}
+                  )}
+                </div>
 
                 {/* Tabs */}
                 <div className="flex gap-1 p-1 bg-gray-100 rounded-xl flex-1 sm:flex-initial">
@@ -547,7 +592,6 @@ export default function MyBookingsPage() {
             </>
           )}
         </div>
-      </main>
 
       {/* Cancel modal */}
       {cancellingId && (
@@ -682,8 +726,6 @@ export default function MyBookingsPage() {
           onSaved={handleBookingSaved}
         />
       )}
-
-      <Footer />
-    </div>
+    </PageLayout>
   )
 }
