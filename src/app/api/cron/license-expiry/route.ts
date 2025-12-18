@@ -136,8 +136,8 @@ async function sendLicenseExpiryEmail(params: EmailParams) {
   })
 
   const subject = daysRemaining === 1 
-    ? `⚠️ Arena Booking-lisensen utløper I MORGEN`
-    : `⚠️ Arena Booking-lisensen utløper om ${daysRemaining} dager`
+    ? `⚠️ Sportflow Booking-lisensen utløper I MORGEN`
+    : `⚠️ Sportflow Booking-lisensen utløper om ${daysRemaining} dager`
 
   const html = `
     <!DOCTYPE html>
@@ -154,7 +154,7 @@ async function sendLicenseExpiryEmail(params: EmailParams) {
       <div style="background: #fffbeb; padding: 30px; border: 1px solid #fcd34d; border-top: none; border-radius: 0 0 12px 12px;">
         <p style="margin-top: 0;">Hei ${name},</p>
         
-        <p>Arena Booking-lisensen for <strong>${orgName}</strong> utløper om <strong>${daysRemaining} ${daysRemaining === 1 ? 'dag' : 'dager'}</strong>.</p>
+        <p>Sportflow Booking-lisensen for <strong>${orgName}</strong> utløper om <strong>${daysRemaining} ${daysRemaining === 1 ? 'dag' : 'dager'}</strong>.</p>
         
         <div style="background: white; padding: 20px; border-radius: 8px; border: 1px solid #fcd34d; margin: 20px 0;">
           <p style="margin: 0; color: #92400e;">
@@ -166,13 +166,13 @@ async function sendLicenseExpiryEmail(params: EmailParams) {
         
         <p><strong>Hva bør du gjøre?</strong></p>
         <ul style="padding-left: 20px;">
-          <li>Kontakt din Arena Booking-leverandør for å fornye lisensen</li>
+          <li>Kontakt din Sportflow Booking-leverandør for å fornye lisensen</li>
           <li>Sørg for at fornyelsen er på plass før utløpsdatoen</li>
         </ul>
         
         <p style="margin-bottom: 0; color: #666; font-size: 14px;">
           Med vennlig hilsen,<br>
-          Arena Booking
+          Sportflow Booking
         </p>
       </div>
     </body>
@@ -208,7 +208,7 @@ async function sendLicenseExpiryEmail(params: EmailParams) {
         "Content-Type": "application/json"
       },
       body: JSON.stringify({
-        from: process.env.EMAIL_FROM || "noreply@arena-booking.no",
+        from: process.env.EMAIL_FROM || "noreply@sportflow.no",
         to,
         subject,
         html

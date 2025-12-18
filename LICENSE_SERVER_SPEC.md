@@ -1,6 +1,6 @@
 # Arena License Server - Spesifikasjon
 
-Dette dokumentet beskriver hvordan lisensserveren skal settes opp og kommunisere med Arena Booking-apper.
+Dette dokumentet beskriver hvordan lisensserveren skal settes opp og kommunisere med Sportflow Booking-apper.
 
 ---
 
@@ -48,7 +48,7 @@ LICENSE_KEY=clxxxxxxxxxxxxxxxxx           NEXTAUTH_SECRET=...
 
 ### POST `/api/license/validate`
 
-**Request fra Arena Booking:**
+**Request fra Sportflow Booking:**
 ```json
 {
   "licenseKey": "clxxxxxxxxxxxxxxxxxxxx",
@@ -143,7 +143,7 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-// Kunder/Organisasjoner som bruker Arena Booking
+// Kunder/Organisasjoner som bruker Sportflow Booking
 model Organization {
   id            String   @id @default(cuid())
   
@@ -310,16 +310,16 @@ DATABASE_URL="postgresql://user:password@host:5432/arena_licenses?sslmode=requir
 
 # NextAuth
 NEXTAUTH_SECRET="generer-en-lang-tilfeldig-streng"
-NEXTAUTH_URL="https://license.arena-booking.no"
+NEXTAUTH_URL="https://license.sportflow.no"
 
 # Første admin-bruker (brukes av seed-script)
-ADMIN_EMAIL="admin@arena-booking.no"
+ADMIN_EMAIL="admin@sportflow.no"
 ADMIN_PASSWORD="veldig-sikkert-passord"
 ```
 
 ---
 
-## 🔐 Miljøvariabler for Arena Booking (hver kunde)
+## 🔐 Miljøvariabler for Sportflow Booking (hver kunde)
 
 Når en kunde er registrert i lisensserveren, må de legge til dette i sin `.env` og i Vercel:
 
@@ -332,7 +332,7 @@ NEXTAUTH_SECRET="generer-en-lang-tilfeldig-streng"
 NEXTAUTH_URL="https://din-app.vercel.app"
 
 # Lisensserver
-LICENSE_SERVER_URL="https://license.arena-booking.no"
+LICENSE_SERVER_URL="https://license.sportflow.no"
 LICENSE_KEY="clxxxxxxxxxxxxxxxxxxxx"  # Generert av lisensserveren
 ORG_SLUG="organisasjonens-slug"       # F.eks. "haugesund-il"
 
@@ -445,7 +445,7 @@ main()
 
 7. **Deploy til Vercel**
 
-### I Arena Booking-prosjektet (senere):
+### I Sportflow Booking-prosjektet (senere):
 
 1. Legg til i `.env`:
    ```env
@@ -467,5 +467,5 @@ main()
 - [ ] Kan se kundeliste
 - [ ] Kan legge til ny kunde
 - [ ] Deploy til Vercel
-- [ ] Test med Arena Booking
+- [ ] Test med Sportflow Booking
 

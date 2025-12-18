@@ -1,4 +1,4 @@
-# Prosjekt Status - Arena Booking
+# Prosjekt Status - Sportflow Booking
 
 ## 📋 Oppsummering
 Dette er en statusrapport etter reinstallasjon av PC og Cursor.

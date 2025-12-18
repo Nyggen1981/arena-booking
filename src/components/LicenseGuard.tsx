@@ -187,7 +187,7 @@ export function LicenseGuard({ children }: LicenseGuardProps) {
               </div>
 
               <p className="text-xs text-gray-500 text-center mt-6">
-                Kontakt din Arena Booking-leverandør for lisensnøkkel eller fornyelse.
+                Kontakt din Sportflow Booking-leverandør for lisensnøkkel eller fornyelse.
               </p>
             </div>
           </div>

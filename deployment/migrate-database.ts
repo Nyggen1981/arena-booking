@@ -40,7 +40,7 @@ async function confirm(message: string): Promise<boolean> {
 
 async function migrateDatabase() {
   log('\n════════════════════════════════════════════', 'cyan')
-  log('  Arena Booking - Database Migrering', 'cyan')
+  log('  Sportflow Booking - Database Migrering', 'cyan')
   log('════════════════════════════════════════════\n', 'cyan')
 
   // Få connection strings fra brukeren eller miljøvariabler

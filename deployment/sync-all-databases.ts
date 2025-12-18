@@ -115,7 +115,7 @@ async function syncDatabase(name: string, config: DatabaseConfig): Promise<boole
 
 async function main() {
   log('\n════════════════════════════════════════════', 'cyan')
-  log('  Arena Booking - Database Sync', 'cyan')
+  log('  Sportflow Booking - Database Sync', 'cyan')
   log('════════════════════════════════════════════\n', 'cyan')
 
   // Load configurations

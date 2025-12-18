@@ -14,7 +14,7 @@ if (-not (Test-Path $configPath)) {
 # Read config
 $config = Get-Content $configPath | ConvertFrom-Json
 
-Write-Host "=== Arena Booking - Push Schema til alle databaser ===" -ForegroundColor Cyan
+Write-Host "=== Sportflow Booking - Push Schema til alle databaser ===" -ForegroundColor Cyan
 Write-Host ""
 
 $successCount = 0

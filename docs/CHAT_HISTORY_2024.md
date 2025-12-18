@@ -3,7 +3,7 @@
 ## Lisensserver Integrering
 
 ### Bakgrunn
-Implementert lisensserver-integrasjon for å håndtere multi-tenant lisensiering av Arena Booking-applikasjonen.
+Implementert lisensserver-integrasjon for å håndtere multi-tenant lisensiering av Sportflow Booking-applikasjonen.
 
 ### Viktige Beslutninger
 - Lisensserver URL er hardkodet til `https://arena-booking-lisence-server.vercel.app` (midlertidig)

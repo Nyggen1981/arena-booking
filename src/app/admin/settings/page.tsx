@@ -733,7 +733,7 @@ export default function AdminSettingsPage() {
                   type="text"
                   value={smtpUser}
                   onChange={(e) => setSmtpUser(e.target.value)}
-                  placeholder="arena-booking@idrettslag.no"
+                  placeholder="sportflow@idrettslag.no"
                   className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 />
               </div>
@@ -1110,7 +1110,7 @@ export default function AdminSettingsPage() {
             {licenseKey && licenseInfo && licenseInfo.daysRemaining !== null && licenseInfo.daysRemaining <= 14 && licenseInfo.daysRemaining > 0 && (
               <div className="bg-amber-50 border border-amber-200 rounded-lg p-4">
                 <p className="text-sm text-amber-800">
-                  <strong>⚠️ Lisensen utløper snart!</strong> Kontakt din Arena Booking-leverandør for fornyelse.
+                  <strong>⚠️ Lisensen utløper snart!</strong> Kontakt din Sportflow Booking-leverandør for fornyelse.
                 </p>
               </div>
             )}
@@ -1221,7 +1221,7 @@ export default function AdminSettingsPage() {
       const url = URL.createObjectURL(blob)
       const a = document.createElement("a")
       a.href = url
-      a.download = `${org?.slug || "arena-booking"}-export-${new Date().toISOString().split("T")[0]}.json`
+      a.download = `${org?.slug || "sportflow-booking"}-export-${new Date().toISOString().split("T")[0]}.json`
       document.body.appendChild(a)
       a.click()
       document.body.removeChild(a)

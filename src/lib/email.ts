@@ -127,9 +127,9 @@ async function getOrganizationName(organizationId: string): Promise<string> {
       where: { id: organizationId },
       select: { name: true },
     })
-    return org?.name || "Arena Booking"
+    return org?.name || "Sportflow Booking"
   } catch {
-    return "Arena Booking"
+    return "Sportflow Booking"
   }
 }
 

@@ -2,7 +2,7 @@
 
 ## Oversikt over økten
 
-Denne økten fokuserte på flere forbedringer og nye funksjoner i Arena Booking.
+Denne økten fokuserte på flere forbedringer og nye funksjoner i Sportflow Booking.
 
 ---
 
@@ -25,7 +25,7 @@ Denne økten fokuserte på flere forbedringer og nye funksjoner i Arena Booking.
 
 ### 3. E-post signatur med klubbnavn
 - Alle e-postmaler bruker nå `{{organizationName}}` variabel
-- Signatur viser klubbens navn i stedet for "Arena Booking"
+- Signatur viser klubbens navn i stedet for "Sportflow Booking"
 
 ### 4. Hjelpetekst på forsiden
 - Lagt til info om registrering: "Vil du booke? Registrer deg eller logg inn..."

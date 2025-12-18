@@ -1,8 +1,8 @@
-# Arena Booking - Bookingsystem for idrettslag
+# Sportflow Booking - Bookingsystem for idrettslag
 
-## Hva er Arena Booking?
+## Hva er Sportflow Booking?
 
-Arena Booking er et moderne bookingsystem utviklet spesielt for idrettslag og klubber. Systemet gjør det enkelt å administrere og booke fasiliteter som treningshaller, baner, møterom og annet utstyr.
+Sportflow Booking er et moderne bookingsystem utviklet spesielt for idrettslag og klubber. Systemet gjør det enkelt å administrere og booke fasiliteter som treningshaller, baner, møterom og annet utstyr.
 
 ---
 
@@ -97,5 +97,5 @@ For mer informasjon eller demo, ta kontakt:
 
 ---
 
-*Arena Booking - Enkel booking for idrettslag*
+*Sportflow Booking - Enkel booking for idrettslag*
 

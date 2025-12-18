@@ -100,7 +100,7 @@ export function Navbar() {
     }
   }, [isLoggedIn])
 
-  const orgName = org?.name || session?.user?.organizationName || "Arena Booking"
+  const orgName = org?.name || session?.user?.organizationName || "Sportflow Booking"
   const orgColor = org?.primaryColor || session?.user?.organizationColor || "#2563eb"
   const orgLogo = org?.logo
   const orgTagline = org?.tagline || "Kalender"

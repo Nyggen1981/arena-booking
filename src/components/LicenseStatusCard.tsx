@@ -142,7 +142,7 @@ export function LicenseStatusCard() {
       {license.valid && license.daysRemaining && license.daysRemaining <= 14 && license.daysRemaining > 0 && (
         <div className="mt-3 pt-3 border-t border-amber-200">
           <p className="text-sm text-amber-700">
-            ⚠️ Lisensen utløper snart. Kontakt din Arena Booking-leverandør for fornyelse.
+            ⚠️ Lisensen utløper snart. Kontakt din Sportflow Booking-leverandør for fornyelse.
           </p>
         </div>
       )}
@@ -151,7 +151,7 @@ export function LicenseStatusCard() {
       {(!license.valid || license.status === "expired") && (
         <div className="mt-3 pt-3 border-t border-red-200">
           <p className="text-sm text-red-700">
-            ⚠️ Lisensen er ikke gyldig. Kontakt din Arena Booking-leverandør.
+            ⚠️ Lisensen er ikke gyldig. Kontakt din Sportflow Booking-leverandør.
           </p>
         </div>
       )}

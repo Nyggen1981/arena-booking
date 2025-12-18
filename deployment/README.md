@@ -1,6 +1,6 @@
 # Deployment og Kundeadministrasjon
 
-Denne mappen inneholder verktøy for å administrere alle Arena Booking-instanser.
+Denne mappen inneholder verktøy for å administrere alle Sportflow Booking-instanser.
 
 ## Filer
 
@@ -53,8 +53,8 @@ Dette vil:
 
 | Kunde | Miljø | Vercel URL |
 |-------|-------|------------|
-| Sauda IL | Production | arena-booking.vercel.app |
-| Test Kunde | Staging | arena-booking-test.vercel.app |
+| Sauda IL | Production | sportflow-booking.vercel.app |
+| Test Kunde | Staging | sportflow-booking-test.vercel.app |
 
 ## Sjekkliste ved skjemaendringer
 
