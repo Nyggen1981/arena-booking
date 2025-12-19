@@ -191,6 +191,7 @@ model ResourcePart {
   capacity    Int?
   isActive    Boolean @default(true)
   adminNote   String?
+  image       String? // Base64 encoded image for this part
   
   // Map marker coordinates (JSON: {points: [{x,y}]} for polygon)
   mapCoordinates String?

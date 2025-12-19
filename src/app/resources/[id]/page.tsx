@@ -12,10 +12,12 @@ import {
   CheckCircle2,
   AlertCircle,
   Users,
-  DollarSign
+  DollarSign,
+  X
 } from "lucide-react"
 import { ResourceCalendar } from "@/components/ResourceCalendar"
 import { MapViewer } from "@/components/MapViewer"
+import { PartsList } from "@/components/PartsList"
 
 // Revalidate every 30 seconds for fresh data
 export const revalidate = 30
@@ -50,6 +52,7 @@ async function getResource(id: string) {
             capacity: true,
             mapCoordinates: true,
             parentId: true,
+            image: true,
             children: {
               where: { isActive: true },
               select: { id: true, name: true }
@@ -98,7 +101,7 @@ async function getResource(id: string) {
 }
 
 // Sort parts hierarchically (parents first, then children, sorted by name at each level)
-function sortPartsHierarchically(parts: Array<{ id: string; name: string; description: string | null; capacity: number | null; parentId: string | null; children?: Array<{ id: string; name: string }> }>) {
+function sortPartsHierarchically(parts: Array<{ id: string; name: string; description: string | null; capacity: number | null; image: string | null; parentId: string | null; children?: Array<{ id: string; name: string }> }>) {
   type PartType = typeof parts[0]
   const partMap = new Map<string, PartType & { children: PartType[] }>()
   const roots: (PartType & { children: PartType[] })[] = []
@@ -355,39 +358,10 @@ export default async function ResourcePage({ params }: Props) {
 
             {/* Parts */}
             {resource.parts.length > 0 && (
-              <div className="card p-6">
-                <h3 className="font-semibold text-gray-900 mb-4 flex items-center gap-2">
-                  <Users className="w-5 h-5 text-blue-600" />
-                  Kan bookes separat
-                </h3>
-                <div className="space-y-2">
-                  {sortedParts.map((part) => {
-                    const isChild = part.parentId !== null
-                    const parentPart = resource.parts.find(p => p.id === part.parentId)
-                    return (
-                      <div 
-                        key={part.id} 
-                        className={`p-3 rounded-lg bg-gray-50 hover:bg-gray-100 transition-colors ${isChild ? 'ml-6 border-l-2 border-gray-300' : ''}`}
-                      >
-                        {isChild && parentPart && (
-                          <p className="text-xs text-gray-400 mb-1">
-                            Underdel av: {parentPart.name}
-                          </p>
-                        )}
-                        <p className="font-medium text-gray-900">{part.name}</p>
-                        {part.description && (
-                          <p className="text-sm text-gray-500">{part.description}</p>
-                        )}
-                        {part.capacity && (
-                          <p className="text-xs text-gray-400 mt-1">
-                            Kapasitet: {part.capacity} personer
-                          </p>
-                        )}
-                      </div>
-                    )
-                  })}
-                </div>
-              </div>
+              <PartsList 
+                parts={resource.parts}
+                sortedParts={sortedParts}
+              />
             )}
 
             {/* Opening hours */}

@@ -7,7 +7,10 @@ import {
   ChevronRight, 
   ChevronDown,
   GripVertical,
-  FolderOpen
+  FolderOpen,
+  Upload,
+  X,
+  ImageIcon
 } from "lucide-react"
 
 export interface HierarchicalPart {
@@ -18,6 +21,7 @@ export interface HierarchicalPart {
   capacity: string
   mapCoordinates?: string | null
   adminNote?: string | null
+  image?: string | null
   parentId?: string | null
   children?: HierarchicalPart[]
   isNew?: boolean
@@ -82,6 +86,7 @@ export function PartsHierarchyEditor({ parts, onPartsChange }: Props) {
       description: "",
       capacity: "",
       adminNote: "",
+      image: null,
       parentId,
       isNew: true
     }
@@ -93,6 +98,28 @@ export function PartsHierarchyEditor({ parts, onPartsChange }: Props) {
     if (parentId) {
       setExpandedIds(new Set([...expandedIds, parentId]))
     }
+  }
+
+  const handleImageUpload = (id: string, file: File) => {
+    if (file.size > 1024 * 1024) {
+      alert("Bildet er for stort. Maks 1MB.")
+      return
+    }
+
+    if (!file.type.startsWith("image/")) {
+      alert("Filen må være et bilde")
+      return
+    }
+
+    const reader = new FileReader()
+    reader.onloadend = () => {
+      updatePart(id, "image", reader.result as string)
+    }
+    reader.readAsDataURL(file)
+  }
+
+  const removeImage = (id: string) => {
+    updatePart(id, "image", "")
   }
 
   const updatePart = (id: string, field: keyof HierarchicalPart, value: string) => {
@@ -299,6 +326,44 @@ export function PartsHierarchyEditor({ parts, onPartsChange }: Props) {
                 className="px-2 py-1.5 text-sm border border-gray-200 rounded bg-gray-50 focus:bg-white focus:border-blue-300"
               />
             </div>
+            
+            {/* Image upload */}
+            <div className="space-y-2">
+              {part.image ? (
+                <div className="relative">
+                  <img 
+                    src={part.image} 
+                    alt={part.name}
+                    className="w-full h-32 object-cover rounded-lg border border-gray-200"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => removeImage(id)}
+                    className="absolute top-2 right-2 p-1.5 bg-red-500 text-white rounded-full hover:bg-red-600 transition-colors"
+                    title="Fjern bilde"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
+                </div>
+              ) : (
+                <label className="flex items-center justify-center gap-2 px-3 py-2 border-2 border-dashed border-gray-300 rounded-lg cursor-pointer hover:border-blue-400 hover:bg-blue-50 transition-colors">
+                  <Upload className="w-4 h-4 text-gray-400" />
+                  <span className="text-sm text-gray-500">Last opp bilde (valgfri)</span>
+                  <input
+                    type="file"
+                    accept="image/*"
+                    className="hidden"
+                    onChange={(e) => {
+                      const file = e.target.files?.[0]
+                      if (file) {
+                        handleImageUpload(id, file)
+                      }
+                    }}
+                  />
+                </label>
+              )}
+            </div>
+            
             <textarea
               value={part.adminNote || ""}
               onChange={(e) => updatePart(id, "adminNote", e.target.value)}

@@ -38,6 +38,7 @@ interface Part {
   capacity: string
   mapCoordinates?: string | null
   adminNote?: string | null
+  image?: string | null
   parentId?: string | null
   isNew?: boolean
 }
@@ -130,13 +131,14 @@ export default function EditResourcePage({ params }: Props) {
       setMapImage(resource.mapImage || null)
       setPrisInfo(resource.prisInfo || "")
       setVisPrisInfo(resource.visPrisInfo ?? false)
-      setParts(resource.parts?.map((p: { id: string; name: string; description?: string; capacity?: number; mapCoordinates?: string; adminNote?: string; parentId?: string }) => ({
+      setParts(resource.parts?.map((p: { id: string; name: string; description?: string; capacity?: number; mapCoordinates?: string; adminNote?: string; image?: string; parentId?: string }) => ({
         id: p.id,
         name: p.name,
         description: p.description || "",
         capacity: p.capacity ? String(p.capacity) : "",
         mapCoordinates: p.mapCoordinates || null,
         adminNote: p.adminNote || null,
+        image: p.image || null,
         parentId: p.parentId || null
       })) || [])
       
@@ -218,6 +220,8 @@ export default function EditResourcePage({ params }: Props) {
             description: p.description || null,
             capacity: p.capacity ? parseInt(p.capacity) : null,
             mapCoordinates: p.mapCoordinates || null,
+            adminNote: p.adminNote || null,
+            image: p.image || null,
             parentId: p.parentId || null
           }))
         })
@@ -239,12 +243,14 @@ export default function EditResourcePage({ params }: Props) {
       setMaxBookingMinutes(String(updatedResource.maxBookingMinutes || 240))
       setPrisInfo(updatedResource.prisInfo || "")
       setVisPrisInfo(updatedResource.visPrisInfo ?? false)
-      setParts(updatedResource.parts?.map((p: { id: string; name: string; description?: string; capacity?: number; mapCoordinates?: string; parentId?: string }) => ({
+      setParts(updatedResource.parts?.map((p: { id: string; name: string; description?: string; capacity?: number; mapCoordinates?: string; adminNote?: string; image?: string; parentId?: string }) => ({
         id: p.id,
         name: p.name,
         description: p.description || "",
         capacity: p.capacity ? String(p.capacity) : "",
         mapCoordinates: p.mapCoordinates || null,
+        adminNote: p.adminNote || null,
+        image: p.image || null,
         parentId: p.parentId || null
       })) || [])
 
