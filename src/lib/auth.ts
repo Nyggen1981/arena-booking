@@ -109,13 +109,15 @@ export const authOptions: NextAuthOptions = {
         } catch (error) {
           // Re-throw specific error messages so they show to the user
           if (error instanceof Error) {
-            // Lisensfeil og godkjenningsfeil skal vises direkte
+            // Lisensfeil, godkjenningsfeil og e-postverifiseringsfeil skal vises direkte
             if (
               error.message.includes("godkjenning") || 
               error.message.includes("utilgjengelig") ||
               error.message.includes("utløpt") ||
               error.message.includes("suspendert") ||
-              error.message.includes("lisens")
+              error.message.includes("lisens") ||
+              error.message.includes("verifisere") ||
+              error.message.includes("verifisert")
             ) {
               throw error
             }
