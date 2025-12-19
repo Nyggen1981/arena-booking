@@ -85,7 +85,19 @@ export async function verifyEmailToken(token: string): Promise<{ success: boolea
  */
 export async function sendVerificationEmail(userId: string, email: string, organizationName: string): Promise<void> {
   const token = await createVerificationToken(userId)
-  const baseUrl = process.env.NEXTAUTH_URL || "http://localhost:3000"
+  
+  // Determine base URL - prioritize NEXTAUTH_URL, then VERCEL_URL, then localhost
+  let baseUrl = process.env.NEXTAUTH_URL
+  if (!baseUrl && process.env.VERCEL_URL) {
+    // Vercel provides VERCEL_URL automatically in production
+    baseUrl = `https://${process.env.VERCEL_URL}`
+  }
+  if (!baseUrl) {
+    baseUrl = process.env.NODE_ENV === "production" 
+      ? "https://arena-booking.vercel.app" // Fallback for production
+      : "http://localhost:3000" // Fallback for development
+  }
+  
   const verificationUrl = `${baseUrl}/verify-email?token=${token}`
 
   const emailHtml = `
