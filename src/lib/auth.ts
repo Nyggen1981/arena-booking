@@ -28,6 +28,8 @@ export const authOptions: NextAuthOptions = {
               password: true,
               role: true,
               isApproved: true,
+              emailVerified: true,
+              isMember: true,
               organizationId: true,
               organization: {
                 select: {
@@ -91,6 +93,8 @@ export const authOptions: NextAuthOptions = {
           email: user.email,
           name: user.name,
           role: user.role,
+          emailVerified: user.emailVerified,
+          isMember: user.isMember,
           organizationId: user.organizationId,
           organizationName: user.organization.name,
           organizationSlug: user.organization.slug,
@@ -123,6 +127,8 @@ export const authOptions: NextAuthOptions = {
       if (user) {
         token.id = user.id
         token.role = user.role
+        token.emailVerified = user.emailVerified
+        token.isMember = user.isMember
         token.organizationId = user.organizationId
         token.organizationName = user.organizationName
         token.organizationSlug = user.organizationSlug
@@ -135,6 +141,8 @@ export const authOptions: NextAuthOptions = {
       if (session.user) {
         session.user.id = token.id as string
         session.user.role = token.role as string
+        session.user.emailVerified = token.emailVerified as boolean
+        session.user.isMember = token.isMember as boolean
         session.user.organizationId = token.organizationId as string
         session.user.organizationName = token.organizationName as string
         session.user.organizationSlug = token.organizationSlug as string

@@ -5,6 +5,8 @@ declare module "next-auth" {
     user: {
       id: string
       role: string
+      emailVerified: boolean
+      isMember: boolean
       organizationId: string
       organizationName: string
       organizationSlug: string
@@ -16,6 +18,8 @@ declare module "next-auth" {
   interface User {
     id: string
     role: string
+    emailVerified: boolean
+    isMember: boolean
     organizationId: string
     organizationName: string
     organizationSlug: string
@@ -28,6 +32,8 @@ declare module "next-auth/jwt" {
   interface JWT {
     id: string
     role: string
+    emailVerified: boolean
+    isMember: boolean
     organizationId: string
     organizationName: string
     organizationSlug: string

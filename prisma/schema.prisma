@@ -65,11 +65,21 @@ model User {
   phone      String?
   isApproved Boolean  @default(false)  // Must be approved by admin to use system
   approvedAt DateTime?
+  
+  // Email verification
+  emailVerified   Boolean   @default(false)
+  emailVerifiedAt DateTime?
+  
+  // Membership status
+  isMember Boolean @default(false)  // Is the user a member of the organization
+  
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
 
   organizationId String
   organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  
+  emailVerificationToken EmailVerificationToken?
 
   bookings          Booking[]
   approvedBookings  Booking[] @relation("ApprovedBy")
@@ -77,6 +87,20 @@ model User {
   moderatedResources ResourceModerator[]
 
   @@index([organizationId, isApproved])
+  @@index([emailVerified])
+}
+
+// Email verification token for verifying user email addresses
+model EmailVerificationToken {
+  id        String   @id @default(cuid())
+  token     String   @unique
+  userId    String   @unique
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  @@index([token])
+  @@index([userId])
 }
 
 // User preferences for calendar/view settings

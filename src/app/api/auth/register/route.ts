@@ -2,10 +2,11 @@ import { prisma } from "@/lib/prisma"
 import { NextResponse } from "next/server"
 import bcrypt from "bcryptjs"
 import { canCreateUser } from "@/lib/license"
+import { sendVerificationEmail } from "@/lib/email-verification"
 
 export async function POST(request: Request) {
   try {
-    const { name, email, phone, password, orgSlug } = await request.json()
+    const { name, email, phone, password, orgSlug, isMember } = await request.json()
 
     // Validate required fields (orgSlug is now optional - will auto-detect)
     if (!email || !password) {
@@ -82,24 +83,37 @@ export async function POST(request: Request) {
         role: "user",
         organizationId: organization.id,
         isApproved: !needsApproval, // Auto-approve if org doesn't require approval
-        approvedAt: !needsApproval ? new Date() : null
+        approvedAt: !needsApproval ? new Date() : null,
+        isMember: isMember === true, // Set membership status
+        emailVerified: false, // Email must be verified
       },
       select: {
         id: true,
         email: true,
         name: true,
         role: true,
-        isApproved: true
+        isApproved: true,
+        emailVerified: true,
+        isMember: true,
       }
     })
+
+    // Send verification email
+    try {
+      await sendVerificationEmail(user.id, user.email, organization.name)
+    } catch (emailError) {
+      console.error("Failed to send verification email:", emailError)
+      // Don't fail registration if email fails, but log it
+    }
 
     return NextResponse.json({
       success: true,
       user,
       needsApproval: needsApproval,
+      emailVerificationSent: true,
       message: needsApproval 
-        ? `Din konto hos ${organization.name} er opprettet! Du vil få tilgang når administrator godkjenner deg.`
-        : `Velkommen til ${organization.name}! Du kan nå logge inn.`
+        ? `Din konto hos ${organization.name} er opprettet! Sjekk e-posten din for å verifisere kontoen. Du vil få tilgang når administrator godkjenner deg.`
+        : `Din konto hos ${organization.name} er opprettet! Sjekk e-posten din for å verifisere kontoen før du logger inn.`
     }, { status: 201 })
 
   } catch (error) {

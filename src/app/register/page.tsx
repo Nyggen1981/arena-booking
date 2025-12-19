@@ -70,6 +70,7 @@ function RegisterForm() {
   const [confirmPassword, setConfirmPassword] = useState("")
   const [showPassword, setShowPassword] = useState(false)
   const [consentGiven, setConsentGiven] = useState(false)
+  const [isMember, setIsMember] = useState(false)
 
   // Organization form (for new clubs)
   const [orgName, setOrgName] = useState("")
@@ -107,8 +108,8 @@ function RegisterForm() {
         : "/api/auth/register"
 
       const body = step === "create" 
-        ? { name, email, phone, password, orgName, orgSlug: orgSlugInput }
-        : { name, email, phone, password } // No slug needed - API auto-detects
+        ? { name, email, phone, password, orgName, orgSlug: orgSlugInput, isMember }
+        : { name, email, phone, password, isMember } // No slug needed - API auto-detects
 
       const response = await fetch(endpoint, {
         method: "POST",
@@ -205,8 +206,8 @@ function RegisterForm() {
             </h2>
             <p className="text-gray-600 mb-6">
               {needsApproval 
-                ? "Din registrering er mottatt og venter på godkjenning fra en administrator. Du vil få tilgang til å logge inn og booke når søknaden er godkjent."
-                : "Din konto er opprettet og du kan nå logge inn og begynne å booke fasiliteter."
+                ? "Din registrering er mottatt og venter på godkjenning fra en administrator. Sjekk e-posten din for å verifisere kontoen. Du vil få tilgang til å logge inn og booke når søknaden er godkjent."
+                : "Din konto er opprettet! Sjekk e-posten din for å verifisere kontoen før du logger inn."
               }
             </p>
             {needsApproval ? (
@@ -337,6 +338,26 @@ function RegisterForm() {
                   required
                   autoComplete="new-password"
                 />
+              </div>
+
+              {/* Membership status */}
+              <div className="p-4 bg-gray-50 border border-gray-200 rounded-xl">
+                <label className="flex items-center gap-3 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={isMember}
+                    onChange={(e) => setIsMember(e.target.checked)}
+                    className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                  />
+                  <div>
+                    <span className="text-sm font-medium text-gray-700">
+                      Jeg er medlem av {existingOrgName || "idrettslaget"}
+                    </span>
+                    <p className="text-xs text-gray-500 mt-1">
+                      Medlemmer kan få rabatterte priser på bookinger
+                    </p>
+                  </div>
+                </label>
               </div>
 
               {/* Consent checkbox */}
@@ -557,6 +578,26 @@ function RegisterForm() {
                     autoComplete="new-password"
                   />
                 </div>
+              </div>
+
+              {/* Membership status */}
+              <div className="p-4 bg-gray-50 border border-gray-200 rounded-xl">
+                <label className="flex items-center gap-3 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={isMember}
+                    onChange={(e) => setIsMember(e.target.checked)}
+                    className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                  />
+                  <div>
+                    <span className="text-sm font-medium text-gray-700">
+                      Jeg er medlem av idrettslaget
+                    </span>
+                    <p className="text-xs text-gray-500 mt-1">
+                      Medlemmer kan få rabatterte priser på bookinger
+                    </p>
+                  </div>
+                </label>
               </div>
 
               {/* Consent checkbox */}
