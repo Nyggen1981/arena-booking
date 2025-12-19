@@ -131,6 +131,19 @@ export default function AdminUsersPage() {
     setOpenMenu(null)
   }
 
+  const verifyEmail = async (userId: string) => {
+    if (!confirm("Er du sikker på at du vil manuelt verifisere e-posten for denne brukeren?")) {
+      return
+    }
+    await fetch(`/api/admin/users/${userId}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ emailVerified: true })
+    })
+    fetchUsers()
+    setOpenMenu(null)
+  }
+
   const deleteUser = async (userId: string) => {
     if (!confirm("Er du sikker på at du vil slette denne brukeren? Alle bookinger vil også bli slettet.")) {
       return
@@ -334,6 +347,7 @@ export default function AdminUsersPage() {
                     openMenu={openMenu}
                     setOpenMenu={setOpenMenu}
                     onChangeRole={changeRole}
+                    onVerifyEmail={verifyEmail}
                     onDelete={deleteUser}
                   />
                 ))}
@@ -356,6 +370,7 @@ export default function AdminUsersPage() {
                       openMenu={openMenu}
                       setOpenMenu={setOpenMenu}
                       onChangeRole={changeRole}
+                      onVerifyEmail={verifyEmail}
                       onDelete={deleteUser}
                     />
                   ))}
@@ -384,6 +399,7 @@ export default function AdminUsersPage() {
                       openMenu={openMenu}
                       setOpenMenu={setOpenMenu}
                       onChangeRole={changeRole}
+                      onVerifyEmail={verifyEmail}
                       onDelete={deleteUser}
                     />
                   ))}
@@ -477,7 +493,8 @@ function UserCard({
   currentUserId,
   openMenu, 
   setOpenMenu, 
-  onChangeRole, 
+  onChangeRole,
+  onVerifyEmail,
   onDelete 
 }: { 
   user: UserData
@@ -485,6 +502,7 @@ function UserCard({
   openMenu: string | null
   setOpenMenu: (id: string | null) => void
   onChangeRole: (id: string, role: string) => void
+  onVerifyEmail: (id: string) => void
   onDelete: (id: string) => void
 }) {
   const isCurrentUser = user.id === currentUserId
@@ -586,6 +604,15 @@ function UserCard({
 
               {openMenu === user.id && (
                 <div className="absolute right-0 top-full mt-1 w-48 bg-white rounded-xl shadow-lg border border-gray-200 py-1 z-10 animate-fadeIn">
+                  {!user.emailVerified && (
+                    <button
+                      onClick={() => onVerifyEmail(user.id)}
+                      className="flex items-center gap-2 px-4 py-2 text-sm text-green-600 hover:bg-green-50 w-full text-left"
+                    >
+                      <CheckCircle2 className="w-4 h-4" />
+                      Verifiser e-post
+                    </button>
+                  )}
                   {user.role !== "user" && (
                     <button
                       onClick={() => onChangeRole(user.id, "user")}

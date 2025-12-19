@@ -14,7 +14,7 @@ export async function PATCH(
   }
 
   const { id } = await params
-  const { role, name, phone, isApproved } = await request.json()
+  const { role, name, phone, isApproved, emailVerified } = await request.json()
 
   const user = await prisma.user.findUnique({ where: { id } })
 
@@ -34,6 +34,8 @@ export async function PATCH(
     phone?: string
     isApproved?: boolean
     approvedAt?: Date | null
+    emailVerified?: boolean
+    emailVerifiedAt?: Date | null
   } = {}
 
   if (role !== undefined) updateData.role = role
@@ -42,6 +44,10 @@ export async function PATCH(
   if (isApproved !== undefined) {
     updateData.isApproved = isApproved
     updateData.approvedAt = isApproved ? new Date() : null
+  }
+  if (emailVerified !== undefined) {
+    updateData.emailVerified = emailVerified
+    updateData.emailVerifiedAt = emailVerified ? new Date() : null
   }
 
   // If changing role from moderator to user, remove all resource assignments
