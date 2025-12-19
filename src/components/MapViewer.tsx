@@ -22,9 +22,10 @@ interface Props {
   resourceColor?: string
   onPartClick?: (partId: string) => void
   selectedPartId?: string | null
+  selectedPartIds?: string[] // For multi-select
 }
 
-export function MapViewer({ mapImage, parts, onPartClick, selectedPartId }: Props) {
+export function MapViewer({ mapImage, parts, onPartClick, selectedPartId, selectedPartIds }: Props) {
   const [hoveredPartId, setHoveredPartId] = useState<string | null>(null)
 
   // Color palette
@@ -89,7 +90,7 @@ export function MapViewer({ mapImage, parts, onPartClick, selectedPartId }: Prop
           preserveAspectRatio="none"
         >
           {partsWithCoords.map((part) => {
-            const isSelected = selectedPartId === part.id
+            const isSelected = selectedPartIds ? selectedPartIds.includes(part.id) : selectedPartId === part.id
             const isHovered = hoveredPartId === part.id
             
             return (
@@ -199,7 +200,7 @@ export function MapViewer({ mapImage, parts, onPartClick, selectedPartId }: Prop
                 borderColor: part.color 
               }}
             />
-            <span className={selectedPartId === part.id ? "font-medium text-blue-700" : "text-gray-700"}>
+            <span className={(selectedPartIds ? selectedPartIds.includes(part.id) : selectedPartId === part.id) ? "font-medium text-blue-700" : "text-gray-700"}>
               {part.name}
             </span>
           </button>

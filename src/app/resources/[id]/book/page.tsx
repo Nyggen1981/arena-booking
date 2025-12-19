@@ -45,6 +45,45 @@ interface Props {
   params: Promise<{ id: string }>
 }
 
+// Sort parts hierarchically (parents first, then children, sorted by name at each level)
+function sortPartsHierarchically(parts: ResourcePart[]): ResourcePart[] {
+  const partMap = new Map<string, ResourcePart & { children: ResourcePart[] }>()
+  const roots: (ResourcePart & { children: ResourcePart[] })[] = []
+
+  // First pass: create map and initialize children array
+  parts.forEach(part => {
+    partMap.set(part.id, { ...part, children: [] })
+  })
+
+  // Second pass: build tree
+  parts.forEach(part => {
+    const node = partMap.get(part.id)!
+    if (part.parentId && partMap.has(part.parentId)) {
+      const parent = partMap.get(part.parentId)!
+      parent.children.push(node)
+    } else {
+      roots.push(node)
+    }
+  })
+
+  // Sort children at each level and flatten
+  const result: ResourcePart[] = []
+  function flattenAndSort(partsToFlatten: (ResourcePart & { children: ResourcePart[] })[], level: number = 0) {
+    // Sort current level by name
+    const sorted = [...partsToFlatten].sort((a, b) => a.name.localeCompare(b.name, 'no'))
+    sorted.forEach(part => {
+      // Add current part to result, without its children property for the flat list
+      const { children: _, ...partWithoutChildren } = part
+      result.push(partWithoutChildren)
+      if (part.children && part.children.length > 0) {
+        flattenAndSort(part.children, level + 1)
+      }
+    })
+  }
+  flattenAndSort(roots)
+  return result
+}
+
 export default function BookResourcePage({ params }: Props) {
   const { id } = use(params)
   const { data: session, status } = useSession()
@@ -63,7 +102,7 @@ export default function BookResourcePage({ params }: Props) {
   const [date, setDate] = useState("")
   const [startTime, setStartTime] = useState("")
   const [endTime, setEndTime] = useState("")
-  const [selectedPart, setSelectedPart] = useState("")
+  const [selectedParts, setSelectedParts] = useState<string[]>([])
   const [contactName, setContactName] = useState("")
   const [contactEmail, setContactEmail] = useState("")
   const [contactPhone, setContactPhone] = useState("")
@@ -109,8 +148,8 @@ export default function BookResourcePage({ params }: Props) {
     setError("")
 
     // Validate part selection if whole booking is not allowed
-    if (resource && !resource.allowWholeBooking && resource.parts.length > 0 && !selectedPart) {
-      setError("Du må velge et område for denne fasiliteten")
+    if (resource && !resource.allowWholeBooking && resource.parts.length > 0 && selectedParts.length === 0) {
+      setError("Du må velge minst en del for denne fasiliteten")
       setIsSubmitting(false)
       return
     }
@@ -124,7 +163,7 @@ export default function BookResourcePage({ params }: Props) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           resourceId: id,
-          resourcePartId: selectedPart || undefined,
+          resourcePartIds: selectedParts.length > 0 ? selectedParts : undefined,
           title,
           description,
           startTime: startDateTime.toISOString(),
@@ -144,14 +183,15 @@ export default function BookResourcePage({ params }: Props) {
         throw new Error(data.error || "Kunne ikke opprette booking")
       }
 
-      setBookingCount(data.count || 1)
+      const bookingCount = data.count || (selectedParts.length > 0 ? selectedParts.length : 1)
+      setBookingCount(bookingCount)
       setSuccess(true)
     } catch (err) {
       setError(err instanceof Error ? err.message : "Noe gikk galt")
     } finally {
       setIsSubmitting(false)
     }
-  }, [resource, selectedPart, id, date, startTime, endTime, title, description, contactName, contactEmail, contactPhone, isRecurring, recurringType, recurringEndDate])
+  }, [resource, selectedParts, id, date, startTime, endTime, title, description, contactName, contactEmail, contactPhone, isRecurring, recurringType, recurringEndDate])
 
   if (status === "loading" || isLoading) {
     return (
@@ -266,7 +306,7 @@ export default function BookResourcePage({ params }: Props) {
             {resource.parts.length > 0 && (
               <div className="space-y-4">
                 <label className="block text-sm font-medium text-gray-700">
-                  Velg del av {resource.name} {!resource.allowWholeBooking && <span className="text-red-500">*</span>}
+                  Velg del(er) av {resource.name} {!resource.allowWholeBooking && <span className="text-red-500">*</span>}
                 </label>
                 
                 {/* Map view if available */}
@@ -276,74 +316,78 @@ export default function BookResourcePage({ params }: Props) {
                       <MapViewer
                         mapImage={resource.mapImage}
                         parts={resource.parts}
-                        selectedPartId={selectedPart}
+                        selectedPartIds={selectedParts}
                         onPartClick={(partId) => {
-                          // If clicking same part, deselect only if whole booking is allowed
-                          if (partId === selectedPart) {
-                            if (resource.allowWholeBooking) {
-                              setSelectedPart("")
+                          setSelectedParts(prev => {
+                            if (prev.includes(partId)) {
+                              return prev.filter(id => id !== partId)
+                            } else {
+                              return [...prev, partId]
                             }
-                          } else {
-                            setSelectedPart(partId)
-                          }
+                          })
                         }}
                       />
                     </div>
                     
-                    {/* Selected part display */}
+                    {/* Selected parts display */}
                     <div className={`p-4 rounded-xl border-2 transition-all ${
-                      selectedPart 
+                      selectedParts.length > 0
                         ? "border-blue-500 bg-blue-50" 
                         : !resource.allowWholeBooking 
                           ? "border-red-300 bg-red-50"
                           : "border-gray-200 bg-gray-50"
                     }`}>
-                      <p className="text-sm text-gray-500 mb-1">Valgt område:</p>
+                      <p className="text-sm text-gray-500 mb-1">Valgte deler:</p>
                       <p className="font-semibold text-gray-900">
-                        {selectedPart 
-                          ? resource.parts.find(p => p.id === selectedPart)?.name 
+                        {selectedParts.length > 0 
+                          ? selectedParts.map(id => resource.parts.find(p => p.id === id)?.name).filter(Boolean).join(", ")
                           : resource.allowWholeBooking 
                             ? `Hele ${resource.name}`
-                            : "Velg et område"
+                            : "Velg del"
                         }
                       </p>
                     </div>
                     
                     <p className="text-xs text-gray-500">
-                      {resource.allowWholeBooking 
-                        ? "Klikk på et område i kartet for å velge det. Klikk igjen for å velge hele fasiliteten."
-                        : "Klikk på et område i kartet for å velge det."
-                      }
+                      Klikk på deler i kartet for å velge dem. Du kan velge flere deler samtidig.
                     </p>
                   </div>
                 ) : (
-                  /* Fallback dropdown if no map */
-                  <select
-                    value={selectedPart}
-                    onChange={(e) => setSelectedPart(e.target.value)}
-                    className="input"
-                    required={!resource.allowWholeBooking}
-                  >
-                    {resource.allowWholeBooking && <option value="">Hele fasiliteten</option>}
-                    {!resource.allowWholeBooking && !selectedPart && <option value="">Velg et område...</option>}
+                  /* Fallback checkbox list if no map */
+                  <div className="space-y-2 max-h-60 overflow-y-auto border border-gray-200 rounded-lg p-3">
                     {(() => {
                       // Sort parts hierarchically
-                      const sortedParts = [...resource.parts].sort((a, b) => {
-                        // Parents first (null parentId comes before non-null)
-                        if (a.parentId === null && b.parentId !== null) return -1
-                        if (a.parentId !== null && b.parentId === null) return 1
-                        // If both have same parent status, sort by name
-                        return a.name.localeCompare(b.name)
-                      })
+                      const sortedParts = sortPartsHierarchically(resource.parts)
                       return sortedParts.map(part => {
+                        const isChild = part.parentId !== null
                         const parent = resource.parts.find(p => p.id === part.parentId)
-                        const displayName = parent ? `${part.name} (${parent.name})` : part.name
                         return (
-                          <option key={part.id} value={part.id}>{displayName}</option>
+                          <label
+                            key={part.id}
+                            className={`flex items-center gap-3 p-2 rounded-lg hover:bg-gray-50 cursor-pointer ${
+                              isChild ? 'ml-6' : ''
+                            }`}
+                          >
+                            <input
+                              type="checkbox"
+                              checked={selectedParts.includes(part.id)}
+                              onChange={(e) => {
+                                if (e.target.checked) {
+                                  setSelectedParts(prev => [...prev, part.id])
+                                } else {
+                                  setSelectedParts(prev => prev.filter(id => id !== part.id))
+                                }
+                              }}
+                              className="w-5 h-5 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                            />
+                            <span className="text-sm text-gray-900">
+                              {isChild && parent ? `${part.name} (${parent.name})` : part.name}
+                            </span>
+                          </label>
                         )
                       })
                     })()}
-                  </select>
+                  </div>
                 )}
               </div>
             )}

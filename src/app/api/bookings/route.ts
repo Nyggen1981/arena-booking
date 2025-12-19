@@ -27,7 +27,8 @@ export async function POST(request: Request) {
     const body = await request.json()
     const {
       resourceId,
-      resourcePartId,
+      resourcePartId, // Legacy support
+      resourcePartIds, // New: array of part IDs
       title,
       description,
       startTime,
@@ -39,6 +40,9 @@ export async function POST(request: Request) {
       recurringType,
       recurringEndDate
     } = body
+
+    // Normalize to array: use resourcePartIds if provided, otherwise use resourcePartId as single-item array
+    const partIds: string[] = resourcePartIds || (resourcePartId ? [resourcePartId] : [])
 
     // Validate required fields
     if (!resourceId || !title || !startTime || !endTime) {
@@ -154,45 +158,47 @@ export async function POST(request: Request) {
       
       let conflictingBookings
       
-      if (!resourcePartId) {
+      if (partIds.length === 0) {
         // Booking whole facility - check if ANY part is booked
         conflictingBookings = await prisma.booking.findMany({
           where: baseFilter,
           select: { id: true, status: true, resourcePart: { select: { name: true } } }
         })
       } else {
-        // Booking a specific part
-        // Get the part to check its hierarchy
-        const bookingPart = await prisma.resourcePart.findUnique({
-          where: { id: resourcePartId },
+        // Booking one or more specific parts
+        // Get all parts to check their hierarchy
+        const bookingParts = await prisma.resourcePart.findMany({
+          where: { id: { in: partIds } },
           include: {
             parent: true,
             children: true
           }
         })
         
-        if (!bookingPart) {
+        if (bookingParts.length !== partIds.length) {
           return NextResponse.json(
-            { error: "Del ikke funnet" },
+            { error: "En eller flere deler ikke funnet" },
             { status: 404 }
           )
         }
         
-        // Build list of part IDs to check:
-        // 1. The part itself
+        // Build list of part IDs to check for conflicts:
+        // 1. The parts themselves
         // 2. All children (if booking parent, children are blocked)
-        // 3. The parent (if booking child, parent is blocked)
-        const partIdsToCheck: string[] = [resourcePartId]
+        // 3. The parents (if booking child, parent is blocked)
+        const partIdsToCheck: string[] = [...partIds]
         
-        // If this part has children, add all children IDs
-        if (bookingPart.children && bookingPart.children.length > 0) {
-          const childIds = bookingPart.children.map(c => c.id)
-          partIdsToCheck.push(...childIds)
-        }
-        
-        // If this part has a parent, add parent ID
-        if (bookingPart.parentId) {
-          partIdsToCheck.push(bookingPart.parentId)
+        for (const bookingPart of bookingParts) {
+          // If this part has children, add all children IDs
+          if (bookingPart.children && bookingPart.children.length > 0) {
+            const childIds = bookingPart.children.map(c => c.id)
+            partIdsToCheck.push(...childIds)
+          }
+          
+          // If this part has a parent, add parent ID
+          if (bookingPart.parentId) {
+            partIdsToCheck.push(bookingPart.parentId)
+          }
         }
         
         // Check for conflicts: same parts OR whole facility OR parent/children
@@ -230,33 +236,41 @@ export async function POST(request: Request) {
     }
 
     // Create all bookings
-    // First, create the parent booking
+    // If multiple parts selected, create one booking per part
+    // If single part or whole facility, create one booking
     const isRecurringBooking = isRecurring && bookingDates.length > 1
+    const partsToBook = partIds.length > 0 ? partIds : [null] // null = whole facility
     
-    const parentBooking = await prisma.booking.create({
-      data: {
-        title,
-        description,
-        startTime: bookingDates[0].start,
-        endTime: bookingDates[0].end,
-        status: resource.requiresApproval ? "pending" : "approved",
-        approvedAt: resource.requiresApproval ? null : new Date(),
-        contactName,
-        contactEmail,
-        contactPhone,
-        organizationId: session.user.organizationId,
-        resourceId,
-        resourcePartId: resourcePartId || null,
-        userId: session.user.id,
-        isRecurring: isRecurringBooking,
-        recurringPattern: isRecurringBooking ? recurringType : null,
-        recurringEndDate: isRecurringBooking ? new Date(recurringEndDate) : null
-      }
-    })
+    const allCreatedBookings = []
+    
+    for (const partId of partsToBook) {
+      // Create parent booking for this part
+      const parentBooking = await prisma.booking.create({
+        data: {
+          title,
+          description,
+          startTime: bookingDates[0].start,
+          endTime: bookingDates[0].end,
+          status: resource.requiresApproval ? "pending" : "approved",
+          approvedAt: resource.requiresApproval ? null : new Date(),
+          contactName,
+          contactEmail,
+          contactPhone,
+          organizationId: session.user.organizationId,
+          resourceId,
+          resourcePartId: partId,
+          userId: session.user.id,
+          isRecurring: isRecurringBooking,
+          recurringPattern: isRecurringBooking ? recurringType : null,
+          recurringEndDate: isRecurringBooking ? new Date(recurringEndDate) : null
+        }
+      })
+      
+      allCreatedBookings.push(parentBooking)
 
-    // Then create child bookings if recurring
-    const childBookings = isRecurringBooking && bookingDates.length > 1
-      ? await prisma.$transaction(
+      // Then create child bookings if recurring
+      if (isRecurringBooking && bookingDates.length > 1) {
+        const childBookings = await prisma.$transaction(
           bookingDates.slice(1).map(({ start: bookingStart, end: bookingEnd }) =>
             prisma.booking.create({
               data: {
@@ -271,7 +285,7 @@ export async function POST(request: Request) {
                 contactPhone,
                 organizationId: session.user.organizationId,
                 resourceId,
-                resourcePartId: resourcePartId || null,
+                resourcePartId: partId,
                 userId: session.user.id,
                 isRecurring: true,
                 recurringPattern: recurringType,
@@ -281,9 +295,11 @@ export async function POST(request: Request) {
             })
           )
         )
-      : []
+        allCreatedBookings.push(...childBookings)
+      }
+    }
 
-    const createdBookings = [parentBooking, ...childBookings]
+    const createdBookings = allCreatedBookings
 
     // Send email notification to admins if booking requires approval (non-blocking)
     if (resource.requiresApproval && createdBookings.length > 0) {
