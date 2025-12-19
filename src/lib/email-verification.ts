@@ -94,7 +94,7 @@ export async function sendVerificationEmail(userId: string, email: string, organ
   }
   if (!baseUrl) {
     baseUrl = process.env.NODE_ENV === "production" 
-      ? "https://arena-booking.vercel.app" // Fallback for production
+      ? "https://kalender.saudail.no" // Fallback for production (Sauda IL)
       : "http://localhost:3000" // Fallback for development
   }
   
