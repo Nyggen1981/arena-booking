@@ -103,6 +103,78 @@ export default function BookResourcePage({ params }: Props) {
   const [startTime, setStartTime] = useState("")
   const [endTime, setEndTime] = useState("")
   const [selectedParts, setSelectedParts] = useState<string[]>([])
+
+  // Calculate which parts are locked based on hierarchy
+  const lockedPartIds = useMemo(() => {
+    if (!resource || selectedParts.length === 0) return new Set<string>()
+    
+    const locked = new Set<string>()
+    
+    selectedParts.forEach(selectedId => {
+      const selectedPart = resource.parts.find(p => p.id === selectedId)
+      if (!selectedPart) return
+      
+      // If selected part is a parent (has no parentId), lock all its children
+      if (!selectedPart.parentId) {
+        const children = resource.parts.filter(p => p.parentId === selectedId)
+        children.forEach(child => locked.add(child.id))
+      } else {
+        // If selected part is a child, lock its parent
+        locked.add(selectedPart.parentId)
+      }
+    })
+    
+    return locked
+  }, [resource, selectedParts])
+
+  // Check if a part can be selected
+  const canSelectPart = useCallback((partId: string) => {
+    if (lockedPartIds.has(partId)) return false
+    if (selectedParts.includes(partId)) return true
+    
+    const part = resource?.parts.find(p => p.id === partId)
+    if (!part) return true
+    
+    // If this is a parent, check if any children are selected
+    if (!part.parentId) {
+      const children = resource.parts.filter(p => p.parentId === partId)
+      return !children.some(child => selectedParts.includes(child.id))
+    } else {
+      // If this is a child, check if parent is selected
+      return !selectedParts.includes(part.parentId)
+    }
+  }, [resource, selectedParts, lockedPartIds])
+
+  // Handle part selection with hierarchy rules
+  const handlePartToggle = useCallback((partId: string) => {
+    if (!resource) return
+    
+    const part = resource.parts.find(p => p.id === partId)
+    if (!part) return
+    
+    setSelectedParts(prev => {
+      if (prev.includes(partId)) {
+        // Deselecting - just remove it
+        return prev.filter(id => id !== partId)
+      } else {
+        // Selecting - need to check hierarchy rules
+        if (!canSelectPart(partId)) {
+          return prev // Can't select, return unchanged
+        }
+        
+        // If selecting a parent, remove any selected children
+        if (!part.parentId) {
+          const children = resource.parts.filter(p => p.parentId === partId)
+          const filtered = prev.filter(id => !children.some(c => c.id === id))
+          return [...filtered, partId]
+        } else {
+          // If selecting a child, remove parent if selected
+          const filtered = prev.filter(id => id !== part.parentId)
+          return [...filtered, partId]
+        }
+      }
+    })
+  }, [resource, canSelectPart])
   const [contactName, setContactName] = useState("")
   const [contactEmail, setContactEmail] = useState("")
   const [contactPhone, setContactPhone] = useState("")
@@ -317,15 +389,8 @@ export default function BookResourcePage({ params }: Props) {
                         mapImage={resource.mapImage}
                         parts={resource.parts}
                         selectedPartIds={selectedParts}
-                        onPartClick={(partId) => {
-                          setSelectedParts(prev => {
-                            if (prev.includes(partId)) {
-                              return prev.filter(id => id !== partId)
-                            } else {
-                              return [...prev, partId]
-                            }
-                          })
-                        }}
+                        lockedPartIds={Array.from(lockedPartIds)}
+                        onPartClick={handlePartToggle}
                       />
                     </div>
                     
@@ -349,7 +414,8 @@ export default function BookResourcePage({ params }: Props) {
                     </div>
                     
                     <p className="text-xs text-gray-500">
-                      Klikk på deler i kartet for å velge dem. Du kan velge flere deler samtidig.
+                      Klikk på deler i kartet for å velge dem. Du kan velge flere deler samtidig. 
+                      {lockedPartIds.size > 0 && " Gråe deler er låst pga. hierarkiske regler."}
                     </p>
                   </div>
                 ) : (
@@ -361,27 +427,32 @@ export default function BookResourcePage({ params }: Props) {
                       return sortedParts.map(part => {
                         const isChild = part.parentId !== null
                         const parent = resource.parts.find(p => p.id === part.parentId)
+                        const isLocked = lockedPartIds.has(part.id)
+                        const isDisabled = !canSelectPart(part.id) && !selectedParts.includes(part.id)
+                        
                         return (
                           <label
                             key={part.id}
-                            className={`flex items-center gap-3 p-2 rounded-lg hover:bg-gray-50 cursor-pointer ${
-                              isChild ? 'ml-6' : ''
-                            }`}
+                            className={`flex items-center gap-3 p-2 rounded-lg ${
+                              isLocked || isDisabled 
+                                ? 'opacity-50 cursor-not-allowed bg-gray-50' 
+                                : 'hover:bg-gray-50 cursor-pointer'
+                            } ${isChild ? 'ml-6' : ''}`}
                           >
                             <input
                               type="checkbox"
                               checked={selectedParts.includes(part.id)}
+                              disabled={isLocked || isDisabled}
                               onChange={(e) => {
-                                if (e.target.checked) {
-                                  setSelectedParts(prev => [...prev, part.id])
-                                } else {
-                                  setSelectedParts(prev => prev.filter(id => id !== part.id))
+                                if (!isLocked && !isDisabled) {
+                                  handlePartToggle(part.id)
                                 }
                               }}
-                              className="w-5 h-5 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                              className="w-5 h-5 rounded border-gray-300 text-blue-600 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
                             />
-                            <span className="text-sm text-gray-900">
+                            <span className={`text-sm ${isLocked || isDisabled ? 'text-gray-400' : 'text-gray-900'}`}>
                               {isChild && parent ? `${part.name} (${parent.name})` : part.name}
+                              {isLocked && <span className="ml-2 text-xs text-gray-400">(låst)</span>}
                             </span>
                           </label>
                         )
