@@ -39,15 +39,17 @@ export function PartDetailModal({ part, onClose }: PartDetailModalProps) {
         </div>
 
         {/* Content */}
-        <div className="p-6 space-y-4">
+        <div className="p-6 space-y-6">
           {/* Image */}
           {part.image && (
-            <div className="relative w-full h-64 rounded-lg overflow-hidden bg-gray-100">
+            <div className="relative w-full aspect-video rounded-lg overflow-hidden bg-gray-100 shadow-lg">
               <Image
                 src={part.image}
                 alt={part.name}
                 fill
-                className="object-cover"
+                className="object-contain"
+                sizes="(max-width: 768px) 100vw, (max-width: 1200px) 80vw, 70vw"
+                priority
               />
             </div>
           )}

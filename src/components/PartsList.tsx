@@ -29,18 +29,12 @@ export function PartsList({ parts, sortedParts }: PartsListProps) {
         <div className="space-y-2">
           {sortedParts.map((part) => {
             const isChild = part.parentId !== null
-            const parentPart = parts.find(p => p.id === part.parentId)
             return (
               <div 
                 key={part.id} 
                 onClick={() => setSelectedPart(part)}
                 className={`p-3 rounded-lg bg-gray-50 hover:bg-gray-100 transition-colors cursor-pointer ${isChild ? 'ml-6 border-l-2 border-gray-300' : ''}`}
               >
-                {isChild && parentPart && (
-                  <p className="text-xs text-gray-400 mb-1">
-                    Underdel av: {parentPart.name}
-                  </p>
-                )}
                 <p className="font-medium text-gray-900">{part.name}</p>
                 {part.description && (
                   <p className="text-sm text-gray-500 line-clamp-2">{part.description}</p>
