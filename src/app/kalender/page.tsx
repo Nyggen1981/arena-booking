@@ -3,6 +3,7 @@
 import { useSession } from "next-auth/react"
 import { useEffect, useState, useMemo, useCallback, useRef } from "react"
 import { useRouter } from "next/navigation"
+import Link from "next/link"
 import { PageLayout } from "@/components/PageLayout"
 import { format, parseISO, startOfDay, addDays, setHours, startOfWeek, endOfWeek, startOfMonth, endOfMonth, eachDayOfInterval, isSameDay, isSameWeek, isSameMonth, addWeeks, subWeeks, addMonths, subMonths, isToday, getWeek } from "date-fns"
 import { nb } from "date-fns/locale"
@@ -86,12 +87,14 @@ export default function CalendarPage() {
   
   const [selectedDate, setSelectedDate] = useState(new Date())
   // Default to month view for all users
-  const [viewMode, setViewMode] = useState<"day" | "week" | "month">("month")
+  const [viewMode, setViewMode] = useState<"day" | "week" | "month" | "overview">("month")
   const [timelineData, setTimelineData] = useState<TimelineData | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [selectedCategoryId, setSelectedCategoryId] = useState<string | null>(null)
   const [selectedResourceId, setSelectedResourceId] = useState<string | null>(null)
   const [selectedPartId, setSelectedPartId] = useState<string | null>(null)
+  const [selectedResources, setSelectedResources] = useState<Set<string>>(new Set())
+  const [showFilter, setShowFilter] = useState(false)
   const [selectedBooking, setSelectedBooking] = useState<Booking | null>(null)
   const [editingBooking, setEditingBooking] = useState<Booking | null>(null)
   const [isProcessing, setIsProcessing] = useState(false)
@@ -125,7 +128,7 @@ export default function CalendarPage() {
       let startDate: Date
       let endDate: Date
       
-      if (viewMode === "day") {
+      if (viewMode === "day" || viewMode === "overview") {
         startDate = startOfDay(selectedDate)
         endDate = new Date(startDate)
         endDate.setHours(23, 59, 59, 999)
@@ -167,9 +170,9 @@ export default function CalendarPage() {
         .then(res => res.json())
         .then(prefs => {
           // Load calendar preferences
-          // Use defaultCalendarView for viewMode (day/week/month)
-          if (prefs.defaultCalendarView && ["day", "week", "month"].includes(prefs.defaultCalendarView)) {
-            setViewMode(prefs.defaultCalendarView as "day" | "week" | "month")
+          // Use defaultCalendarView for viewMode (day/week/month/overview)
+          if (prefs.defaultCalendarView && ["day", "week", "month", "overview"].includes(prefs.defaultCalendarView)) {
+            setViewMode(prefs.defaultCalendarView as "day" | "week" | "month" | "overview")
           }
           if (prefs.selectedCategoryIds && prefs.selectedCategoryIds.length > 0) {
             setSelectedCategoryId(prefs.selectedCategoryIds[0])
@@ -348,6 +351,58 @@ export default function CalendarPage() {
   const handleResourceChange = useCallback((resourceId: string) => {
     setSelectedResourceId(resourceId || null)
     setSelectedPartId(null) // Reset part selection when resource changes
+  }, [])
+
+  // Initialize selected resources when data loads (select all by default for overview)
+  const isInitialLoad = useRef(true)
+  useEffect(() => {
+    if (timelineData && timelineData.resources.length > 0 && viewMode === "overview") {
+      const allResourceIds = new Set(timelineData.resources.map(r => r.id))
+      
+      if (isInitialLoad.current) {
+        // First load: select all by default
+        setSelectedResources(allResourceIds)
+        isInitialLoad.current = false
+      } else {
+        // Check if any currently selected resources no longer exist in the data
+        setSelectedResources(prev => {
+          // If user explicitly removed all, keep it empty
+          if (prev.size === 0) {
+            return prev
+          }
+          // Check if any selected resources no longer exist
+          const hasInvalidResources = Array.from(prev).some(id => !allResourceIds.has(id))
+          if (hasInvalidResources) {
+            // Some selected resources were removed from database, reset to all
+            return allResourceIds
+          }
+          // Keep current selection
+          return prev
+        })
+      }
+    }
+  }, [timelineData, viewMode])
+
+  const toggleResource = useCallback((resourceId: string) => {
+    setSelectedResources(prev => {
+      const newSet = new Set(prev)
+      if (newSet.has(resourceId)) {
+        newSet.delete(resourceId)
+      } else {
+        newSet.add(resourceId)
+      }
+      return newSet
+    })
+  }, [])
+
+  const selectAll = useCallback(() => {
+    if (!timelineData) return
+    const allResourceIds = new Set(timelineData.resources.map(r => r.id))
+    setSelectedResources(allResourceIds)
+  }, [timelineData])
+
+  const deselectAll = useCallback(() => {
+    setSelectedResources(new Set())
   }, [])
 
 
@@ -574,6 +629,74 @@ export default function CalendarPage() {
     })
   }, [timelineData, selectedCategoryId, selectedResourceId, selectedPartId, selectedResource])
 
+  // Group resources with their parts and bookings (filtered by selected resources) - for overview view
+  const groupedData = useMemo(() => {
+    if (!timelineData || viewMode !== "overview") return []
+
+    const grouped: Array<{
+      resource: Resource
+      allBookings: Booking[]
+      parts: Array<{
+        part: { id: string; name: string } | null
+        bookings: Booking[]
+      }>
+    }> = []
+
+    timelineData.resources
+      .filter(resource => selectedResources.has(resource.id))
+      .forEach(resource => {
+      // Get all bookings for this resource
+      const resourceBookings = timelineData.bookings.filter(b => b.resource.id === resource.id)
+
+      // Group bookings by part (null for whole resource)
+      const partsMap = new Map<string | "whole", Booking[]>()
+      
+      // Initialize with all parts from resource
+      resource.parts.forEach(part => {
+        partsMap.set(part.id, [])
+      })
+      // Add whole resource option
+      partsMap.set("whole", [])
+
+      resourceBookings.forEach(booking => {
+        const key = booking.resourcePart?.id || "whole"
+        if (!partsMap.has(key)) {
+          partsMap.set(key, [])
+        }
+        partsMap.get(key)!.push(booking)
+      })
+
+      // Convert to array format
+      const parts: Array<{
+        part: { id: string; name: string } | null
+        bookings: Booking[]
+      }> = []
+
+      // Add whole resource row first (hoveddel) only if allowWholeBooking is true
+      if (resource.allowWholeBooking) {
+        parts.push({
+          part: null,
+          bookings: partsMap.get("whole") || []
+        })
+      }
+
+      // Add part rows after (underdeler)
+      resource.parts.forEach(part => {
+        const bookings = partsMap.get(part.id) || []
+        parts.push({
+          part: { id: part.id, name: part.name },
+          bookings
+        })
+      })
+
+      if (parts.length > 0) {
+        grouped.push({ resource, allBookings: resourceBookings, parts })
+      }
+    })
+
+    return grouped
+  }, [timelineData, selectedResources, viewMode])
+
   // Get days for current view
   const viewDays = useMemo(() => {
     if (viewMode === "day") {
@@ -687,49 +810,70 @@ export default function CalendarPage() {
                   Kalender
                 </h1>
                 
-                {/* Filter dropdowns */}
-                <div className="flex items-center gap-2 sm:gap-3 flex-wrap">
-                  <select
-                    value={selectedCategoryId || ""}
-                    onChange={(e) => handleCategoryChange(e.target.value)}
-                    className="px-3 sm:px-4 py-2 border border-gray-300 rounded-lg text-sm font-medium text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  >
-                    <option value="">Alle kategorier</option>
-                    {categories.map((c) => (
-                      <option key={c.id} value={c.id}>
-                        {c.name}
-                      </option>
-                    ))}
-                  </select>
-                  {availableResources.length > 0 && (
+                {/* Filter dropdowns - only show for non-overview views */}
+                {viewMode !== "overview" && (
+                  <div className="flex items-center gap-2 sm:gap-3 flex-wrap">
                     <select
-                      value={selectedResourceId || ""}
-                      onChange={(e) => handleResourceChange(e.target.value)}
+                      value={selectedCategoryId || ""}
+                      onChange={(e) => handleCategoryChange(e.target.value)}
                       className="px-3 sm:px-4 py-2 border border-gray-300 rounded-lg text-sm font-medium text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
                     >
-                      <option value="">Alle fasiliteter</option>
-                      {availableResources.map((r) => (
-                        <option key={r.id} value={r.id}>
-                          {r.name}
+                      <option value="">Alle kategorier</option>
+                      {categories.map((c) => (
+                        <option key={c.id} value={c.id}>
+                          {c.name}
                         </option>
                       ))}
                     </select>
-                  )}
-                  {selectedResource && selectedResource.parts.length > 0 && (
-                    <select
-                      value={selectedPartId || ""}
-                      onChange={(e) => setSelectedPartId(e.target.value || null)}
-                      className="px-3 sm:px-4 py-2 border border-gray-300 rounded-lg text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    >
-                      <option value="">Alle deler</option>
-                      {selectedResource.parts.map((part) => (
-                        <option key={part.id} value={part.id}>
-                          {part.name}
-                        </option>
-                      ))}
-                    </select>
-                  )}
-                </div>
+                    {availableResources.length > 0 && (
+                      <select
+                        value={selectedResourceId || ""}
+                        onChange={(e) => handleResourceChange(e.target.value)}
+                        className="px-3 sm:px-4 py-2 border border-gray-300 rounded-lg text-sm font-medium text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      >
+                        <option value="">Alle fasiliteter</option>
+                        {availableResources.map((r) => (
+                          <option key={r.id} value={r.id}>
+                            {r.name}
+                          </option>
+                        ))}
+                      </select>
+                    )}
+                    {selectedResource && selectedResource.parts.length > 0 && (
+                      <select
+                        value={selectedPartId || ""}
+                        onChange={(e) => setSelectedPartId(e.target.value || null)}
+                        className="px-3 sm:px-4 py-2 border border-gray-300 rounded-lg text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      >
+                        <option value="">Alle deler</option>
+                        {selectedResource.parts.map((part) => (
+                          <option key={part.id} value={part.id}>
+                            {part.name}
+                          </option>
+                        ))}
+                      </select>
+                    )}
+                  </div>
+                )}
+                {/* Filter Button for Overview */}
+                {viewMode === "overview" && (
+                  <button
+                    onClick={() => setShowFilter(!showFilter)}
+                    className={`flex items-center gap-2 px-3 sm:px-4 py-2 rounded-lg transition-colors text-sm ${
+                      showFilter
+                        ? "bg-blue-600 text-white"
+                        : "bg-white text-gray-700 border border-gray-300 hover:bg-gray-50"
+                    }`}
+                  >
+                    <Filter className="w-4 h-4" />
+                    <span className="hidden sm:inline">Filter</span>
+                    {selectedResources.size > 0 && (
+                      <span className="px-2 py-0.5 text-xs rounded-full bg-blue-100 text-blue-700">
+                        {selectedResources.size}
+                      </span>
+                    )}
+                  </button>
+                )}
               </div>
               
               {/* Date Navigation */}
@@ -896,46 +1040,61 @@ export default function CalendarPage() {
                   </button>
                 )}
                 
-                <div className="flex items-center gap-1 border border-gray-300 rounded-lg overflow-hidden">
+                <div className="flex items-center gap-3">
+                  <div className="flex items-center gap-1 border border-gray-300 rounded-lg overflow-hidden">
+                    <button
+                      onClick={() => {
+                        setViewMode("day")
+                        setSelectedDate(new Date())
+                      }}
+                      className={`px-3 py-2 text-sm transition-colors ${
+                        viewMode === "day"
+                          ? "bg-blue-600 text-white"
+                          : "bg-white text-gray-700 hover:bg-gray-50"
+                      }`}
+                    >
+                      Dag
+                    </button>
+                    <button
+                      onClick={() => {
+                        setViewMode("week")
+                        const weekStart = startOfWeek(new Date(), { weekStartsOn: 1, locale: nb })
+                        setSelectedDate(weekStart)
+                      }}
+                      className={`px-3 py-2 text-sm transition-colors border-l border-gray-300 ${
+                        viewMode === "week"
+                          ? "bg-blue-600 text-white"
+                          : "bg-white text-gray-700 hover:bg-gray-50"
+                      }`}
+                    >
+                      Uke
+                    </button>
+                    <button
+                      onClick={() => {
+                        setViewMode("month")
+                        setSelectedDate(startOfMonth(new Date()))
+                      }}
+                      className={`px-3 py-2 text-sm transition-colors border-l border-gray-300 ${
+                        viewMode === "month"
+                          ? "bg-blue-600 text-white"
+                          : "bg-white text-gray-700 hover:bg-gray-50"
+                      }`}
+                    >
+                      Måned
+                    </button>
+                  </div>
                   <button
                     onClick={() => {
-                      setViewMode("day")
+                      setViewMode("overview")
                       setSelectedDate(new Date())
                     }}
-                    className={`px-3 py-2 text-sm transition-colors ${
-                      viewMode === "day"
-                        ? "bg-blue-600 text-white"
+                    className={`px-3 py-2 text-sm transition-colors border border-gray-300 rounded-lg ${
+                      viewMode === "overview"
+                        ? "bg-blue-600 text-white border-blue-600"
                         : "bg-white text-gray-700 hover:bg-gray-50"
                     }`}
                   >
-                    Dag
-                  </button>
-                  <button
-                    onClick={() => {
-                      setViewMode("week")
-                      const weekStart = startOfWeek(new Date(), { weekStartsOn: 1, locale: nb })
-                      setSelectedDate(weekStart)
-                    }}
-                    className={`px-3 py-2 text-sm transition-colors border-l border-gray-300 ${
-                      viewMode === "week"
-                        ? "bg-blue-600 text-white"
-                        : "bg-white text-gray-700 hover:bg-gray-50"
-                    }`}
-                  >
-                    Uke
-                  </button>
-                  <button
-                    onClick={() => {
-                      setViewMode("month")
-                      setSelectedDate(startOfMonth(new Date()))
-                    }}
-                    className={`px-3 py-2 text-sm transition-colors border-l border-gray-300 ${
-                      viewMode === "month"
-                        ? "bg-blue-600 text-white"
-                        : "bg-white text-gray-700 hover:bg-gray-50"
-                    }`}
-                  >
-                    Måned
+                    Oversikt
                   </button>
                 </div>
 
@@ -1233,6 +1392,261 @@ export default function CalendarPage() {
                 })}
               </div>
             </div>
+          ) : viewMode === "overview" ? (
+          /* Overview View - Timeline Style */
+          !timelineData ? (
+            <div className="card p-12 text-center">
+              <GanttChart className="w-16 h-16 text-gray-300 mx-auto mb-4" />
+              <p className="text-gray-500">Laster data...</p>
+            </div>
+          ) : (
+            <>
+              {/* Filter Panel - Compact */}
+              {showFilter && (
+                <div className="mb-4 bg-white rounded-lg border border-gray-200 shadow-sm p-3">
+                  <div className="flex items-center justify-between mb-3">
+                    <div className="flex items-center gap-2">
+                      <Filter className="w-4 h-4 text-gray-500" />
+                      <span className="text-sm font-medium text-gray-700">
+                        {selectedResources.size} av {timelineData?.resources.length || 0} valgt
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-1">
+                      <button
+                        onClick={selectAll}
+                        className="px-2 py-1 text-xs text-blue-600 hover:bg-blue-50 rounded transition-colors"
+                      >
+                        Alle
+                      </button>
+                      <span className="text-gray-300">|</span>
+                      <button
+                        onClick={deselectAll}
+                        className="px-2 py-1 text-xs text-gray-600 hover:bg-gray-50 rounded transition-colors"
+                      >
+                        Ingen
+                      </button>
+                    </div>
+                  </div>
+                  
+                  {/* Compact Resource List */}
+                  <div className="space-y-2 max-h-64 overflow-y-auto">
+                    {resourcesByCategory.map((category) => (
+                      <div key={category.id} className="space-y-1.5">
+                        <div className="flex items-center gap-1.5">
+                          {category.color && (
+                            <div
+                              className="w-2 h-2 rounded-full flex-shrink-0"
+                              style={{ backgroundColor: category.color }}
+                            />
+                          )}
+                          <span className="text-xs font-medium text-gray-600">{category.name}</span>
+                        </div>
+                        <div className="flex flex-wrap gap-1 ml-3.5">
+                          {category.resources.map((resource) => (
+                            <button
+                              key={resource.id}
+                              onClick={() => toggleResource(resource.id)}
+                              className={`px-2 py-1 text-xs rounded transition-colors ${
+                                selectedResources.has(resource.id)
+                                  ? "bg-blue-100 text-blue-700 font-medium"
+                                  : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+                              }`}
+                            >
+                              {resource.name}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Timeline View */}
+              {groupedData.length === 0 ? (
+                <div className="card p-12 text-center">
+                  <GanttChart className="w-16 h-16 text-gray-300 mx-auto mb-4" />
+                  <p className="text-gray-500">Ingen bookinger for denne dagen</p>
+                </div>
+              ) : (
+                <div className="bg-white rounded-xl border border-gray-200 shadow-sm">
+                  {/* Scrollable container with sticky header */}
+                  <div ref={timelineContainerRef} className="max-h-[calc(100vh-300px)] overflow-y-auto overflow-x-auto rounded-xl relative">
+                    {/* Time Header - sticky within scroll container */}
+                    <div className="sticky top-0 z-20 bg-gray-50 border-b border-gray-200">
+                      <div className="flex" style={{ minWidth: '1200px' }}>
+                        <div className="w-48 sm:w-64 flex-shrink-0 p-2 sm:p-3 font-medium text-gray-700 text-xs sm:text-sm border-r border-gray-200 bg-gray-50">
+                          <span className="hidden sm:inline">Fasilitet / Del</span>
+                          <span className="sm:hidden">Fasilitet</span>
+                        </div>
+                        <div className="flex-1 flex">
+                          {timeSlots.map((time, index) => (
+                            <div
+                              key={index}
+                              className="border-r border-gray-200 last:border-r-0 p-1 sm:p-2 text-center bg-gray-50"
+                              style={{ width: `${100 / 24}%` }}
+                            >
+                              <div className="text-[10px] sm:text-xs font-medium text-gray-600">
+                                {format(time, "HH:mm")}
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Timeline Rows */}
+                    <div className="divide-y divide-gray-100" style={{ minWidth: '1200px' }}>
+                        {groupedData.map(({ resource, allBookings, parts }) => (
+                          <div key={resource.id}>
+                            {/* Resource Header */}
+                            <div className="bg-gray-50 border-b border-gray-200 relative">
+                              <div className="flex">
+                                <Link 
+                                  href={`/resources/${resource.id}`}
+                                  className="w-48 sm:w-64 flex-shrink-0 p-2 sm:p-3 border-r border-gray-200 hover:bg-gray-100 transition-colors cursor-pointer"
+                                >
+                                  <div className="font-semibold text-gray-900 flex items-center gap-2 text-sm sm:text-base">
+                                    {resource.category && (
+                                      <div
+                                        className="w-2.5 h-2.5 sm:w-3 sm:h-3 rounded-full flex-shrink-0"
+                                        style={{ backgroundColor: resource.category.color || "#6b7280" }}
+                                      />
+                                    )}
+                                    <span className="truncate hover:text-blue-600 transition-colors">{resource.name}</span>
+                                  </div>
+                                  {resource.category && (
+                                    <div className="text-[10px] sm:text-xs text-gray-500 mt-0.5 sm:mt-1 truncate">
+                                      {resource.category.name}
+                                    </div>
+                                  )}
+                                </Link>
+                                <div className="flex-1 relative">
+                                  {/* Current Time Indicator Line in Resource Header */}
+                                  {currentTimePosition !== null && (
+                                    <div 
+                                      className="absolute top-0 bottom-0 z-25 pointer-events-none"
+                                      style={{ 
+                                        left: `${currentTimePosition}%`,
+                                        width: '2px',
+                                      }}
+                                    >
+                                      <div className="absolute top-0 bottom-0 left-1/2 -translate-x-1/2 w-0.5 bg-red-500" />
+                                    </div>
+                                  )}
+                                </div>
+                              </div>
+                            </div>
+
+                            {/* Part Rows */}
+                            {parts.map(({ part, bookings }) => (
+                              <div
+                                key={part ? part.id : `whole-${resource.id}`}
+                                className="flex border-b border-gray-100 hover:bg-gray-50 transition-colors"
+                              >
+                                {/* Part Label */}
+                                <div className="w-48 sm:w-64 flex-shrink-0 p-2 sm:p-3 border-r border-gray-200">
+                                  <div className="text-xs sm:text-sm text-gray-700">
+                                    {part ? (
+                                      <span className="text-gray-600 truncate block">{part.name}</span>
+                                    ) : (
+                                      <span className="font-medium text-gray-900">Hele fasiliteten</span>
+                                    )}
+                                  </div>
+                                </div>
+
+                                {/* Timeline Bar Area */}
+                                <div className="flex-1 relative" style={{ minHeight: "60px" }}>
+                                  {/* Time Grid Lines - match header columns */}
+                                  {timeSlots.map((_, index) => (
+                                    <div
+                                      key={index}
+                                      className="absolute top-0 bottom-0 border-r border-gray-200"
+                                      style={{ left: `${((index + 1) / 24) * 100}%` }}
+                                    />
+                                  ))}
+
+                                  {/* Current Time Indicator Line */}
+                                  {currentTimePosition !== null && (
+                                    <div 
+                                      className="absolute top-0 bottom-0 z-25 pointer-events-none"
+                                      style={{ 
+                                        left: `${currentTimePosition}%`,
+                                        width: '2px',
+                                      }}
+                                    >
+                                      <div className="absolute top-0 bottom-0 left-1/2 -translate-x-1/2 w-0.5 bg-red-500" />
+                                    </div>
+                                  )}
+
+                                  {/* Blocked Slots */}
+                                  {getBlockedSlotsForPart(resource.id, part?.id || null, allBookings, resource).map((slot, index) => {
+                                    const style = getBlockedSlotStyle(slot)
+                                    return (
+                                      <div
+                                        key={`blocked-${slot.bookingId}-${index}`}
+                                        className="absolute top-1 bottom-1 rounded px-1 text-xs overflow-hidden"
+                                        style={{
+                                          ...style,
+                                          backgroundColor: 'rgba(156, 163, 175, 0.3)',
+                                          backgroundImage: 'repeating-linear-gradient(45deg, transparent, transparent 4px, rgba(156, 163, 175, 0.2) 4px, rgba(156, 163, 175, 0.2) 8px)',
+                                          border: '1px dashed #9ca3af',
+                                          zIndex: 5,
+                                        }}
+                                        title={`Blokkert av: ${slot.blockedBy}`}
+                                      >
+                                        <div className="flex items-center gap-1 h-full text-gray-500">
+                                          <span>🔒</span>
+                                          <span className="truncate text-[10px] font-medium">Blokkert</span>
+                                        </div>
+                                      </div>
+                                    )
+                                  })}
+
+                                  {/* Bookings */}
+                                  {bookings.map((booking) => {
+                                    const style = getBookingStyle(booking, bookings)
+                                    const isPending = booking.status === "pending"
+                                    const color = resource.color || resource.category?.color || "#3b82f6"
+                                    const startTime = parseISO(booking.startTime)
+                                    const endTime = parseISO(booking.endTime)
+                                    const timeStr = `${format(startTime, "HH:mm")} - ${format(endTime, "HH:mm")}`
+                                    
+                                    return (
+                                      <button
+                                        key={booking.id}
+                                        onClick={() => setSelectedBooking(booking)}
+                                        className="absolute top-1 bottom-1 rounded px-2 py-1 text-white text-xs font-medium cursor-pointer hover:shadow-lg hover:scale-[1.02] transition-all overflow-hidden text-left"
+                                        style={{
+                                          ...style,
+                                          backgroundColor: isPending ? `${color}80` : color,
+                                          border: isPending ? `2px dashed ${color}` : 'none',
+                                        }}
+                                        title={`Klikk for mer info`}
+                                      >
+                                        <div className="truncate font-semibold">{booking.title}</div>
+                                        <div className="truncate text-[10px] opacity-90">
+                                          {timeStr}
+                                        </div>
+                                        {booking.user.name && (
+                                          <div className="truncate text-[10px] opacity-75">
+                                            {booking.user.name}
+                                          </div>
+                                        )}
+                                      </button>
+                                    )
+                                  })}
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+              )}
+            </>
+          )
           ) : (
           /* Day View - Calendar Style */
           !timelineData ? (

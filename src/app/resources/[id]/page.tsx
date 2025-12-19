@@ -52,7 +52,6 @@ async function getResource(id: string) {
             capacity: true,
             mapCoordinates: true,
             parentId: true,
-            image: true,
             children: {
               where: { isActive: true },
               select: { id: true, name: true }
@@ -101,7 +100,7 @@ async function getResource(id: string) {
 }
 
 // Sort parts hierarchically (parents first, then children, sorted by name at each level)
-function sortPartsHierarchically(parts: Array<{ id: string; name: string; description: string | null; capacity: number | null; image: string | null; parentId: string | null; children?: Array<{ id: string; name: string }> }>) {
+function sortPartsHierarchically(parts: Array<{ id: string; name: string; description: string | null; capacity: number | null; parentId: string | null; children?: Array<{ id: string; name: string }> }>) {
   type PartType = typeof parts[0]
   const partMap = new Map<string, PartType & { children: PartType[] }>()
   const roots: (PartType & { children: PartType[] })[] = []
@@ -359,8 +358,8 @@ export default async function ResourcePage({ params }: Props) {
             {/* Parts */}
             {resource.parts.length > 0 && (
               <PartsList 
-                parts={resource.parts}
-                sortedParts={sortedParts}
+                parts={resource.parts.map(p => ({ ...p, image: null }))}
+                sortedParts={sortedParts.map(p => ({ ...p, image: null }))}
               />
             )}
 
