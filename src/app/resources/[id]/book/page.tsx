@@ -76,7 +76,7 @@ function sortPartsHierarchically(parts: ResourcePart[]): ResourcePart[] {
       const { children: _, ...partWithoutChildren } = part
       result.push(partWithoutChildren)
       if (part.children && part.children.length > 0) {
-        flattenAndSort(part.children, level + 1)
+        flattenAndSort(part.children as (ResourcePart & { children: ResourcePart[] })[], level + 1)
       }
     })
   }
