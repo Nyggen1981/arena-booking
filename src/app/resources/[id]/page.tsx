@@ -12,7 +12,6 @@ import {
   CheckCircle2,
   AlertCircle,
   Users,
-  DollarSign,
   X
 } from "lucide-react"
 import { ResourceCalendar } from "@/components/ResourceCalendar"
@@ -344,8 +343,7 @@ export default async function ResourcePage({ params }: Props) {
             {/* Price info */}
             {resource.visPrisInfo && resource.prisInfo && (
               <div className="card p-6">
-                <h3 className="font-semibold text-gray-900 mb-4 flex items-center gap-2">
-                  <DollarSign className="w-5 h-5 text-blue-600" />
+                <h3 className="font-semibold text-gray-900 mb-4">
                   Prisinfo
                 </h3>
                 <div className="text-sm text-gray-600 whitespace-pre-line">
