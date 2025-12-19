@@ -61,6 +61,11 @@ export const authOptions: NextAuthOptions = {
           throw new Error("Din konto venter på godkjenning fra administrator")
         }
 
+        // Check if email is verified (admins skip this check)
+        if (!user.emailVerified && user.role !== "admin") {
+          throw new Error("Du må verifisere e-postadressen din før du kan logge inn. Sjekk e-posten din for verifiseringslenken.")
+        }
+
           if (!user.organization) {
             console.error("User has no organization:", user.id)
             return null

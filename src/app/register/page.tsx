@@ -123,39 +123,20 @@ function RegisterForm() {
         throw new Error(data.error || "Kunne ikke registrere")
       }
 
-      // For new organizations (admin), auto-login
+      // For new organizations (admin), show success message
+      // Admin can log in after verifying email (admin bypasses email check, but we still want them to verify)
       if (step === "create") {
-        const result = await signIn("credentials", {
-          email,
-          password,
-          redirect: false,
-        })
-
-        if (!result?.error) {
-          router.push("/kalender")
-          router.refresh()
-          return
-        }
+        setNeedsApproval(false)
+        setStep("success")
+        return
       }
 
       // For regular users joining a club
       // Check if approval is needed based on API response
       setNeedsApproval(data.needsApproval !== false)
       
-      if (data.needsApproval === false) {
-        // User is auto-approved, auto-login
-        const result = await signIn("credentials", {
-          email,
-          password,
-          redirect: false,
-        })
-
-        if (!result?.error) {
-          router.push("/kalender")
-          router.refresh()
-          return
-        }
-      }
+      // Never auto-login - user must verify email first
+      // Even if auto-approved, email verification is required
 
       // Show success message (either waiting for approval or confirming registration)
       setStep("success")
@@ -207,7 +188,7 @@ function RegisterForm() {
             <p className="text-gray-600 mb-6">
               {needsApproval 
                 ? "Din registrering er mottatt og venter på godkjenning fra en administrator. Sjekk e-posten din for å verifisere kontoen. Du vil få tilgang til å logge inn og booke når søknaden er godkjent."
-                : "Din konto er opprettet! Sjekk e-posten din for å verifisere kontoen før du logger inn."
+                : "Din konto er opprettet! Sjekk e-posten din for å verifisere kontoen før du logger inn. Du vil motta en verifiseringslenke på e-post."
               }
             </p>
             {needsApproval ? (
