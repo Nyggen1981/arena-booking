@@ -129,10 +129,11 @@ export default function BookResourcePage({ params }: Props) {
 
   // Check if a part can be selected
   const canSelectPart = useCallback((partId: string) => {
+    if (!resource) return false
     if (lockedPartIds.has(partId)) return false
     if (selectedParts.includes(partId)) return true
     
-    const part = resource?.parts.find(p => p.id === partId)
+    const part = resource.parts.find(p => p.id === partId)
     if (!part) return true
     
     // If this is a parent, check if any children are selected

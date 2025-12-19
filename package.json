@@ -8,6 +8,8 @@
     "postinstall": "prisma generate",
     "start": "next start",
     "lint": "eslint",
+    "type-check": "tsc --noEmit --skipLibCheck",
+    "pre-push": "npm run type-check && npm run build",
     "db:push": "prisma db push",
     "db:push:all": "npx tsx deployment/sync-all-databases.ts",
     "db:seed": "npx tsx prisma/seed.ts",
