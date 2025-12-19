@@ -99,15 +99,16 @@ async function getResource(id: string) {
 
 // Sort parts hierarchically (parents first, then children, sorted by name at each level)
 function sortPartsHierarchically(parts: Array<{ id: string; name: string; description: string | null; capacity: number | null; parentId: string | null; children?: Array<{ id: string; name: string }> }>) {
-  const partMap = new Map<string, typeof parts[0] & { children: typeof parts }>()
-  const roots: typeof parts = []
+  type PartType = typeof parts[0]
+  const partMap = new Map<string, PartType & { children: PartType[] }>()
+  const roots: (PartType & { children: PartType[] })[] = []
 
   // First pass: create map
   parts.forEach(part => {
     partMap.set(part.id, { ...part, children: [] })
   })
 
-  // Second pass: build tree
+  // Second pass: build tree using parentId
   parts.forEach(part => {
     const node = partMap.get(part.id)!
     if (part.parentId && partMap.has(part.parentId)) {
@@ -119,14 +120,16 @@ function sortPartsHierarchically(parts: Array<{ id: string; name: string; descri
   })
 
   // Flatten tree maintaining hierarchy order
-  const result: typeof parts = []
-  function flatten(parts: typeof roots, level: number = 0) {
+  const result: PartType[] = []
+  function flatten(partsToFlatten: (PartType & { children: PartType[] })[], level: number = 0) {
     // Sort each level by name
-    const sorted = [...parts].sort((a, b) => a.name.localeCompare(b.name, 'no'))
+    const sorted = [...partsToFlatten].sort((a, b) => a.name.localeCompare(b.name, 'no'))
     sorted.forEach(part => {
-      result.push({ ...part, children: undefined } as typeof parts[0])
+      // Remove children property when adding to result
+      const { children: _, ...partWithoutChildren } = part
+      result.push(partWithoutChildren as PartType)
       if (part.children && part.children.length > 0) {
-        flatten(part.children, level + 1)
+        flatten(part.children as (PartType & { children: PartType[] })[], level + 1)
       }
     })
   }
