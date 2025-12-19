@@ -127,8 +127,8 @@ export const authOptions: NextAuthOptions = {
       if (user) {
         token.id = user.id
         token.role = user.role
-        token.emailVerified = user.emailVerified
-        token.isMember = user.isMember
+        token.emailVerified = user.emailVerified ?? false
+        token.isMember = user.isMember ?? false
         token.organizationId = user.organizationId
         token.organizationName = user.organizationName
         token.organizationSlug = user.organizationSlug
