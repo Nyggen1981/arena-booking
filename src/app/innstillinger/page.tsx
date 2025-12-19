@@ -374,9 +374,13 @@ export default function InnstillingerPage() {
                   <Mail className="w-4 h-4 text-gray-400" />
                   <span className="text-gray-600">{session.user?.email}</span>
                   {userInfo?.emailVerified ? (
-                    <CheckCircle2 className="w-4 h-4 text-green-600" title="E-post verifisert" />
+                    <div title="E-post verifisert">
+                      <CheckCircle2 className="w-4 h-4 text-green-600" />
+                    </div>
                   ) : (
-                    <AlertTriangle className="w-4 h-4 text-amber-600" title="E-post ikke verifisert" />
+                    <div title="E-post ikke verifisert">
+                      <AlertTriangle className="w-4 h-4 text-amber-600" />
+                    </div>
                   )}
                 </div>
                 {userInfo?.name && (
