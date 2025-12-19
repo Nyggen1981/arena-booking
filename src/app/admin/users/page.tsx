@@ -22,7 +22,9 @@ import {
   XCircle,
   Clock,
   UserCheck,
-  UserX
+  UserX,
+  Phone,
+  MapPin
 } from "lucide-react"
 import { format } from "date-fns"
 import { nb } from "date-fns/locale"
@@ -35,6 +37,9 @@ interface UserData {
   phone: string | null
   isApproved: boolean
   approvedAt: string | null
+  emailVerified: boolean
+  emailVerifiedAt: string | null
+  isMember: boolean
   createdAt: string
   _count: {
     bookings: number
@@ -180,7 +185,7 @@ export default function AdminUsersPage() {
     <div className="min-h-screen bg-slate-50">
       <Navbar />
 
-      <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <Link href="/admin" className="inline-flex items-center gap-2 text-gray-500 hover:text-gray-700 mb-6">
           <ArrowLeft className="w-4 h-4" />
           Tilbake til dashboard
@@ -246,27 +251,48 @@ export default function AdminUsersPage() {
             ) : (
               <div className="space-y-4">
                 {pendingUsers.map((user) => (
-                  <div key={user.id} className="card p-5 border-l-4 border-amber-400">
+                  <div key={user.id} className="card p-5 border-l-4 border-amber-400 hover:shadow-md transition-shadow">
                     <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                      <div className="flex items-center gap-4">
-                        <div className="w-12 h-12 rounded-full bg-amber-100 flex items-center justify-center">
+                      <div className="flex items-start gap-4 flex-1">
+                        <div className="w-12 h-12 rounded-full bg-amber-100 flex items-center justify-center flex-shrink-0">
                           <Clock className="w-6 h-6 text-amber-600" />
                         </div>
-                        <div>
-                          <p className="font-semibold text-gray-900">{user.name || "Uten navn"}</p>
-                          <p className="text-sm text-gray-500 flex items-center gap-1">
-                            <Mail className="w-3 h-3" />
-                            {user.email}
-                          </p>
-                          {user.phone && (
-                            <p className="text-sm text-gray-500">{user.phone}</p>
-                          )}
-                          <p className="text-xs text-gray-400 mt-1">
-                            Søkte {format(new Date(user.createdAt), "d. MMM yyyy 'kl.' HH:mm", { locale: nb })}
-                          </p>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2 mb-1">
+                            <p className="font-semibold text-gray-900">{user.name || "Uten navn"}</p>
+                            {user.isMember && (
+                              <span className="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-full">
+                                Medlem
+                              </span>
+                            )}
+                          </div>
+                          <div className="space-y-1.5">
+                            <div className="flex items-center gap-2 text-sm text-gray-600">
+                              <Mail className="w-3.5 h-3.5 flex-shrink-0" />
+                              <span className="truncate">{user.email}</span>
+                              {user.emailVerified ? (
+                                <div title="E-post verifisert">
+                                  <CheckCircle2 className="w-3.5 h-3.5 text-green-600 flex-shrink-0" />
+                                </div>
+                              ) : (
+                                <div title="E-post ikke verifisert">
+                                  <XCircle className="w-3.5 h-3.5 text-amber-600 flex-shrink-0" />
+                                </div>
+                              )}
+                            </div>
+                            {user.phone && (
+                              <p className="text-sm text-gray-500 flex items-center gap-1.5">
+                                <Phone className="w-3.5 h-3.5" />
+                                {user.phone}
+                              </p>
+                            )}
+                            <p className="text-xs text-gray-400">
+                              Søkte {format(new Date(user.createdAt), "d. MMM yyyy 'kl.' HH:mm", { locale: nb })}
+                            </p>
+                          </div>
                         </div>
                       </div>
-                      <div className="flex gap-2">
+                      <div className="flex gap-2 flex-shrink-0">
                         <button
                           onClick={() => approveUser(user.id)}
                           className="btn bg-green-600 hover:bg-green-700 text-white"
@@ -464,61 +490,96 @@ function UserCard({
   const isCurrentUser = user.id === currentUserId
 
   return (
-    <div className="card p-4">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-4">
-          <div className={`w-10 h-10 rounded-full flex items-center justify-center ${
+    <div className="card p-5 hover:shadow-md transition-shadow">
+      <div className="flex items-start justify-between gap-4">
+        <div className="flex items-start gap-4 flex-1 min-w-0">
+          <div className={`w-12 h-12 rounded-full flex items-center justify-center flex-shrink-0 ${
               user.role === "admin" ? "bg-purple-100" : 
               user.role === "moderator" ? "bg-amber-100" : 
               "bg-blue-100"
           }`}>
             {user.role === "admin" ? (
-              <Shield className="w-5 h-5 text-purple-600" />
+              <Shield className="w-6 h-6 text-purple-600" />
               ) : user.role === "moderator" ? (
-                <ShieldCheck className="w-5 h-5 text-amber-600" />
+                <ShieldCheck className="w-6 h-6 text-amber-600" />
             ) : (
-              <User className="w-5 h-5 text-blue-600" />
+              <User className="w-6 h-6 text-blue-600" />
             )}
           </div>
-          <div>
-            <div className="flex items-center gap-2">
-              <p className="font-medium text-gray-900">{user.name || "Uten navn"}</p>
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-2 mb-1">
+              <p className="font-semibold text-gray-900">{user.name || "Uten navn"}</p>
               {isCurrentUser && (
                 <span className="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full">
                   Deg
                 </span>
               )}
+              {user.isMember && (
+                <span className="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-full">
+                  Medlem
+                </span>
+              )}
             </div>
-            <p className="text-sm text-gray-500 flex items-center gap-1">
-              <Mail className="w-3 h-3" />
-              {user.email}
-            </p>
-            {user.role === "moderator" && user.moderatedResources && user.moderatedResources.length > 0 && (
-              <p className="text-xs text-amber-600 mt-1">
-                📍 {user.moderatedResources.map(mr => mr.resource.name).join(", ")}
-              </p>
-            )}
-            {user.role === "moderator" && (!user.moderatedResources || user.moderatedResources.length === 0) && (
-              <p className="text-xs text-gray-400 mt-1 italic">
-                Ingen fasiliteter tildelt
-              </p>
-            )}
+            
+            <div className="space-y-1.5">
+              <div className="flex items-center gap-2 text-sm text-gray-600">
+                <Mail className="w-3.5 h-3.5 flex-shrink-0" />
+                <span className="truncate">{user.email}</span>
+                {user.emailVerified ? (
+                  <div title="E-post verifisert">
+                    <CheckCircle2 className="w-3.5 h-3.5 text-green-600 flex-shrink-0" />
+                  </div>
+                ) : (
+                  <div title="E-post ikke verifisert">
+                    <XCircle className="w-3.5 h-3.5 text-amber-600 flex-shrink-0" />
+                  </div>
+                )}
+              </div>
+              
+              {user.phone && (
+                <p className="text-sm text-gray-500 flex items-center gap-1.5">
+                  <Phone className="w-3.5 h-3.5" />
+                  {user.phone}
+                </p>
+              )}
+              
+              {user.role === "moderator" && user.moderatedResources && user.moderatedResources.length > 0 && (
+                <p className="text-xs text-amber-600 flex items-center gap-1">
+                  <MapPin className="w-3 h-3" />
+                  {user.moderatedResources.map(mr => mr.resource.name).join(", ")}
+                </p>
+              )}
+              {user.role === "moderator" && (!user.moderatedResources || user.moderatedResources.length === 0) && (
+                <p className="text-xs text-gray-400 italic">
+                  Ingen fasiliteter tildelt
+                </p>
+              )}
+            </div>
           </div>
         </div>
 
-        <div className="flex items-center gap-4">
-          <div className="text-right hidden sm:block">
-            <p className="text-sm text-gray-500">{user._count.bookings} bookinger</p>
+        <div className="flex items-start gap-4 flex-shrink-0">
+          <div className="text-right hidden md:block">
+            <div className="mb-2">
+              <p className="text-sm font-medium text-gray-900">{user._count.bookings}</p>
+              <p className="text-xs text-gray-500">booking{user._count.bookings !== 1 ? 'er' : ''}</p>
+            </div>
             <p className="text-xs text-gray-400">
-              Registrert {format(new Date(user.createdAt), "d. MMM yyyy", { locale: nb })}
+              {format(new Date(user.createdAt), "d. MMM yyyy", { locale: nb })}
             </p>
+            {user.approvedAt && (
+              <p className="text-xs text-gray-400 mt-1">
+                Godkjent {format(new Date(user.approvedAt), "d. MMM yyyy", { locale: nb })}
+              </p>
+            )}
           </div>
 
           {!isCurrentUser && (
             <div className="relative">
               <button
                 onClick={() => setOpenMenu(openMenu === user.id ? null : user.id)}
-                className="p-2 rounded-lg hover:bg-gray-100"
+                className="p-2 rounded-lg hover:bg-gray-100 transition-colors"
+                title="Mer alternativer"
               >
                 <MoreVertical className="w-5 h-5 text-gray-400" />
               </button>
