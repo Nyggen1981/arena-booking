@@ -12,7 +12,21 @@ export async function GET(
       where: { id },
       include: {
         category: true,
-        parts: true,
+        parts: {
+          where: { isActive: true },
+          include: {
+            parent: {
+              select: {
+                id: true,
+                name: true
+              }
+            }
+          },
+          orderBy: [
+            { parentId: { sort: "asc", nulls: "first" } }, // Parents first
+            { name: "asc" }
+          ]
+        },
       },
     })
 

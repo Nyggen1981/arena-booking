@@ -97,13 +97,53 @@ async function getResource(id: string) {
   }
 }
 
+// Sort parts hierarchically (parents first, then children, sorted by name at each level)
+function sortPartsHierarchically(parts: Array<{ id: string; name: string; description: string | null; capacity: number | null; parentId: string | null; children?: Array<{ id: string; name: string }> }>) {
+  const partMap = new Map<string, typeof parts[0] & { children: typeof parts }>()
+  const roots: typeof parts = []
+
+  // First pass: create map
+  parts.forEach(part => {
+    partMap.set(part.id, { ...part, children: [] })
+  })
+
+  // Second pass: build tree
+  parts.forEach(part => {
+    const node = partMap.get(part.id)!
+    if (part.parentId && partMap.has(part.parentId)) {
+      const parent = partMap.get(part.parentId)!
+      parent.children.push(node)
+    } else {
+      roots.push(node)
+    }
+  })
+
+  // Flatten tree maintaining hierarchy order
+  const result: typeof parts = []
+  function flatten(parts: typeof roots, level: number = 0) {
+    // Sort each level by name
+    const sorted = [...parts].sort((a, b) => a.name.localeCompare(b.name, 'no'))
+    sorted.forEach(part => {
+      result.push({ ...part, children: undefined } as typeof parts[0])
+      if (part.children && part.children.length > 0) {
+        flatten(part.children, level + 1)
+      }
+    })
+  }
+  flatten(roots)
+  return result
+}
+
 export default async function ResourcePage({ params }: Props) {
   const { id } = await params
   const resource = await getResource(id)
-  
+
   if (!resource) {
     notFound()
   }
+
+  // Sort parts hierarchically
+  const sortedParts = sortPartsHierarchically(resource.parts)
 
   const openingHours = resource.openingHours 
     ? JSON.parse(resource.openingHours) 
@@ -318,22 +358,31 @@ export default async function ResourcePage({ params }: Props) {
                   Kan bookes separat
                 </h3>
                 <div className="space-y-2">
-                  {resource.parts.map((part) => (
-                    <div 
-                      key={part.id} 
-                      className="p-3 rounded-lg bg-gray-50 hover:bg-gray-100 transition-colors"
-                    >
-                      <p className="font-medium text-gray-900">{part.name}</p>
-                      {part.description && (
-                        <p className="text-sm text-gray-500">{part.description}</p>
-                      )}
-                      {part.capacity && (
-                        <p className="text-xs text-gray-400 mt-1">
-                          Kapasitet: {part.capacity} personer
-                        </p>
-                      )}
-                    </div>
-                  ))}
+                  {sortedParts.map((part) => {
+                    const isChild = part.parentId !== null
+                    const parentPart = resource.parts.find(p => p.id === part.parentId)
+                    return (
+                      <div 
+                        key={part.id} 
+                        className={`p-3 rounded-lg bg-gray-50 hover:bg-gray-100 transition-colors ${isChild ? 'ml-6 border-l-2 border-gray-300' : ''}`}
+                      >
+                        {isChild && parentPart && (
+                          <p className="text-xs text-gray-400 mb-1">
+                            Underdel av: {parentPart.name}
+                          </p>
+                        )}
+                        <p className="font-medium text-gray-900">{part.name}</p>
+                        {part.description && (
+                          <p className="text-sm text-gray-500">{part.description}</p>
+                        )}
+                        {part.capacity && (
+                          <p className="text-xs text-gray-400 mt-1">
+                            Kapasitet: {part.capacity} personer
+                          </p>
+                        )}
+                      </div>
+                    )
+                  })}
                 </div>
               </div>
             )}

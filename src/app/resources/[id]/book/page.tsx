@@ -326,9 +326,23 @@ export default function BookResourcePage({ params }: Props) {
                   >
                     {resource.allowWholeBooking && <option value="">Hele fasiliteten</option>}
                     {!resource.allowWholeBooking && !selectedPart && <option value="">Velg et område...</option>}
-                    {resource.parts.map(part => (
-                      <option key={part.id} value={part.id}>{part.name}</option>
-                    ))}
+                    {(() => {
+                      // Sort parts hierarchically
+                      const sortedParts = [...resource.parts].sort((a, b) => {
+                        // Parents first (null parentId comes before non-null)
+                        if (a.parentId === null && b.parentId !== null) return -1
+                        if (a.parentId !== null && b.parentId === null) return 1
+                        // If both have same parent status, sort by name
+                        return a.name.localeCompare(b.name)
+                      })
+                      return sortedParts.map(part => {
+                        const parent = resource.parts.find(p => p.id === part.parentId)
+                        const displayName = parent ? `${part.name} (${parent.name})` : part.name
+                        return (
+                          <option key={part.id} value={part.id}>{displayName}</option>
+                        )
+                      })
+                    })()}
                   </select>
                 )}
               </div>
