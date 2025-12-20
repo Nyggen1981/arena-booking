@@ -32,11 +32,11 @@ export async function PATCH(
 
   // Build update data
   const updateData: {
-    systemRole?: string
+    systemRole?: "admin" | "user"
     customRoleId?: string | null
     role?: string // Legacy field - settes automatisk
     name?: string
-    phone?: string
+    phone?: string | null
     isApproved?: boolean
     approvedAt?: Date | null
     emailVerified?: boolean
@@ -109,9 +109,6 @@ export async function PATCH(
   const updated = await prisma.user.update({
     where: { id },
     data: updateData,
-    include: {
-      customRole: true
-    },
     select: {
       id: true,
       email: true,
