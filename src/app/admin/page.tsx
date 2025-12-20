@@ -82,7 +82,7 @@ export default async function AdminPage() {
             <div className="mb-6">
               <h1 className="text-xl sm:text-2xl font-bold text-gray-900 flex items-center gap-2">
                 <Settings className="w-5 h-5 sm:w-6 sm:h-6" />
-                {isModerator ? "Moderator" : "Admin"}
+                {isAdmin ? "Admin" : "Moderator"}
               </h1>
           <p className="text-sm sm:text-base text-gray-500">{session.user.organizationName}</p>
         </div>
