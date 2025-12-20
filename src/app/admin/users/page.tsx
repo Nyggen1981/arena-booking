@@ -24,7 +24,8 @@ import {
   UserCheck,
   UserX,
   Phone,
-  MapPin
+  MapPin,
+  X
 } from "lucide-react"
 import { format } from "date-fns"
 import { nb } from "date-fns/locale"
