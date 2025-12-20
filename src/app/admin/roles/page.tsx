@@ -53,13 +53,13 @@ export default function AdminRolesPage() {
   useEffect(() => {
     if (status === "unauthenticated") {
       router.push("/login")
-    } else if (session?.user?.systemRole !== "admin") {
+    } else if (session?.user?.systemRole !== "admin" && session?.user?.role !== "admin") {
       router.push("/")
     }
   }, [status, session, router])
 
   useEffect(() => {
-    if (session?.user?.systemRole === "admin") {
+    if (session?.user?.systemRole === "admin" || session?.user?.role === "admin") {
       fetchRoles()
     }
   }, [session])

@@ -34,7 +34,8 @@ export function Navbar() {
   const [pendingCount, setPendingCount] = useState(0)
   const [unreadBookings, setUnreadBookings] = useState(0)
 
-  const isAdmin = session?.user?.systemRole === "admin"
+  // Sjekk både systemRole og role (legacy) for bakoverkompatibilitet
+  const isAdmin = session?.user?.systemRole === "admin" || session?.user?.role === "admin"
   const isModerator = session?.user?.hasModeratorAccess ?? false
   const canAccessAdmin = isAdmin || isModerator
   const isLoggedIn = !!session

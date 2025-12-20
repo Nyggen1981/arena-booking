@@ -81,7 +81,8 @@ export default function CalendarPage() {
   const router = useRouter()
   // User roles - define early so we can use isLoggedIn in initial state
   const isLoggedIn = session?.user !== undefined
-  const isAdmin = session?.user?.systemRole === "admin"
+  // Sjekk både systemRole og role (legacy) for bakoverkompatibilitet
+  const isAdmin = session?.user?.systemRole === "admin" || session?.user?.role === "admin"
   const isModerator = session?.user?.hasModeratorAccess ?? false
   const canManageBookings = isAdmin || isModerator
   

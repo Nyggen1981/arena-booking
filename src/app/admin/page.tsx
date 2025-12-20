@@ -51,7 +51,8 @@ export default async function AdminPage() {
       redirect("/")
     }
 
-    const isAdmin = session.user.systemRole === "admin"
+    // Sjekk både systemRole og role (legacy) for bakoverkompatibilitet
+    const isAdmin = session.user.systemRole === "admin" || session.user.role === "admin"
     const isModerator = session.user.hasModeratorAccess
 
     if (!isAdmin && !isModerator) {
