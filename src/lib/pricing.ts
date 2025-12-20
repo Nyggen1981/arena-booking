@@ -43,11 +43,11 @@ export async function isPricingEnabled(): Promise<boolean> {
     }
     
     // Sjekk om lisensen har pricing-feature
-    // For nå antar vi at premium/standard lisenser har pricing
-    // Dette kan justeres basert på faktisk lisensserver-implementasjon
+    // Pilot, premium og standard lisenser har tilgang til prislogikk
     const hasPricingFeature = 
       license.licenseType === "premium" || 
       license.licenseType === "standard" ||
+      license.licenseType === "pilot" ||
       license.features?.emailNotifications === true // Bruker eksisterende feature som indikator
     
     return hasPricingFeature
