@@ -424,7 +424,7 @@ export async function calculateBookingPrice(
   return {
     price: Math.round(price * 100) / 100, // Rund av til 2 desimaler
     isFree: false,
-    pricingModel: config.model,
+    pricingModel: rule.model,
     breakdown
   }
 }
