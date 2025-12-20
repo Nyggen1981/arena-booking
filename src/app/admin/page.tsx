@@ -87,8 +87,8 @@ export default async function AdminPage() {
           <p className="text-sm sm:text-base text-gray-500">{session.user.organizationName}</p>
         </div>
 
-            {/* Moderator: Show assigned facilities */}
-            {isModerator && moderatorResources.length > 0 && (
+            {/* Moderator (ikke admin): Show assigned facilities */}
+            {isModerator && !isAdmin && moderatorResources.length > 0 && (
               <div className="mb-6 p-4 bg-purple-50 border border-purple-100 rounded-xl">
                 <p className="text-sm text-purple-700">
                   <span className="font-medium">Dine fasiliteter:</span>{" "}
@@ -97,7 +97,8 @@ export default async function AdminPage() {
               </div>
             )}
 
-            {isModerator && moderatorResources.length === 0 && (
+            {/* Moderator (ikke admin): Show warning if no facilities assigned */}
+            {isModerator && !isAdmin && moderatorResources.length === 0 && (
               <div className="mb-6 p-4 bg-amber-50 border border-amber-100 rounded-xl">
                 <p className="text-sm text-amber-700">
                   Du er ikke tildelt noen fasiliteter ennå. Kontakt administrator.
