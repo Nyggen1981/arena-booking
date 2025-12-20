@@ -181,9 +181,20 @@ model Resource {
   prisInfo    String?    // Text shown under "Prisinfo"
   visPrisInfo Boolean?   // Whether price info should be shown
   
-  // Pricing for booking
-  pricePerHour Decimal?  // Price per hour in NOK
-  requiresPayment Boolean @default(false)  // Whether payment is required for bookings
+  // Pricing for booking (avhengig av lisensserver-status)
+  // Pris-modell: "FREE" | "HOURLY" | "DAILY" | "FIXED" | "FIXED_DURATION"
+  pricingModel String? @default("FREE") // Standard er gratis hvis ikke spesifisert
+  
+  // Pris-felter (brukes basert på pricingModel)
+  pricePerHour Decimal?  // Pris per time i NOK (for HOURLY)
+  pricePerDay Decimal?   // Pris per døgn i NOK (for DAILY)
+  fixedPrice Decimal?    // Fast pris i NOK (for FIXED og FIXED_DURATION)
+  fixedPriceDuration Int? // Varighet i minutter for fast pris (for FIXED_DURATION)
+  
+  // Roller som får gratis tilgang (JSON array av role IDs eller "admin", "user")
+  freeForRoles String? // JSON: ["admin", "customRoleId1", "customRoleId2"]
+  
+  requiresPayment Boolean @default(false)  // Whether payment is required for bookings (deprecated, bruk pricingModel)
   
   // Part booking settings
   blockPartsWhenWholeBooked Boolean @default(true)  // When whole facility is booked, block all parts
@@ -240,8 +251,13 @@ model ResourcePart {
   resourceId String
   resource   Resource @relation(fields: [resourceId], references: [id], onDelete: Cascade)
 
-  // Pricing for this part
-  pricePerHour Decimal?  // Price per hour in NOK (overrides resource price if set)
+  // Pricing for this part (overrides resource pricing if set)
+  pricingModel String? // Pris-modell for denne delen (overstyrer resource hvis satt)
+  pricePerHour Decimal?  // Pris per time i NOK (for HOURLY)
+  pricePerDay Decimal?   // Pris per døgn i NOK (for DAILY)
+  fixedPrice Decimal?    // Fast pris i NOK (for FIXED og FIXED_DURATION)
+  fixedPriceDuration Int? // Varighet i minutter for fast pris (for FIXED_DURATION)
+  freeForRoles String? // Roller som får gratis tilgang (JSON array, overstyrer resource hvis satt)
 
   bookings Booking[]
   

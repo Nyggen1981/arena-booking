@@ -112,7 +112,16 @@ export async function PUT(
         showOnPublicCalendar: body.showOnPublicCalendar ?? true,
         allowWholeBooking: body.allowWholeBooking ?? true,
         prisInfo: body.prisInfo || null,
-        visPrisInfo: body.visPrisInfo ?? false
+        visPrisInfo: body.visPrisInfo ?? false,
+        // Pricing fields (kun hvis sendt)
+        ...(body.pricingModel !== undefined && {
+          pricingModel: body.pricingModel,
+          pricePerHour: body.pricePerHour ? body.pricePerHour : null,
+          pricePerDay: body.pricePerDay ? body.pricePerDay : null,
+          fixedPrice: body.fixedPrice ? body.fixedPrice : null,
+          fixedPriceDuration: body.fixedPriceDuration ? body.fixedPriceDuration : null,
+          freeForRoles: body.freeForRoles || null
+        })
       }
     })
 

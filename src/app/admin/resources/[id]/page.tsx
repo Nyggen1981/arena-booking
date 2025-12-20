@@ -79,6 +79,16 @@ export default function EditResourcePage({ params }: Props) {
   const [prisInfo, setPrisInfo] = useState("")
   const [visPrisInfo, setVisPrisInfo] = useState(false)
   
+  // Pricing state (kun aktiv hvis lisensserver tillater det)
+  const [pricingEnabled, setPricingEnabled] = useState(false)
+  const [pricingModel, setPricingModel] = useState<"FREE" | "HOURLY" | "DAILY" | "FIXED" | "FIXED_DURATION">("FREE")
+  const [pricePerHour, setPricePerHour] = useState("")
+  const [pricePerDay, setPricePerDay] = useState("")
+  const [fixedPrice, setFixedPrice] = useState("")
+  const [fixedPriceDuration, setFixedPriceDuration] = useState("")
+  const [freeForRoles, setFreeForRoles] = useState<string[]>([])
+  const [customRoles, setCustomRoles] = useState<Array<{ id: string; name: string }>>([])
+  
   // Moderators state
   const [moderators, setModerators] = useState<Array<{
     id: string
@@ -105,8 +115,10 @@ export default function EditResourcePage({ params }: Props) {
       fetch("/api/admin/categories").then(res => res.json()),
       fetch(`/api/admin/resources/${id}`).then(res => res.json()),
       fetch(`/api/admin/resources/${id}/moderators`).then(res => res.json()).catch(() => []),
-      fetch("/api/admin/users").then(res => res.json()).catch(() => [])
-    ]).then(([cats, resource, mods, users]) => {
+      fetch("/api/admin/users").then(res => res.json()).catch(() => []),
+      fetch("/api/admin/roles").then(res => res.json()).catch(() => []),
+      fetch("/api/pricing/status").then(res => res.json()).catch(() => ({ enabled: false }))
+    ]).then(([cats, resource, mods, users, roles, pricingStatus]) => {
       setCategories(cats)
       
       setName(resource.name || "")
@@ -131,6 +143,19 @@ export default function EditResourcePage({ params }: Props) {
       setMapImage(resource.mapImage || null)
       setPrisInfo(resource.prisInfo || "")
       setVisPrisInfo(resource.visPrisInfo ?? false)
+      
+      // Pricing configuration (kun hvis aktivert)
+      setPricingEnabled(pricingStatus.enabled || false)
+      if (pricingStatus.enabled) {
+        setPricingModel(resource.pricingModel || "FREE")
+        setPricePerHour(resource.pricePerHour ? String(resource.pricePerHour) : "")
+        setPricePerDay(resource.pricePerDay ? String(resource.pricePerDay) : "")
+        setFixedPrice(resource.fixedPrice ? String(resource.fixedPrice) : "")
+        setFixedPriceDuration(resource.fixedPriceDuration ? String(resource.fixedPriceDuration) : "")
+        setFreeForRoles(resource.freeForRoles ? JSON.parse(resource.freeForRoles) : [])
+        setCustomRoles(roles || [])
+      }
+      
       setParts(resource.parts?.map((p: { id: string; name: string; description?: string; capacity?: number; mapCoordinates?: string; adminNote?: string; image?: string; parentId?: string }) => ({
         id: p.id,
         name: p.name,
@@ -213,6 +238,15 @@ export default function EditResourcePage({ params }: Props) {
           allowWholeBooking,
           prisInfo: visPrisInfo ? prisInfo : null,
           visPrisInfo,
+          // Pricing fields (kun hvis aktivert)
+          ...(pricingEnabled && {
+            pricingModel,
+            pricePerHour: pricePerHour ? parseFloat(pricePerHour) : null,
+            pricePerDay: pricePerDay ? parseFloat(pricePerDay) : null,
+            fixedPrice: fixedPrice ? parseFloat(fixedPrice) : null,
+            fixedPriceDuration: fixedPriceDuration ? parseInt(fixedPriceDuration) : null,
+            freeForRoles: freeForRoles.length > 0 ? JSON.stringify(freeForRoles) : null
+          }),
           parts: parts.filter(p => p.name.trim()).map(p => ({
             id: p.id,
             tempId: p.tempId,
@@ -604,6 +638,159 @@ export default function EditResourcePage({ params }: Props) {
                 </div>
               )}
             </div>
+
+            {/* Pricing Configuration (kun hvis aktivert via lisensserver) */}
+            {pricingEnabled && (
+              <div className="space-y-4 p-4 bg-blue-50 border border-blue-200 rounded-xl">
+                <h2 className="font-semibold text-gray-900 border-b pb-2">Prislogikk</h2>
+                <p className="text-sm text-gray-600">
+                  Konfigurer automatisk prisberegning for bookinger. Prislogikk er aktivert via lisensserver.
+                </p>
+                
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Pris-modell
+                  </label>
+                  <select
+                    value={pricingModel}
+                    onChange={(e) => setPricingModel(e.target.value as typeof pricingModel)}
+                    className="input"
+                  >
+                    <option value="FREE">Gratis</option>
+                    <option value="HOURLY">Per time</option>
+                    <option value="DAILY">Per døgn</option>
+                    <option value="FIXED">Fast pris</option>
+                    <option value="FIXED_DURATION">Fast pris (med varighet)</option>
+                  </select>
+                </div>
+
+                {pricingModel === "HOURLY" && (
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Pris per time (NOK)
+                    </label>
+                    <input
+                      type="number"
+                      value={pricePerHour}
+                      onChange={(e) => setPricePerHour(e.target.value)}
+                      className="input"
+                      placeholder="500"
+                      min="0"
+                      step="0.01"
+                    />
+                  </div>
+                )}
+
+                {pricingModel === "DAILY" && (
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Pris per døgn (NOK)
+                    </label>
+                    <input
+                      type="number"
+                      value={pricePerDay}
+                      onChange={(e) => setPricePerDay(e.target.value)}
+                      className="input"
+                      placeholder="2000"
+                      min="0"
+                      step="0.01"
+                    />
+                  </div>
+                )}
+
+                {(pricingModel === "FIXED" || pricingModel === "FIXED_DURATION") && (
+                  <>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Fast pris (NOK)
+                      </label>
+                      <input
+                        type="number"
+                        value={fixedPrice}
+                        onChange={(e) => setFixedPrice(e.target.value)}
+                        className="input"
+                        placeholder="1000"
+                        min="0"
+                        step="0.01"
+                      />
+                    </div>
+                    {pricingModel === "FIXED_DURATION" && (
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                          Varighet for fast pris (minutter)
+                        </label>
+                        <input
+                          type="number"
+                          value={fixedPriceDuration}
+                          onChange={(e) => setFixedPriceDuration(e.target.value)}
+                          className="input"
+                          placeholder="120"
+                          min="1"
+                        />
+                        <p className="text-xs text-gray-500 mt-1">
+                          Hvis booking er lengre enn denne varigheten, beregnes pris per time
+                        </p>
+                      </div>
+                    )}
+                  </>
+                )}
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Roller med gratis tilgang
+                  </label>
+                  <div className="space-y-2">
+                    <label className="flex items-center gap-2">
+                      <input
+                        type="checkbox"
+                        checked={freeForRoles.includes("admin")}
+                        onChange={(e) => {
+                          if (e.target.checked) {
+                            setFreeForRoles([...freeForRoles, "admin"])
+                          } else {
+                            setFreeForRoles(freeForRoles.filter(r => r !== "admin"))
+                          }
+                        }}
+                        className="w-4 h-4"
+                      />
+                      <span className="text-sm text-gray-700">Administrator</span>
+                    </label>
+                    <label className="flex items-center gap-2">
+                      <input
+                        type="checkbox"
+                        checked={freeForRoles.includes("user")}
+                        onChange={(e) => {
+                          if (e.target.checked) {
+                            setFreeForRoles([...freeForRoles, "user"])
+                          } else {
+                            setFreeForRoles(freeForRoles.filter(r => r !== "user"))
+                          }
+                        }}
+                        className="w-4 h-4"
+                      />
+                      <span className="text-sm text-gray-700">Bruker</span>
+                    </label>
+                    {customRoles.map(role => (
+                      <label key={role.id} className="flex items-center gap-2">
+                        <input
+                          type="checkbox"
+                          checked={freeForRoles.includes(role.id)}
+                          onChange={(e) => {
+                            if (e.target.checked) {
+                              setFreeForRoles([...freeForRoles, role.id])
+                            } else {
+                              setFreeForRoles(freeForRoles.filter(r => r !== role.id))
+                            }
+                          }}
+                          className="w-4 h-4"
+                        />
+                        <span className="text-sm text-gray-700">{role.name}</span>
+                      </label>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            )}
 
             {/* Parts - Hierarchical */}
             <div className="space-y-4">

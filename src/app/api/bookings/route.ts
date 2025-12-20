@@ -6,6 +6,7 @@ import { addWeeks, addMonths, format } from "date-fns"
 import { nb } from "date-fns/locale"
 import { sendEmail, getNewBookingRequestEmail } from "@/lib/email"
 import { validateLicense } from "@/lib/license"
+import { calculateBookingPrice } from "@/lib/pricing"
 
 export async function POST(request: Request) {
   const session = await getServerSession(authOptions)
@@ -244,6 +245,15 @@ export async function POST(request: Request) {
     const allCreatedBookings = []
     
     for (const partId of partsToBook) {
+      // Beregn pris for booking (kun hvis prising er aktivert)
+      const priceCalculation = await calculateBookingPrice(
+        session.user.id,
+        resourceId,
+        partId,
+        bookingDates[0].start,
+        bookingDates[0].end
+      )
+      
       // Create parent booking for this part
       const parentBooking = await prisma.booking.create({
         data: {
@@ -262,7 +272,8 @@ export async function POST(request: Request) {
           userId: session.user.id,
           isRecurring: isRecurringBooking,
           recurringPattern: isRecurringBooking ? recurringType : null,
-          recurringEndDate: isRecurringBooking ? new Date(recurringEndDate) : null
+          recurringEndDate: isRecurringBooking ? new Date(recurringEndDate) : null,
+          totalAmount: priceCalculation.price > 0 ? priceCalculation.price : null
         }
       })
       
@@ -270,8 +281,28 @@ export async function POST(request: Request) {
 
       // Then create child bookings if recurring
       if (isRecurringBooking && bookingDates.length > 1) {
+        // Beregn pris for hver child booking først
+        const childBookingsData = await Promise.all(
+          bookingDates.slice(1).map(async ({ start: bookingStart, end: bookingEnd }) => {
+            const childPrice = await calculateBookingPrice(
+              session.user.id,
+              resourceId,
+              partId,
+              bookingStart,
+              bookingEnd
+            )
+            
+            return {
+              start: bookingStart,
+              end: bookingEnd,
+              price: childPrice.price
+            }
+          })
+        )
+        
+        // Opprett child bookings i en transaksjon
         const childBookings = await prisma.$transaction(
-          bookingDates.slice(1).map(({ start: bookingStart, end: bookingEnd }) =>
+          childBookingsData.map(({ start: bookingStart, end: bookingEnd, price }) =>
             prisma.booking.create({
               data: {
                 title,
@@ -290,7 +321,8 @@ export async function POST(request: Request) {
                 isRecurring: true,
                 recurringPattern: recurringType,
                 recurringEndDate: new Date(recurringEndDate),
-                parentBookingId: parentBooking.id
+                parentBookingId: parentBooking.id,
+                totalAmount: price > 0 ? price : null
               }
             })
           )
