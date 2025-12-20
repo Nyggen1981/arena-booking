@@ -26,7 +26,16 @@ export const authOptions: NextAuthOptions = {
               email: true,
               name: true,
               password: true,
-              role: true,
+              systemRole: true,
+              customRoleId: true,
+              customRole: {
+                select: {
+                  id: true,
+                  name: true,
+                  hasModeratorAccess: true
+                }
+              },
+              role: true, // Legacy field
               isApproved: true,
               emailVerified: true,
               isMember: true,
@@ -57,12 +66,13 @@ export const authOptions: NextAuthOptions = {
         }
 
         // Check if user is approved (admins and organization creators are always approved)
-        if (!user.isApproved && user.role !== "admin") {
+        const isAdmin = user.systemRole === "admin"
+        if (!user.isApproved && !isAdmin) {
           throw new Error("Din konto venter på godkjenning fra administrator")
         }
 
         // Check if email is verified (admins skip this check)
-        if (!user.emailVerified && user.role !== "admin") {
+        if (!user.emailVerified && !isAdmin) {
           throw new Error("Du må verifisere e-postadressen din før du kan logge inn. Sjekk e-posten din for verifiseringslenken.")
         }
 
@@ -73,7 +83,7 @@ export const authOptions: NextAuthOptions = {
 
         // Sjekk lisens ved hver innlogging (testfase)
         // Admin får alltid logge inn for å kunne konfigurere lisens
-        if (user.role !== "admin") {
+        if (!isAdmin) {
           try {
             const license = await validateLicense(true) // Force refresh
             if (!license.valid) {
@@ -93,17 +103,26 @@ export const authOptions: NextAuthOptions = {
           }
         }
 
+        // Bestem rolle for session (bruk custom role navn hvis tilgjengelig, ellers systemRole)
+        // Fallback til user.role hvis systemRole ikke er satt (for bakoverkompatibilitet)
+        const systemRole = user.systemRole || (user.role === "admin" ? "admin" : "user")
+        const roleName = user.customRole?.name || systemRole
+        
         return {
           id: user.id,
           email: user.email,
           name: user.name,
-          role: user.role,
+          systemRole: systemRole as "admin" | "user",
+          customRoleId: user.customRoleId,
+          customRoleName: user.customRole?.name || null,
+          hasModeratorAccess: systemRole === "admin" || (user.customRole?.hasModeratorAccess ?? false),
+          role: roleName, // Legacy: beholder for bakoverkompatibilitet
           emailVerified: Boolean(user.emailVerified),
           isMember: Boolean(user.isMember),
           organizationId: user.organizationId,
           organizationName: user.organization.name,
           organizationSlug: user.organization.slug,
-            organizationTagline: user.organization.tagline || "Kalender",
+          organizationTagline: user.organization.tagline || "Kalender",
           organizationColor: user.organization.primaryColor,
           }
         } catch (error) {
@@ -133,7 +152,11 @@ export const authOptions: NextAuthOptions = {
     async jwt({ token, user }) {
       if (user) {
         token.id = user.id
-        token.role = user.role
+        token.systemRole = (user as any).systemRole
+        token.customRoleId = (user as any).customRoleId
+        token.customRoleName = (user as any).customRoleName
+        token.hasModeratorAccess = (user as any).hasModeratorAccess
+        token.role = user.role // Legacy
         token.emailVerified = Boolean(user.emailVerified)
         token.isMember = Boolean(user.isMember)
         token.organizationId = user.organizationId
@@ -147,7 +170,11 @@ export const authOptions: NextAuthOptions = {
     async session({ session, token }) {
       if (session.user) {
         session.user.id = token.id as string
-        session.user.role = token.role as string
+        session.user.systemRole = token.systemRole as "admin" | "user"
+        session.user.customRoleId = token.customRoleId as string | null
+        session.user.customRoleName = token.customRoleName as string | null
+        session.user.hasModeratorAccess = token.hasModeratorAccess as boolean
+        session.user.role = token.role as string // Legacy
         session.user.emailVerified = token.emailVerified as boolean
         session.user.isMember = token.isMember as boolean
         session.user.organizationId = token.organizationId as string
@@ -165,5 +192,16 @@ export const authOptions: NextAuthOptions = {
   session: {
     strategy: "jwt",
   },
+}
+
+/**
+ * Hjelpefunksjoner for rolle-sjekk (brukes i API-ruter)
+ */
+export function isAdminUser(session: any): boolean {
+  return session?.user?.systemRole === "admin"
+}
+
+export function canModerateUser(session: any): boolean {
+  return session?.user?.systemRole === "admin" || session?.user?.hasModeratorAccess === true
 }
 

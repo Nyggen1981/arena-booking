@@ -9,7 +9,8 @@ import {
   Building2, 
   Users, 
   Settings,
-  Layers
+  Layers,
+  Shield
 } from "lucide-react"
 import { BookingManagement } from "@/components/BookingManagement"
 import { LicenseStatusCard } from "@/components/LicenseStatusCard"
@@ -30,12 +31,13 @@ async function getModeratorResources(userId: string) {
 }
 
 async function getQuickStats(organizationId: string) {
-  const [resourceCount, categoryCount, userCount] = await Promise.all([
+  const [resourceCount, categoryCount, userCount, roleCount] = await Promise.all([
     prisma.resource.count({ where: { organizationId, isActive: true } }),
     prisma.resourceCategory.count(),
-    prisma.user.count({ where: { organizationId } })
+    prisma.user.count({ where: { organizationId } }),
+    prisma.customRole.count({ where: { organizationId } })
   ])
-  return { resourceCount, categoryCount, userCount }
+  return { resourceCount, categoryCount, userCount, roleCount }
       }
 
 // Force dynamic rendering since we use getServerSession and database queries
@@ -49,8 +51,8 @@ export default async function AdminPage() {
       redirect("/")
     }
 
-    const isAdmin = session.user.role === "admin"
-    const isModerator = session.user.role === "moderator"
+    const isAdmin = session.user.systemRole === "admin"
+    const isModerator = session.user.hasModeratorAccess
 
     if (!isAdmin && !isModerator) {
       redirect("/")
@@ -111,7 +113,7 @@ export default async function AdminPage() {
 
             {/* Admin: Quick links */}
             {isAdmin && stats && (
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4 mb-8">
               <Link 
                 href="/admin/resources" 
                   className="card p-4 hover:shadow-md transition-shadow group"
@@ -151,6 +153,20 @@ export default async function AdminPage() {
                   <div>
                     <p className="font-medium text-gray-900">Brukere</p>
                     <p className="text-sm text-gray-500">{stats.userCount} registrert</p>
+                  </div>
+                </div>
+              </Link>
+              <Link 
+                href="/admin/roles" 
+                  className="card p-4 hover:shadow-md transition-shadow group"
+              >
+                <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-lg bg-amber-100 flex items-center justify-center group-hover:bg-amber-200 transition-colors">
+                      <Shield className="w-5 h-5 text-amber-600" />
+                  </div>
+                  <div>
+                    <p className="font-medium text-gray-900">Roller</p>
+                    <p className="text-sm text-gray-500">{stats.roleCount} definert</p>
                   </div>
                 </div>
               </Link>

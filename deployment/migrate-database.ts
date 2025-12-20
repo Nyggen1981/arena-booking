@@ -180,10 +180,22 @@ async function migrateDatabase() {
     log(`   Funnet ${users.length} brukere`, 'reset')
     
     for (const user of users) {
+      // Sørg for at systemRole er satt basert på role hvis mangler (for bakoverkompatibilitet)
+      const systemRole = (user as any).systemRole || (user.role === "admin" ? "admin" : "user")
+      const customRoleId = (user as any).customRoleId || null
+      
       await targetPrisma.user.upsert({
         where: { id: user.id },
-        update: user,
-        create: user,
+        update: {
+          ...user,
+          systemRole: systemRole,
+          customRoleId: customRoleId,
+        },
+        create: {
+          ...user,
+          systemRole: systemRole,
+          customRoleId: customRoleId,
+        },
       })
     }
     log(`✅ Migrert ${users.length} brukere`, 'green')

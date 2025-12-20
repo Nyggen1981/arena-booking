@@ -7,7 +7,7 @@ import bcrypt from "bcryptjs"
 export async function GET() {
   const session = await getServerSession(authOptions)
 
-  if (!session?.user || session.user.role !== "admin") {
+  if (!session?.user || session.user.systemRole !== "admin") {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
   }
 
@@ -17,7 +17,18 @@ export async function GET() {
       id: true,
       email: true,
       name: true,
-      role: true,
+      systemRole: true,
+      customRoleId: true,
+      customRole: {
+        select: {
+          id: true,
+          name: true,
+          description: true,
+          color: true,
+          hasModeratorAccess: true
+        }
+      },
+      role: true, // Legacy
       phone: true,
       isApproved: true,
       approvedAt: true,
@@ -41,7 +52,7 @@ export async function GET() {
     },
     orderBy: [
       { isApproved: "asc" },
-      { role: "asc" },
+      { systemRole: "asc" },
       { name: "asc" }
     ]
   })
@@ -52,16 +63,38 @@ export async function GET() {
 export async function POST(request: Request) {
   const session = await getServerSession(authOptions)
 
-  if (!session?.user || session.user.role !== "admin") {
+  if (!session?.user || session.user.systemRole !== "admin") {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
   }
 
-  const { email, name, password, role, phone } = await request.json()
+  const { email, name, password, systemRole, customRoleId, phone } = await request.json()
 
   // Check if email already exists
   const existing = await prisma.user.findUnique({ where: { email } })
   if (existing) {
     return NextResponse.json({ error: "E-postadressen er allerede i bruk" }, { status: 400 })
+  }
+
+  // Valider customRoleId hvis satt
+  let finalSystemRole = systemRole || "user"
+  let finalCustomRoleId: string | null = null
+  let finalRole = "user" // Legacy
+
+  if (customRoleId) {
+    const customRole = await prisma.customRole.findFirst({
+      where: {
+        id: customRoleId,
+        organizationId: session.user.organizationId
+      }
+    })
+    if (!customRole) {
+      return NextResponse.json({ error: "Ugyldig rolle" }, { status: 400 })
+    }
+    finalSystemRole = "user" // Custom roles bruker systemRole "user"
+    finalCustomRoleId = customRoleId
+    finalRole = customRoleId // Legacy
+  } else if (systemRole === "admin") {
+    finalRole = "admin"
   }
 
   const hashedPassword = await bcrypt.hash(password, 10)
@@ -71,7 +104,9 @@ export async function POST(request: Request) {
       email,
       name,
       password: hashedPassword,
-      role: role || "user",
+      systemRole: finalSystemRole,
+      customRoleId: finalCustomRoleId,
+      role: finalRole, // Legacy
       phone,
       isApproved: true, // Users added by admin are auto-approved
       approvedAt: new Date(),
@@ -81,7 +116,15 @@ export async function POST(request: Request) {
       id: true,
       email: true,
       name: true,
-      role: true
+      systemRole: true,
+      customRoleId: true,
+      customRole: {
+        select: {
+          id: true,
+          name: true
+        }
+      },
+      role: true // Legacy
     }
   })
 

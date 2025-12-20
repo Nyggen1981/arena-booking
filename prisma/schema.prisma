@@ -47,6 +47,7 @@ model Organization {
   emailTemplates EmailTemplate[]
   invoices  Invoice[]
   payments  Payment[]
+  customRoles CustomRole[] // Egendefinerte roller
   
   // Vipps API settings
   vippsClientId     String?  // Vipps API client ID
@@ -55,13 +56,47 @@ model Organization {
   vippsTestMode     Boolean  @default(true)  // Use Vipps test environment
 }
 
+// Egendefinerte roller per organisasjon
+model CustomRole {
+  id                String   @id @default(cuid())
+  name              String   // F.eks. "Trener", "Lagleder", "Styremedlem"
+  description       String?  // Beskrivelse av rollen
+  color             String?  // Farge for visning i UI (f.eks. "#3b82f6")
+  
+  // Moderator-tilgang - kan denne rollen moderere ressurser?
+  hasModeratorAccess Boolean @default(false)
+  
+  // Organisasjon
+  organizationId    String
+  organization      Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  
+  // Brukere med denne rollen
+  users             User[]
+  
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+  
+  @@unique([organizationId, name]) // Unik navn per organisasjon
+  @@index([organizationId])
+}
+
 // User with role-based access
 model User {
   id         String   @id @default(cuid())
   email      String   @unique
   name       String?
   password   String
-  role       String   @default("user") // "admin", "moderator", "user"
+  
+  // Systemroller: "admin" eller "user" (hardkodede)
+  systemRole String   @default("user") // "admin" | "user"
+  
+  // Egendefinert rolle (valgfritt)
+  customRoleId String?
+  customRole   CustomRole? @relation(fields: [customRoleId], references: [id], onDelete: SetNull)
+  
+  // Legacy: behold role for bakoverkompatibilitet (satt automatisk basert på systemRole/customRoleId)
+  role       String   @default("user") // "admin" | "user" | CustomRole.id (deprecated, bruk systemRole/customRoleId)
+  
   phone      String?
   isApproved Boolean  @default(false)  // Must be approved by admin to use system
   approvedAt DateTime?
@@ -88,6 +123,7 @@ model User {
 
   @@index([organizationId, isApproved])
   @@index([emailVerified])
+  @@index([customRoleId])
 }
 
 // Email verification token for verifying user email addresses

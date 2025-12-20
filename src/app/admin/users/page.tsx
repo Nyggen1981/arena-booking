@@ -33,7 +33,16 @@ interface UserData {
   id: string
   email: string
   name: string | null
-  role: string
+  systemRole: "admin" | "user"
+  customRoleId: string | null
+  customRole: {
+    id: string
+    name: string
+    description: string | null
+    color: string | null
+    hasModeratorAccess: boolean
+  } | null
+  role: string // Legacy
   phone: string | null
   isApproved: boolean
   approvedAt: string | null
@@ -52,10 +61,22 @@ interface UserData {
   }>
 }
 
+interface CustomRole {
+  id: string
+  name: string
+  description: string | null
+  color: string | null
+  hasModeratorAccess: boolean
+  _count: {
+    users: number
+  }
+}
+
 export default function AdminUsersPage() {
   const { data: session, status } = useSession()
   const router = useRouter()
   const [users, setUsers] = useState<UserData[]>([])
+  const [customRoles, setCustomRoles] = useState<CustomRole[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [openMenu, setOpenMenu] = useState<string | null>(null)
   const [showAddModal, setShowAddModal] = useState(false)
@@ -65,20 +86,22 @@ export default function AdminUsersPage() {
   const [newEmail, setNewEmail] = useState("")
   const [newName, setNewName] = useState("")
   const [newPassword, setNewPassword] = useState("")
-  const [newRole, setNewRole] = useState("user")
+  const [newSystemRole, setNewSystemRole] = useState<"admin" | "user">("user")
+  const [newCustomRoleId, setNewCustomRoleId] = useState<string>("")
   const [isAdding, setIsAdding] = useState(false)
 
   useEffect(() => {
     if (status === "unauthenticated") {
       router.push("/login")
-    } else if (session?.user?.role !== "admin") {
+    } else if (session?.user?.systemRole !== "admin") {
       router.push("/")
     }
   }, [status, session, router])
 
   useEffect(() => {
-    if (session?.user?.role === "admin") {
+    if (session?.user?.systemRole === "admin") {
       fetchUsers()
+      fetchCustomRoles()
     }
   }, [session])
 
@@ -87,6 +110,18 @@ export default function AdminUsersPage() {
     const data = await response.json()
     setUsers(data)
     setIsLoading(false)
+  }
+
+  const fetchCustomRoles = async () => {
+    try {
+      const response = await fetch("/api/admin/roles")
+      if (response.ok) {
+        const data = await response.json()
+        setCustomRoles(data)
+      }
+    } catch (error) {
+      console.error("Error fetching roles:", error)
+    }
   }
 
   const approveUser = async (userId: string) => {
@@ -106,15 +141,22 @@ export default function AdminUsersPage() {
     fetchUsers()
   }
 
-  const changeRole = async (userId: string, newRole: string) => {
-    const roleNames: Record<string, string> = {
-      user: "bruker",
-      moderator: "moderator", 
-      admin: "administrator"
+  const changeRole = async (userId: string, systemRole: "admin" | "user", customRoleId: string | null = null) => {
+    const user = users.find(u => u.id === userId)
+    if (!user) return
+
+    let roleName = systemRole === "admin" ? "administrator" : "bruker"
+    if (customRoleId) {
+      const role = customRoles.find(r => r.id === customRoleId)
+      roleName = role?.name || "ukjent rolle"
     }
+
+    const hadModeratorAccess = user.systemRole === "admin" || user.customRole?.hasModeratorAccess
+    const willHaveModeratorAccess = systemRole === "admin" || 
+      (customRoleId && customRoles.find(r => r.id === customRoleId)?.hasModeratorAccess)
     
-    let confirmMessage = `Er du sikker på at du vil endre rollen til ${roleNames[newRole]}?`
-    if (newRole === "user") {
+    let confirmMessage = `Er du sikker på at du vil endre rollen til ${roleName}?`
+    if (hadModeratorAccess && !willHaveModeratorAccess) {
       confirmMessage = "Dette vil fjerne alle moderator-tilganger for denne brukeren. Fortsette?"
     }
     
@@ -125,7 +167,10 @@ export default function AdminUsersPage() {
     await fetch(`/api/admin/users/${userId}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ role: newRole })
+      body: JSON.stringify({ 
+        systemRole,
+        customRoleId: customRoleId || null
+      })
     })
     fetchUsers()
     setOpenMenu(null)
@@ -164,14 +209,16 @@ export default function AdminUsersPage() {
         email: newEmail,
         name: newName,
         password: newPassword,
-        role: newRole
+        systemRole: newSystemRole,
+        customRoleId: newCustomRoleId || null
       })
     })
 
     setNewEmail("")
     setNewName("")
     setNewPassword("")
-    setNewRole("user")
+    setNewSystemRole("user")
+    setNewCustomRoleId("")
     setShowAddModal(false)
     setIsAdding(false)
     fetchUsers()
@@ -190,9 +237,13 @@ export default function AdminUsersPage() {
 
   const pendingUsers = users.filter(u => !u.isApproved)
   const approvedUsers = users.filter(u => u.isApproved)
-  const admins = approvedUsers.filter(u => u.role === "admin")
-  const moderators = approvedUsers.filter(u => u.role === "moderator")
-  const regularUsers = approvedUsers.filter(u => u.role === "user")
+  const admins = approvedUsers.filter(u => u.systemRole === "admin")
+  const usersWithModeratorAccess = approvedUsers.filter(u => 
+    u.systemRole === "admin" || u.customRole?.hasModeratorAccess
+  )
+  const regularUsers = approvedUsers.filter(u => 
+    u.systemRole === "user" && !u.customRole?.hasModeratorAccess
+  )
 
   return (
     <div className="min-h-screen bg-slate-50">
@@ -347,6 +398,7 @@ export default function AdminUsersPage() {
                     openMenu={openMenu}
                     setOpenMenu={setOpenMenu}
                     onChangeRole={changeRole}
+                    customRoles={customRoles}
                     onVerifyEmail={verifyEmail}
                     onDelete={deleteUser}
                   />
@@ -354,15 +406,15 @@ export default function AdminUsersPage() {
               </div>
             </section>
 
-            {/* Moderators */}
-            {moderators.length > 0 && (
+            {/* Users with moderator access */}
+            {usersWithModeratorAccess.length > 0 && (
               <section className="mb-8">
                 <h2 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
                   <ShieldCheck className="w-5 h-5 text-amber-600" />
-                  Moderatorer ({moderators.length})
+                  Med moderator-tilgang ({usersWithModeratorAccess.length})
                 </h2>
                 <div className="space-y-3">
-                  {moderators.map((user) => (
+                  {usersWithModeratorAccess.map((user) => (
                     <UserCard 
                       key={user.id} 
                       user={user} 
@@ -370,6 +422,7 @@ export default function AdminUsersPage() {
                       openMenu={openMenu}
                       setOpenMenu={setOpenMenu}
                       onChangeRole={changeRole}
+                      customRoles={customRoles}
                       onVerifyEmail={verifyEmail}
                       onDelete={deleteUser}
                     />
@@ -399,6 +452,7 @@ export default function AdminUsersPage() {
                       openMenu={openMenu}
                       setOpenMenu={setOpenMenu}
                       onChangeRole={changeRole}
+                    customRoles={customRoles}
                       onVerifyEmail={verifyEmail}
                       onDelete={deleteUser}
                     />
@@ -449,16 +503,34 @@ export default function AdminUsersPage() {
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Rolle</label>
                 <select
-                  value={newRole}
-                  onChange={(e) => setNewRole(e.target.value)}
-                  className="input"
+                  value={newSystemRole}
+                  onChange={(e) => {
+                    setNewSystemRole(e.target.value as "admin" | "user")
+                    if (e.target.value === "admin") {
+                      setNewCustomRoleId("") // Admin kan ikke ha custom role
+                    }
+                  }}
+                  className="input mb-2"
                 >
                   <option value="user">Bruker</option>
-                  <option value="moderator">Moderator</option>
                   <option value="admin">Administrator</option>
                 </select>
+                {newSystemRole === "user" && customRoles.length > 0 && (
+                  <select
+                    value={newCustomRoleId}
+                    onChange={(e) => setNewCustomRoleId(e.target.value)}
+                    className="input"
+                  >
+                    <option value="">Ingen egendefinert rolle</option>
+                    {customRoles.map(role => (
+                      <option key={role.id} value={role.id}>
+                        {role.name} {role.hasModeratorAccess && "(Moderator-tilgang)"}
+                      </option>
+                    ))}
+                  </select>
+                )}
                 <p className="text-xs text-gray-500 mt-1">
-                  Moderatorer kan godkjenne bookinger for tildelte fasiliteter og booke som vanlige brukere.
+                  Administratorer har full tilgang. Egendefinerte roller kan ha moderator-tilgang.
                 </p>
               </div>
               <p className="text-xs text-gray-500">
@@ -495,15 +567,17 @@ function UserCard({
   setOpenMenu, 
   onChangeRole,
   onVerifyEmail,
-  onDelete 
+  onDelete,
+  customRoles
 }: { 
   user: UserData
   currentUserId?: string
   openMenu: string | null
   setOpenMenu: (id: string | null) => void
-  onChangeRole: (id: string, role: string) => void
+  onChangeRole: (id: string, systemRole: "admin" | "user", customRoleId?: string | null) => void
   onVerifyEmail: (id: string) => void
   onDelete: (id: string) => void
+  customRoles: CustomRole[]
 }) {
   const isCurrentUser = user.id === currentUserId
 
@@ -512,13 +586,13 @@ function UserCard({
       <div className="flex items-start justify-between gap-4">
         <div className="flex items-start gap-4 flex-1 min-w-0">
           <div className={`w-12 h-12 rounded-full flex items-center justify-center flex-shrink-0 ${
-              user.role === "admin" ? "bg-purple-100" : 
-              user.role === "moderator" ? "bg-amber-100" : 
-              "bg-blue-100"
-          }`}>
-            {user.role === "admin" ? (
+              user.systemRole === "admin" ? "bg-purple-100" : 
+              user.customRole?.hasModeratorAccess ? "bg-amber-100" : 
+              user.customRole ? "bg-blue-100" : "bg-gray-100"
+          }`} style={user.customRole?.color ? { backgroundColor: `${user.customRole.color}20` } : undefined}>
+            {user.systemRole === "admin" ? (
               <Shield className="w-6 h-6 text-purple-600" />
-              ) : user.role === "moderator" ? (
+              ) : user.customRole?.hasModeratorAccess ? (
                 <ShieldCheck className="w-6 h-6 text-amber-600" />
             ) : (
               <User className="w-6 h-6 text-blue-600" />
@@ -561,13 +635,38 @@ function UserCard({
                 </p>
               )}
               
-              {user.role === "moderator" && user.moderatedResources && user.moderatedResources.length > 0 && (
+              {/* Vis rolle */}
+              <div className="flex items-center gap-2">
+                {user.systemRole === "admin" ? (
+                  <span className="text-xs bg-purple-100 text-purple-700 px-2 py-0.5 rounded-full font-medium">
+                    Administrator
+                  </span>
+                ) : user.customRole ? (
+                  <span 
+                    className="text-xs px-2 py-0.5 rounded-full font-medium"
+                    style={{
+                      backgroundColor: user.customRole.color ? `${user.customRole.color}20` : "#e5e7eb",
+                      color: user.customRole.color || "#374151"
+                    }}
+                  >
+                    {user.customRole.name}
+                    {user.customRole.hasModeratorAccess && " (Moderator)"}
+                  </span>
+                ) : (
+                  <span className="text-xs bg-gray-100 text-gray-700 px-2 py-0.5 rounded-full">
+                    Bruker
+                  </span>
+                )}
+              </div>
+              
+              {/* Vis moderator-ressurser hvis brukeren har moderator-tilgang */}
+              {(user.systemRole === "admin" || user.customRole?.hasModeratorAccess) && user.moderatedResources && user.moderatedResources.length > 0 && (
                 <p className="text-xs text-amber-600 flex items-center gap-1">
                   <MapPin className="w-3 h-3" />
                   {user.moderatedResources.map(mr => mr.resource.name).join(", ")}
                 </p>
               )}
-              {user.role === "moderator" && (!user.moderatedResources || user.moderatedResources.length === 0) && (
+              {(user.systemRole === "admin" || user.customRole?.hasModeratorAccess) && (!user.moderatedResources || user.moderatedResources.length === 0) && user.systemRole !== "admin" && (
                 <p className="text-xs text-gray-400 italic">
                   Ingen fasiliteter tildelt
                 </p>
@@ -613,33 +712,62 @@ function UserCard({
                       Verifiser e-post
                     </button>
                   )}
-                  {user.role !== "user" && (
+                  {/* Systemroller */}
+                  {user.systemRole !== "user" && (
                     <button
-                      onClick={() => onChangeRole(user.id, "user")}
+                      onClick={() => onChangeRole(user.id, "user", null)}
                       className="flex items-center gap-2 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 w-full text-left"
                     >
                       <User className="w-4 h-4" />
                       Gjør til bruker
                     </button>
                   )}
-                  {user.role !== "moderator" && (
-                  <button
-                      onClick={() => onChangeRole(user.id, "moderator")}
-                    className="flex items-center gap-2 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 w-full text-left"
-                  >
-                        <ShieldCheck className="w-4 h-4" />
-                      Gjør til moderator
-                    </button>
-                  )}
-                  {user.role !== "admin" && (
+                  {user.systemRole !== "admin" && (
                     <button
-                      onClick={() => onChangeRole(user.id, "admin")}
+                      onClick={() => onChangeRole(user.id, "admin", null)}
                       className="flex items-center gap-2 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 w-full text-left"
                     >
                       <Shield className="w-4 h-4" />
-                        Gjør til admin
+                      Gjør til admin
                     </button>
-                    )}
+                  )}
+                  
+                  {/* Egendefinerte roller */}
+                  {user.systemRole === "user" && customRoles.length > 0 && (
+                    <>
+                      <div className="border-t border-gray-200 my-1" />
+                      <div className="px-4 py-2 text-xs font-medium text-gray-500">
+                        Egendefinerte roller:
+                      </div>
+                      {customRoles.map(role => (
+                        <button
+                          key={role.id}
+                          onClick={() => onChangeRole(user.id, "user", role.id)}
+                          className={`flex items-center gap-2 px-4 py-2 text-sm hover:bg-gray-50 w-full text-left ${
+                            user.customRoleId === role.id ? "bg-blue-50 text-blue-700" : "text-gray-700"
+                          }`}
+                        >
+                          <div 
+                            className="w-3 h-3 rounded-full"
+                            style={{ backgroundColor: role.color || "#3b82f6" }}
+                          />
+                          {role.name}
+                          {role.hasModeratorAccess && (
+                            <span className="text-xs text-amber-600">(Mod)</span>
+                          )}
+                        </button>
+                      ))}
+                      {user.customRoleId && (
+                        <button
+                          onClick={() => onChangeRole(user.id, "user", null)}
+                          className="flex items-center gap-2 px-4 py-2 text-sm text-gray-500 hover:bg-gray-50 w-full text-left"
+                        >
+                          <X className="w-4 h-4" />
+                          Fjern egendefinert rolle
+                        </button>
+                      )}
+                    </>
+                  )}
                   <button
                     onClick={() => onDelete(user.id)}
                     className="flex items-center gap-2 px-4 py-2 text-sm text-red-600 hover:bg-red-50 w-full text-left"

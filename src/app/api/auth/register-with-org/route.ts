@@ -83,7 +83,9 @@ export async function POST(request: Request) {
           name,
           phone,
           password: hashedPassword,
-          role: "admin",
+          systemRole: "admin", // Brukeren som oppretter klubb blir admin
+          customRoleId: null, // Admin kan ikke ha custom role
+          role: "admin", // Legacy: beholder for bakoverkompatibilitet
           isApproved: true, // Admin users are automatically approved
           approvedAt: new Date(),
           emailVerified: true, // Admin users are automatically verified

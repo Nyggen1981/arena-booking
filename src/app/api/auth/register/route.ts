@@ -80,7 +80,9 @@ export async function POST(request: Request) {
         name,
         phone,
         password: hashedPassword,
-        role: "user",
+        systemRole: "user", // Nye brukere får alltid systemRole "user"
+        customRoleId: null, // Ingen custom role ved registrering
+        role: "user", // Legacy: beholder for bakoverkompatibilitet
         organizationId: organization.id,
         isApproved: !needsApproval, // Auto-approve if org doesn't require approval
         approvedAt: !needsApproval ? new Date() : null,
