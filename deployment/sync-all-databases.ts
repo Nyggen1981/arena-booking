@@ -140,7 +140,15 @@ async function main() {
   }
 
   // Confirm
-  const shouldContinue = await confirm('\nFortsett med synkronisering?')
+  const autoConfirm = process.env.AUTO_CONFIRM === 'true' || process.env.AUTO_CONFIRM === '1'
+  let shouldContinue = autoConfirm
+  
+  if (!autoConfirm) {
+    shouldContinue = await confirm('\nFortsett med synkronisering?')
+  } else {
+    log('AUTO_CONFIRM er satt - fortsetter automatisk...\n', 'green')
+  }
+  
   if (!shouldContinue) {
     log('\nAvbrutt.', 'yellow')
     process.exit(0)
