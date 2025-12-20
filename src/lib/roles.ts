@@ -72,7 +72,7 @@ export async function getUserRoleInfo(
         hasModeratorAccess: user.customRole.hasModeratorAccess
       },
       roleName: user.customRole.name,
-      systemRole: user.systemRole
+      systemRole: user.systemRole as "admin" | "user"
     }
   }
   
