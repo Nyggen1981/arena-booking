@@ -110,6 +110,8 @@ export async function POST(request: Request) {
       phone,
       isApproved: true, // Users added by admin are auto-approved
       approvedAt: new Date(),
+      emailVerified: finalSystemRole === "admin", // Admin-brukere er automatisk verifisert
+      emailVerifiedAt: finalSystemRole === "admin" ? new Date() : null,
       organizationId: session.user.organizationId
     },
     select: {

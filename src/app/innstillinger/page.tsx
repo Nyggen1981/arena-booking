@@ -268,7 +268,12 @@ export default function InnstillingerPage() {
                       disabled
                       className="input bg-gray-100 text-gray-500 cursor-not-allowed"
                     />
-                    {userInfo?.emailVerified ? (
+                    {session?.user?.systemRole === "admin" ? (
+                      <div className="flex items-center gap-1 text-blue-600">
+                        <Shield className="w-5 h-5" />
+                        <span className="text-xs">Administrator (ingen verifisering påkrevd)</span>
+                      </div>
+                    ) : userInfo?.emailVerified ? (
                       <div className="flex items-center gap-1 text-green-600">
                         <CheckCircle2 className="w-5 h-5" />
                         <span className="text-xs">Verifisert</span>
@@ -280,7 +285,7 @@ export default function InnstillingerPage() {
                       </div>
                     )}
                   </div>
-                  {!userInfo?.emailVerified && (
+                  {!userInfo?.emailVerified && session?.user?.systemRole !== "admin" && (
                     <button
                       onClick={handleResendVerificationEmail}
                       disabled={isResendingEmail}
@@ -401,7 +406,7 @@ export default function InnstillingerPage() {
                     {userInfo?.isMember ? "Medlem" : "Ikke medlem"}
                   </span>
                 </div>
-                {!userInfo?.emailVerified && (
+                {!userInfo?.emailVerified && session?.user?.systemRole !== "admin" && (
                   <div className="mt-3 p-3 bg-amber-50 border border-amber-200 rounded-lg">
                     <p className="text-xs text-amber-800 mb-2">
                       <strong>E-post ikke verifisert.</strong> Verifiser e-posten din for å få full tilgang.
