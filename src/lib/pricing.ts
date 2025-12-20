@@ -4,13 +4,17 @@ import { getUserRoleInfo } from "./roles"
 
 export type PricingModel = "FREE" | "HOURLY" | "DAILY" | "FIXED" | "FIXED_DURATION"
 
-export interface PricingConfig {
+export interface PricingRule {
+  forRoles: string[] // Array av role IDs eller "admin", "user". Tom array = standard for alle andre
   model: PricingModel
   pricePerHour?: number | null
   pricePerDay?: number | null
   fixedPrice?: number | null
   fixedPriceDuration?: number | null // minutter
-  freeForRoles?: string[] // Array av role IDs eller "admin", "user"
+}
+
+export interface PricingConfig {
+  rules: PricingRule[] // Array av pris-regler
 }
 
 export interface BookingPriceCalculation {
@@ -60,6 +64,7 @@ export async function isPricingEnabled(): Promise<boolean> {
 
 /**
  * Henter pris-konfigurasjon for en ressurs eller ressursdel
+ * Støtter flere pris-regler per ressurs (én per rolle)
  */
 export async function getPricingConfig(
   resourceId: string,
@@ -77,6 +82,8 @@ export async function getPricingConfig(
       const part = await prisma.resourcePart.findUnique({
         where: { id: resourcePartId },
         select: {
+          pricingRules: true,
+          // Legacy fields for bakoverkompatibilitet
           pricingModel: true,
           pricePerHour: true,
           pricePerDay: true,
@@ -85,6 +92,8 @@ export async function getPricingConfig(
           freeForRoles: true,
           resource: {
             select: {
+              pricingRules: true,
+              // Legacy fields
               pricingModel: true,
               pricePerHour: true,
               pricePerDay: true,
@@ -98,22 +107,52 @@ export async function getPricingConfig(
 
       if (!part) return null
 
-      // Bruk part-pris hvis satt, ellers fallback til resource
-      return {
-        model: (part.pricingModel || part.resource.pricingModel || "FREE") as PricingModel,
+      // Bruk part pricingRules hvis satt, ellers fallback til resource
+      const pricingRulesJson = part.pricingRules || part.resource.pricingRules
+      
+      if (pricingRulesJson) {
+        try {
+          const rules = JSON.parse(pricingRulesJson) as PricingRule[]
+          return { rules }
+        } catch (e) {
+          console.error("[Pricing] Error parsing pricingRules:", e)
+        }
+      }
+
+      // Fallback til legacy format (konverter til nytt format)
+      const legacyModel = (part.pricingModel || part.resource.pricingModel || "FREE") as PricingModel
+      const legacyFreeForRoles = part.freeForRoles 
+        ? JSON.parse(part.freeForRoles) 
+        : (part.resource.freeForRoles ? JSON.parse(part.resource.freeForRoles) : [])
+      
+      const rules: PricingRule[] = []
+      
+      // Hvis det er roller med gratis tilgang, legg til regel for dem
+      if (legacyFreeForRoles.length > 0) {
+        rules.push({
+          forRoles: legacyFreeForRoles,
+          model: "FREE"
+        })
+      }
+      
+      // Legg til standard regel for alle andre
+      rules.push({
+        forRoles: [], // Tom array = standard for alle andre
+        model: legacyModel,
         pricePerHour: part.pricePerHour ? Number(part.pricePerHour) : (part.resource.pricePerHour ? Number(part.resource.pricePerHour) : null),
         pricePerDay: part.pricePerDay ? Number(part.pricePerDay) : (part.resource.pricePerDay ? Number(part.resource.pricePerDay) : null),
         fixedPrice: part.fixedPrice ? Number(part.fixedPrice) : (part.resource.fixedPrice ? Number(part.resource.fixedPrice) : null),
-        fixedPriceDuration: part.fixedPriceDuration ?? part.resource.fixedPriceDuration ?? null,
-        freeForRoles: part.freeForRoles 
-          ? JSON.parse(part.freeForRoles) 
-          : (part.resource.freeForRoles ? JSON.parse(part.resource.freeForRoles) : [])
-      }
+        fixedPriceDuration: part.fixedPriceDuration ?? part.resource.fixedPriceDuration ?? null
+      })
+      
+      return { rules }
     } else {
       // Hent pris fra ressurs
       const resource = await prisma.resource.findUnique({
         where: { id: resourceId },
         select: {
+          pricingRules: true,
+          // Legacy fields
           pricingModel: true,
           pricePerHour: true,
           pricePerDay: true,
@@ -125,14 +164,41 @@ export async function getPricingConfig(
 
       if (!resource) return null
 
-      return {
-        model: (resource.pricingModel || "FREE") as PricingModel,
+      // Bruk pricingRules hvis satt
+      if (resource.pricingRules) {
+        try {
+          const rules = JSON.parse(resource.pricingRules) as PricingRule[]
+          return { rules }
+        } catch (e) {
+          console.error("[Pricing] Error parsing pricingRules:", e)
+        }
+      }
+
+      // Fallback til legacy format (konverter til nytt format)
+      const legacyModel = (resource.pricingModel || "FREE") as PricingModel
+      const legacyFreeForRoles = resource.freeForRoles ? JSON.parse(resource.freeForRoles) : []
+      
+      const rules: PricingRule[] = []
+      
+      // Hvis det er roller med gratis tilgang, legg til regel for dem
+      if (legacyFreeForRoles.length > 0) {
+        rules.push({
+          forRoles: legacyFreeForRoles,
+          model: "FREE"
+        })
+      }
+      
+      // Legg til standard regel for alle andre
+      rules.push({
+        forRoles: [], // Tom array = standard for alle andre
+        model: legacyModel,
         pricePerHour: resource.pricePerHour ? Number(resource.pricePerHour) : null,
         pricePerDay: resource.pricePerDay ? Number(resource.pricePerDay) : null,
         fixedPrice: resource.fixedPrice ? Number(resource.fixedPrice) : null,
-        fixedPriceDuration: resource.fixedPriceDuration ?? null,
-        freeForRoles: resource.freeForRoles ? JSON.parse(resource.freeForRoles) : []
-      }
+        fixedPriceDuration: resource.fixedPriceDuration ?? null
+      })
+      
+      return { rules }
     }
   } catch (error) {
     console.error("[Pricing] Error getting pricing config:", error)
@@ -141,38 +207,62 @@ export async function getPricingConfig(
 }
 
 /**
- * Sjekker om en bruker har gratis tilgang basert på rolle
+ * Finner riktig pris-regel for en bruker basert på deres roller
  */
-async function isFreeForUser(
+async function findPricingRuleForUser(
   userId: string,
-  freeForRoles: string[]
-): Promise<{ isFree: boolean; reason?: string }> {
-  if (freeForRoles.length === 0) {
-    return { isFree: false }
+  rules: PricingRule[]
+): Promise<{ rule: PricingRule | null; reason?: string }> {
+  if (rules.length === 0) {
+    return { rule: null }
   }
 
   try {
     const roleInfo = await getUserRoleInfo(userId)
     
-    // Sjekk om brukeren er admin
-    if (roleInfo.isAdmin && freeForRoles.includes("admin")) {
-      return { isFree: true, reason: "Gratis for administrator" }
+    // Sjekk regler i rekkefølge - første match vinner
+    for (const rule of rules) {
+      // Hvis forRoles er tom, er det standard-regelen (brukes hvis ingen annen match)
+      if (rule.forRoles.length === 0) {
+        continue // Skip standard-regelen til vi har sjekket alle spesifikke
+      }
+      
+      // Sjekk om brukeren er admin og admin er i listen
+      if (roleInfo.isAdmin && rule.forRoles.includes("admin")) {
+        return { 
+          rule, 
+          reason: rule.model === "FREE" ? "Gratis for administrator" : undefined 
+        }
+      }
+      
+      // Sjekk om brukeren har en custom role som er i listen
+      if (roleInfo.customRole && rule.forRoles.includes(roleInfo.customRole.id)) {
+        return { 
+          rule, 
+          reason: rule.model === "FREE" ? `Gratis for ${roleInfo.customRole.name}` : undefined 
+        }
+      }
+      
+      // Sjekk om systemRole "user" er i listen
+      if (roleInfo.systemRole === "user" && rule.forRoles.includes("user")) {
+        return { 
+          rule, 
+          reason: rule.model === "FREE" ? "Gratis for brukere" : undefined 
+        }
+      }
     }
     
-    // Sjekk om brukeren har en custom role som er i listen
-    if (roleInfo.customRole && freeForRoles.includes(roleInfo.customRole.id)) {
-      return { isFree: true, reason: `Gratis for ${roleInfo.customRole.name}` }
+    // Hvis ingen spesifikk match, bruk standard-regelen (forRoles er tom)
+    const defaultRule = rules.find(r => r.forRoles.length === 0)
+    if (defaultRule) {
+      return { rule: defaultRule }
     }
     
-    // Sjekk om systemRole "user" er i listen
-    if (roleInfo.systemRole === "user" && freeForRoles.includes("user")) {
-      return { isFree: true, reason: "Gratis for brukere" }
-    }
-    
-    return { isFree: false }
+    // Hvis ingen regel funnet, returner null (gratis)
+    return { rule: null }
   } catch (error) {
-    console.error("[Pricing] Error checking user role:", error)
-    return { isFree: false }
+    console.error("[Pricing] Error finding pricing rule:", error)
+    return { rule: null }
   }
 }
 
@@ -199,7 +289,7 @@ export async function calculateBookingPrice(
 
   const config = await getPricingConfig(resourceId, resourcePartId)
   
-  if (!config || config.model === "FREE") {
+  if (!config || config.rules.length === 0) {
     return {
       price: 0,
       isFree: true,
@@ -208,14 +298,27 @@ export async function calculateBookingPrice(
     }
   }
 
-  // Sjekk om brukeren har gratis tilgang
-  const freeCheck = await isFreeForUser(userId, config.freeForRoles || [])
-  if (freeCheck.isFree) {
+  // Finn riktig pris-regel for brukeren
+  const ruleMatch = await findPricingRuleForUser(userId, config.rules)
+  
+  if (!ruleMatch.rule) {
     return {
       price: 0,
       isFree: true,
-      reason: freeCheck.reason,
-      pricingModel: config.model
+      reason: "Gratis booking",
+      pricingModel: "FREE"
+    }
+  }
+
+  const rule = ruleMatch.rule
+
+  // Hvis modellen er FREE, returner gratis
+  if (rule.model === "FREE") {
+    return {
+      price: 0,
+      isFree: true,
+      reason: ruleMatch.reason || "Gratis booking",
+      pricingModel: "FREE"
     }
   }
 
@@ -228,9 +331,9 @@ export async function calculateBookingPrice(
   let price = 0
   let breakdown: BookingPriceCalculation["breakdown"] | undefined
 
-  switch (config.model) {
+  switch (rule.model) {
     case "HOURLY":
-      if (!config.pricePerHour) {
+      if (!rule.pricePerHour) {
         return {
           price: 0,
           isFree: true,
@@ -238,15 +341,15 @@ export async function calculateBookingPrice(
           pricingModel: "HOURLY"
         }
       }
-      price = config.pricePerHour * durationHours
+      price = rule.pricePerHour * durationHours
       breakdown = {
-        basePrice: config.pricePerHour,
+        basePrice: rule.pricePerHour,
         hours: durationHours
       }
       break
 
     case "DAILY":
-      if (!config.pricePerDay) {
+      if (!rule.pricePerDay) {
         return {
           price: 0,
           isFree: true,
@@ -254,15 +357,15 @@ export async function calculateBookingPrice(
           pricingModel: "DAILY"
         }
       }
-      price = config.pricePerDay * durationDays
+      price = rule.pricePerDay * durationDays
       breakdown = {
-        basePrice: config.pricePerDay,
+        basePrice: rule.pricePerDay,
         days: durationDays
       }
       break
 
     case "FIXED":
-      if (!config.fixedPrice) {
+      if (!rule.fixedPrice) {
         return {
           price: 0,
           isFree: true,
@@ -270,14 +373,14 @@ export async function calculateBookingPrice(
           pricingModel: "FIXED"
         }
       }
-      price = config.fixedPrice
+      price = rule.fixedPrice
       breakdown = {
-        basePrice: config.fixedPrice
+        basePrice: rule.fixedPrice
       }
       break
 
     case "FIXED_DURATION":
-      if (!config.fixedPrice || !config.fixedPriceDuration) {
+      if (!rule.fixedPrice || !rule.fixedPriceDuration) {
         return {
           price: 0,
           isFree: true,
@@ -287,23 +390,23 @@ export async function calculateBookingPrice(
       }
       // Hvis varigheten matcher fixedPriceDuration, bruk fast pris
       // Ellers beregn basert på timepris hvis tilgjengelig
-      if (durationMinutes <= config.fixedPriceDuration) {
-        price = config.fixedPrice
+      if (durationMinutes <= rule.fixedPriceDuration) {
+        price = rule.fixedPrice
         breakdown = {
-          basePrice: config.fixedPrice,
+          basePrice: rule.fixedPrice,
           duration: durationMinutes
         }
-      } else if (config.pricePerHour) {
+      } else if (rule.pricePerHour) {
         // Hvis lengre enn fast pris-varighet, beregn timepris for hele perioden
-        price = config.pricePerHour * durationHours
+        price = rule.pricePerHour * durationHours
         breakdown = {
-          basePrice: config.pricePerHour,
+          basePrice: rule.pricePerHour,
           hours: durationHours
         }
       } else {
-        price = config.fixedPrice
+        price = rule.fixedPrice
         breakdown = {
-          basePrice: config.fixedPrice,
+          basePrice: rule.fixedPrice,
           duration: durationMinutes
         }
       }

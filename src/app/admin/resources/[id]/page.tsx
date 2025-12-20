@@ -81,12 +81,14 @@ export default function EditResourcePage({ params }: Props) {
   
   // Pricing state (kun aktiv hvis lisensserver tillater det)
   const [pricingEnabled, setPricingEnabled] = useState(false)
-  const [pricingModel, setPricingModel] = useState<"FREE" | "HOURLY" | "DAILY" | "FIXED" | "FIXED_DURATION">("FREE")
-  const [pricePerHour, setPricePerHour] = useState("")
-  const [pricePerDay, setPricePerDay] = useState("")
-  const [fixedPrice, setFixedPrice] = useState("")
-  const [fixedPriceDuration, setFixedPriceDuration] = useState("")
-  const [freeForRoles, setFreeForRoles] = useState<string[]>([])
+  const [pricingRules, setPricingRules] = useState<Array<{
+    forRoles: string[]
+    model: "FREE" | "HOURLY" | "DAILY" | "FIXED" | "FIXED_DURATION"
+    pricePerHour?: string
+    pricePerDay?: string
+    fixedPrice?: string
+    fixedPriceDuration?: string
+  }>>([])
   const [customRoles, setCustomRoles] = useState<Array<{ id: string; name: string }>>([])
   
   // Moderators state
@@ -240,12 +242,14 @@ export default function EditResourcePage({ params }: Props) {
           visPrisInfo,
           // Pricing fields (kun hvis aktivert)
           ...(pricingEnabled && {
-            pricingModel,
-            pricePerHour: pricePerHour ? parseFloat(pricePerHour) : null,
-            pricePerDay: pricePerDay ? parseFloat(pricePerDay) : null,
-            fixedPrice: fixedPrice ? parseFloat(fixedPrice) : null,
-            fixedPriceDuration: fixedPriceDuration ? parseInt(fixedPriceDuration) : null,
-            freeForRoles: freeForRoles.length > 0 ? JSON.stringify(freeForRoles) : null
+            pricingRules: JSON.stringify(pricingRules.map(r => ({
+              forRoles: r.forRoles,
+              model: r.model,
+              pricePerHour: r.pricePerHour ? parseFloat(r.pricePerHour) : null,
+              pricePerDay: r.pricePerDay ? parseFloat(r.pricePerDay) : null,
+              fixedPrice: r.fixedPrice ? parseFloat(r.fixedPrice) : null,
+              fixedPriceDuration: r.fixedPriceDuration ? parseInt(r.fixedPriceDuration) : null
+            })))
           }),
           parts: parts.filter(p => p.name.trim()).map(p => ({
             id: p.id,
@@ -642,153 +646,222 @@ export default function EditResourcePage({ params }: Props) {
             {/* Pricing Configuration (kun hvis aktivert via lisensserver) */}
             {pricingEnabled && (
               <div className="space-y-4 p-4 bg-blue-50 border border-blue-200 rounded-xl">
-                <h2 className="font-semibold text-gray-900 border-b pb-2">Prislogikk</h2>
+                <div className="flex items-center justify-between border-b pb-2">
+                  <h2 className="font-semibold text-gray-900">Prislogikk</h2>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setPricingRules([...pricingRules, {
+                        forRoles: [],
+                        model: "FREE"
+                      }])
+                    }}
+                    className="text-sm text-blue-600 hover:text-blue-700 flex items-center gap-1"
+                  >
+                    <Plus className="w-4 h-4" />
+                    Legg til pris-regel
+                  </button>
+                </div>
                 <p className="text-sm text-gray-600">
-                  Konfigurer automatisk prisberegning for bookinger. Prislogikk er aktivert via lisensserver.
+                  Konfigurer automatisk prisberegning for bookinger. Du kan sette forskjellige priser for forskjellige roller.
                 </p>
                 
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Pris-modell
-                  </label>
-                  <select
-                    value={pricingModel}
-                    onChange={(e) => setPricingModel(e.target.value as typeof pricingModel)}
-                    className="input"
-                  >
-                    <option value="FREE">Gratis</option>
-                    <option value="HOURLY">Per time</option>
-                    <option value="DAILY">Per døgn</option>
-                    <option value="FIXED">Fast pris</option>
-                    <option value="FIXED_DURATION">Fast pris (med varighet)</option>
-                  </select>
-                </div>
-
-                {pricingModel === "HOURLY" && (
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Pris per time (NOK)
-                    </label>
-                    <input
-                      type="number"
-                      value={pricePerHour}
-                      onChange={(e) => setPricePerHour(e.target.value)}
-                      className="input"
-                      placeholder="500"
-                      min="0"
-                      step="0.01"
-                    />
+                {pricingRules.length === 0 && (
+                  <div className="p-4 bg-gray-50 rounded-lg text-center text-gray-500">
+                    Ingen pris-regler satt. Klikk "Legg til pris-regel" for å begynne.
                   </div>
                 )}
 
-                {pricingModel === "DAILY" && (
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Pris per døgn (NOK)
-                    </label>
-                    <input
-                      type="number"
-                      value={pricePerDay}
-                      onChange={(e) => setPricePerDay(e.target.value)}
-                      className="input"
-                      placeholder="2000"
-                      min="0"
-                      step="0.01"
-                    />
-                  </div>
-                )}
+                {pricingRules.map((rule, index) => (
+                  <div key={index} className="p-4 bg-white border border-gray-200 rounded-lg space-y-4">
+                    <div className="flex items-center justify-between">
+                      <h3 className="font-medium text-gray-900">Regel {index + 1}</h3>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setPricingRules(pricingRules.filter((_, i) => i !== index))
+                        }}
+                        className="text-red-600 hover:text-red-700"
+                      >
+                        <X className="w-4 h-4" />
+                      </button>
+                    </div>
 
-                {(pricingModel === "FIXED" || pricingModel === "FIXED_DURATION") && (
-                  <>
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-2">
-                        Fast pris (NOK)
+                        Gjelder for roller
                       </label>
-                      <input
-                        type="number"
-                        value={fixedPrice}
-                        onChange={(e) => setFixedPrice(e.target.value)}
-                        className="input"
-                        placeholder="1000"
-                        min="0"
-                        step="0.01"
-                      />
+                      <div className="space-y-2 p-3 bg-gray-50 rounded-lg">
+                        <label className="flex items-center gap-2">
+                          <input
+                            type="checkbox"
+                            checked={rule.forRoles.includes("admin")}
+                            onChange={(e) => {
+                              const newRules = [...pricingRules]
+                              if (e.target.checked) {
+                                newRules[index].forRoles = [...newRules[index].forRoles, "admin"]
+                              } else {
+                                newRules[index].forRoles = newRules[index].forRoles.filter(r => r !== "admin")
+                              }
+                              setPricingRules(newRules)
+                            }}
+                            className="w-4 h-4"
+                          />
+                          <span className="text-sm text-gray-700">Administrator</span>
+                        </label>
+                        <label className="flex items-center gap-2">
+                          <input
+                            type="checkbox"
+                            checked={rule.forRoles.includes("user")}
+                            onChange={(e) => {
+                              const newRules = [...pricingRules]
+                              if (e.target.checked) {
+                                newRules[index].forRoles = [...newRules[index].forRoles, "user"]
+                              } else {
+                                newRules[index].forRoles = newRules[index].forRoles.filter(r => r !== "user")
+                              }
+                              setPricingRules(newRules)
+                            }}
+                            className="w-4 h-4"
+                          />
+                          <span className="text-sm text-gray-700">Bruker</span>
+                        </label>
+                        {customRoles.map(role => (
+                          <label key={role.id} className="flex items-center gap-2">
+                            <input
+                              type="checkbox"
+                              checked={rule.forRoles.includes(role.id)}
+                              onChange={(e) => {
+                                const newRules = [...pricingRules]
+                                if (e.target.checked) {
+                                  newRules[index].forRoles = [...newRules[index].forRoles, role.id]
+                                } else {
+                                  newRules[index].forRoles = newRules[index].forRoles.filter(r => r !== role.id)
+                                }
+                                setPricingRules(newRules)
+                              }}
+                              className="w-4 h-4"
+                            />
+                            <span className="text-sm text-gray-700">{role.name}</span>
+                          </label>
+                        ))}
+                        {rule.forRoles.length === 0 && (
+                          <p className="text-xs text-gray-500 italic">
+                            Ingen roller valgt = standard for alle andre roller
+                          </p>
+                        )}
+                      </div>
                     </div>
-                    {pricingModel === "FIXED_DURATION" && (
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Pris-modell
+                      </label>
+                      <select
+                        value={rule.model}
+                        onChange={(e) => {
+                          const newRules = [...pricingRules]
+                          newRules[index].model = e.target.value as typeof rule.model
+                          setPricingRules(newRules)
+                        }}
+                        className="input"
+                      >
+                        <option value="FREE">Gratis</option>
+                        <option value="HOURLY">Per time</option>
+                        <option value="DAILY">Per døgn</option>
+                        <option value="FIXED">Fast pris</option>
+                        <option value="FIXED_DURATION">Fast pris (med varighet)</option>
+                      </select>
+                    </div>
+
+                    {rule.model === "HOURLY" && (
                       <div>
                         <label className="block text-sm font-medium text-gray-700 mb-2">
-                          Varighet for fast pris (minutter)
+                          Pris per time (NOK)
                         </label>
                         <input
                           type="number"
-                          value={fixedPriceDuration}
-                          onChange={(e) => setFixedPriceDuration(e.target.value)}
+                          value={rule.pricePerHour || ""}
+                          onChange={(e) => {
+                            const newRules = [...pricingRules]
+                            newRules[index].pricePerHour = e.target.value
+                            setPricingRules(newRules)
+                          }}
                           className="input"
-                          placeholder="120"
-                          min="1"
+                          placeholder="500"
+                          min="0"
+                          step="0.01"
                         />
-                        <p className="text-xs text-gray-500 mt-1">
-                          Hvis booking er lengre enn denne varigheten, beregnes pris per time
-                        </p>
                       </div>
                     )}
-                  </>
-                )}
 
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Roller med gratis tilgang
-                  </label>
-                  <div className="space-y-2">
-                    <label className="flex items-center gap-2">
-                      <input
-                        type="checkbox"
-                        checked={freeForRoles.includes("admin")}
-                        onChange={(e) => {
-                          if (e.target.checked) {
-                            setFreeForRoles([...freeForRoles, "admin"])
-                          } else {
-                            setFreeForRoles(freeForRoles.filter(r => r !== "admin"))
-                          }
-                        }}
-                        className="w-4 h-4"
-                      />
-                      <span className="text-sm text-gray-700">Administrator</span>
-                    </label>
-                    <label className="flex items-center gap-2">
-                      <input
-                        type="checkbox"
-                        checked={freeForRoles.includes("user")}
-                        onChange={(e) => {
-                          if (e.target.checked) {
-                            setFreeForRoles([...freeForRoles, "user"])
-                          } else {
-                            setFreeForRoles(freeForRoles.filter(r => r !== "user"))
-                          }
-                        }}
-                        className="w-4 h-4"
-                      />
-                      <span className="text-sm text-gray-700">Bruker</span>
-                    </label>
-                    {customRoles.map(role => (
-                      <label key={role.id} className="flex items-center gap-2">
+                    {rule.model === "DAILY" && (
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                          Pris per døgn (NOK)
+                        </label>
                         <input
-                          type="checkbox"
-                          checked={freeForRoles.includes(role.id)}
+                          type="number"
+                          value={rule.pricePerDay || ""}
                           onChange={(e) => {
-                            if (e.target.checked) {
-                              setFreeForRoles([...freeForRoles, role.id])
-                            } else {
-                              setFreeForRoles(freeForRoles.filter(r => r !== role.id))
-                            }
+                            const newRules = [...pricingRules]
+                            newRules[index].pricePerDay = e.target.value
+                            setPricingRules(newRules)
                           }}
-                          className="w-4 h-4"
+                          className="input"
+                          placeholder="2000"
+                          min="0"
+                          step="0.01"
                         />
-                        <span className="text-sm text-gray-700">{role.name}</span>
-                      </label>
-                    ))}
+                      </div>
+                    )}
+
+                    {(rule.model === "FIXED" || rule.model === "FIXED_DURATION") && (
+                      <>
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-2">
+                            Fast pris (NOK)
+                          </label>
+                          <input
+                            type="number"
+                            value={rule.fixedPrice || ""}
+                            onChange={(e) => {
+                              const newRules = [...pricingRules]
+                              newRules[index].fixedPrice = e.target.value
+                              setPricingRules(newRules)
+                            }}
+                            className="input"
+                            placeholder="1000"
+                            min="0"
+                            step="0.01"
+                          />
+                        </div>
+                        {rule.model === "FIXED_DURATION" && (
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-2">
+                              Varighet for fast pris (minutter)
+                            </label>
+                            <input
+                              type="number"
+                              value={rule.fixedPriceDuration || ""}
+                              onChange={(e) => {
+                                const newRules = [...pricingRules]
+                                newRules[index].fixedPriceDuration = e.target.value
+                                setPricingRules(newRules)
+                              }}
+                              className="input"
+                              placeholder="120"
+                              min="1"
+                            />
+                            <p className="text-xs text-gray-500 mt-1">
+                              Hvis booking er lengre enn denne varigheten, beregnes pris per time
+                            </p>
+                          </div>
+                        )}
+                      </>
+                    )}
                   </div>
-                </div>
+                ))}
               </div>
             )}
 
