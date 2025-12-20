@@ -66,7 +66,8 @@ export const authOptions: NextAuthOptions = {
         }
 
         // Check if user is approved (admins and organization creators are always approved)
-        const isAdmin = user.systemRole === "admin"
+        // Sjekk både systemRole og role (legacy) for bakoverkompatibilitet
+        const isAdmin = user.systemRole === "admin" || user.role === "admin"
         if (!user.isApproved && !isAdmin) {
           throw new Error("Din konto venter på godkjenning fra administrator")
         }
