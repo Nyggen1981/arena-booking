@@ -149,13 +149,50 @@ export default function EditResourcePage({ params }: Props) {
       // Pricing configuration (kun hvis aktivert)
       setPricingEnabled(pricingStatus.enabled || false)
       if (pricingStatus.enabled) {
-        setPricingModel(resource.pricingModel || "FREE")
-        setPricePerHour(resource.pricePerHour ? String(resource.pricePerHour) : "")
-        setPricePerDay(resource.pricePerDay ? String(resource.pricePerDay) : "")
-        setFixedPrice(resource.fixedPrice ? String(resource.fixedPrice) : "")
-        setFixedPriceDuration(resource.fixedPriceDuration ? String(resource.fixedPriceDuration) : "")
-        setFreeForRoles(resource.freeForRoles ? JSON.parse(resource.freeForRoles) : [])
         setCustomRoles(roles || [])
+        
+        // Hent pricingRules hvis satt, ellers konverter legacy format
+        if (resource.pricingRules) {
+          try {
+            const rules = JSON.parse(resource.pricingRules)
+            setPricingRules(rules.map((r: any) => ({
+              ...r,
+              pricePerHour: r.pricePerHour ? String(r.pricePerHour) : "",
+              pricePerDay: r.pricePerDay ? String(r.pricePerDay) : "",
+              fixedPrice: r.fixedPrice ? String(r.fixedPrice) : "",
+              fixedPriceDuration: r.fixedPriceDuration ? String(r.fixedPriceDuration) : ""
+            })))
+          } catch (e) {
+            // Hvis parsing feiler, start med tom liste
+            setPricingRules([])
+          }
+        } else {
+          // Legacy format - konverter til nytt format
+          const legacyModel = resource.pricingModel || "FREE"
+          const legacyFreeForRoles = resource.freeForRoles ? JSON.parse(resource.freeForRoles) : []
+          
+          const rules: typeof pricingRules = []
+          
+          // Hvis det er roller med gratis tilgang, legg til regel for dem
+          if (legacyFreeForRoles.length > 0) {
+            rules.push({
+              forRoles: legacyFreeForRoles,
+              model: "FREE"
+            })
+          }
+          
+          // Legg til standard regel for alle andre
+          rules.push({
+            forRoles: [],
+            model: legacyModel as any,
+            pricePerHour: resource.pricePerHour ? String(resource.pricePerHour) : "",
+            pricePerDay: resource.pricePerDay ? String(resource.pricePerDay) : "",
+            fixedPrice: resource.fixedPrice ? String(resource.fixedPrice) : "",
+            fixedPriceDuration: resource.fixedPriceDuration ? String(resource.fixedPriceDuration) : ""
+          })
+          
+          setPricingRules(rules)
+        }
       }
       
       setParts(resource.parts?.map((p: { id: string; name: string; description?: string; capacity?: number; mapCoordinates?: string; adminNote?: string; image?: string; parentId?: string }) => ({
