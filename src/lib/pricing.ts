@@ -8,6 +8,10 @@ export interface PricingRule {
   forRoles: string[] // Array av role IDs, "admin", eller "user". Tom array = standard for alle standardbrukere (systemRole: "user" uten custom role)
   model: PricingModel
   fixedPriceDuration?: number | null // minutter (kun for FIXED_DURATION)
+  // Legacy fields (for backwards compatibility when converting from old pricing)
+  pricePerHour?: number | null
+  pricePerDay?: number | null
+  fixedPrice?: number | null
   // Medlemspriser (valgfritt - hvis satt, brukes for medlemmer)
   memberPricePerHour?: number | null
   memberPricePerDay?: number | null
