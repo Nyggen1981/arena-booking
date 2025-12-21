@@ -6,7 +6,7 @@ import { prisma } from "@/lib/prisma"
 export const dynamic = "force-dynamic"
 
 // Hardkodet lisensserver URL
-const LICENSE_SERVER_URL = process.env.LICENSE_SERVER_URL || "https://sportflow-lisence-server.vercel.app"
+const LICENSE_SERVER_URL = process.env.LICENSE_SERVER_URL || "https://sportflow-license.vercel.app"
 
 /**
  * Henter detaljert prisinformasjon fra lisensserveren

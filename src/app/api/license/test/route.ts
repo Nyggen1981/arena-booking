@@ -5,9 +5,7 @@ import { authOptions } from "@/lib/auth"
 export const dynamic = "force-dynamic"
 
 // Hardkodet lisensserver URL
-// Prøv miljøvariabel først, deretter standard URL
-// Merk: URL-en kan være "lisence" eller "license" - sjekk med leverandør
-const LICENSE_SERVER_URL = process.env.LICENSE_SERVER_URL || "https://sportflow-lisence-server.vercel.app"
+const LICENSE_SERVER_URL = process.env.LICENSE_SERVER_URL || "https://sportflow-license.vercel.app"
 
 export async function POST(req: Request) {
   try {
