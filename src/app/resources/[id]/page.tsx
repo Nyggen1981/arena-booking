@@ -395,24 +395,61 @@ export default async function ResourcePage({ params }: Props) {
                     }
 
                     const getPricingDescription = (model: PricingModel) => {
+                      const hasMemberPrice = rule.memberPricePerHour || rule.memberPricePerDay || rule.memberFixedPrice
+                      const hasNonMemberPrice = rule.nonMemberPricePerHour || rule.nonMemberPricePerDay || rule.nonMemberFixedPrice
+                      
                       switch (model) {
                         case "FREE":
                           return "Gratis"
                         case "HOURLY":
-                          return rule.pricePerHour 
-                            ? `${rule.pricePerHour.toFixed(2)} kr/time`
-                            : "Per time (pris ikke satt)"
+                          if (hasMemberPrice && hasNonMemberPrice) {
+                            return `Medlem: ${rule.memberPricePerHour?.toFixed(2) || "?"} kr/time, Ikke medlem: ${rule.nonMemberPricePerHour?.toFixed(2) || "?"} kr/time`
+                          } else if (hasMemberPrice) {
+                            return `Medlem: ${rule.memberPricePerHour?.toFixed(2) || "?"} kr/time, Standard: ${rule.pricePerHour?.toFixed(2) || "?"} kr/time`
+                          } else if (hasNonMemberPrice) {
+                            return `Ikke medlem: ${rule.nonMemberPricePerHour?.toFixed(2) || "?"} kr/time, Standard: ${rule.pricePerHour?.toFixed(2) || "?"} kr/time`
+                          } else {
+                            return rule.pricePerHour 
+                              ? `${rule.pricePerHour.toFixed(2)} kr/time`
+                              : "Per time (pris ikke satt)"
+                          }
                         case "DAILY":
-                          return rule.pricePerDay
-                            ? `${rule.pricePerDay.toFixed(2)} kr/døgn`
-                            : "Per døgn (pris ikke satt)"
+                          if (hasMemberPrice && hasNonMemberPrice) {
+                            return `Medlem: ${rule.memberPricePerDay?.toFixed(2) || "?"} kr/døgn, Ikke medlem: ${rule.nonMemberPricePerDay?.toFixed(2) || "?"} kr/døgn`
+                          } else if (hasMemberPrice) {
+                            return `Medlem: ${rule.memberPricePerDay?.toFixed(2) || "?"} kr/døgn, Standard: ${rule.pricePerDay?.toFixed(2) || "?"} kr/døgn`
+                          } else if (hasNonMemberPrice) {
+                            return `Ikke medlem: ${rule.nonMemberPricePerDay?.toFixed(2) || "?"} kr/døgn, Standard: ${rule.pricePerDay?.toFixed(2) || "?"} kr/døgn`
+                          } else {
+                            return rule.pricePerDay
+                              ? `${rule.pricePerDay.toFixed(2)} kr/døgn`
+                              : "Per døgn (pris ikke satt)"
+                          }
                         case "FIXED":
-                          return rule.fixedPrice
-                            ? `${rule.fixedPrice.toFixed(2)} kr (fast pris)`
-                            : "Fast pris (pris ikke satt)"
+                          if (hasMemberPrice && hasNonMemberPrice) {
+                            return `Medlem: ${rule.memberFixedPrice?.toFixed(2) || "?"} kr, Ikke medlem: ${rule.nonMemberFixedPrice?.toFixed(2) || "?"} kr (fast pris)`
+                          } else if (hasMemberPrice) {
+                            return `Medlem: ${rule.memberFixedPrice?.toFixed(2) || "?"} kr, Standard: ${rule.fixedPrice?.toFixed(2) || "?"} kr (fast pris)`
+                          } else if (hasNonMemberPrice) {
+                            return `Ikke medlem: ${rule.nonMemberFixedPrice?.toFixed(2) || "?"} kr, Standard: ${rule.fixedPrice?.toFixed(2) || "?"} kr (fast pris)`
+                          } else {
+                            return rule.fixedPrice
+                              ? `${rule.fixedPrice.toFixed(2)} kr (fast pris)`
+                              : "Fast pris (pris ikke satt)"
+                          }
                         case "FIXED_DURATION":
-                          return rule.fixedPrice && rule.fixedPriceDuration
-                            ? `${rule.fixedPrice.toFixed(2)} kr for ${rule.fixedPriceDuration} minutter`
+                          const fixedPriceText = hasMemberPrice && hasNonMemberPrice
+                            ? `Medlem: ${rule.memberFixedPrice?.toFixed(2) || "?"} kr, Ikke medlem: ${rule.nonMemberFixedPrice?.toFixed(2) || "?"} kr`
+                            : hasMemberPrice
+                            ? `Medlem: ${rule.memberFixedPrice?.toFixed(2) || "?"} kr, Standard: ${rule.fixedPrice?.toFixed(2) || "?"} kr`
+                            : hasNonMemberPrice
+                            ? `Ikke medlem: ${rule.nonMemberFixedPrice?.toFixed(2) || "?"} kr, Standard: ${rule.fixedPrice?.toFixed(2) || "?"} kr`
+                            : rule.fixedPrice
+                            ? `${rule.fixedPrice.toFixed(2)} kr`
+                            : "?"
+                          
+                          return rule.fixedPriceDuration
+                            ? `${fixedPriceText} for ${rule.fixedPriceDuration} minutter`
                             : "Fast pris med varighet (ikke konfigurert)"
                         default:
                           return "Ukjent modell"

@@ -7,10 +7,19 @@ export type PricingModel = "FREE" | "HOURLY" | "DAILY" | "FIXED" | "FIXED_DURATI
 export interface PricingRule {
   forRoles: string[] // Array av role IDs eller "admin", "user". Tom array = standard for alle andre
   model: PricingModel
+  // Standard priser (brukes hvis medlemspriser ikke er satt)
   pricePerHour?: number | null
   pricePerDay?: number | null
   fixedPrice?: number | null
   fixedPriceDuration?: number | null // minutter
+  // Medlemspriser (valgfritt - hvis satt, brukes for medlemmer)
+  memberPricePerHour?: number | null
+  memberPricePerDay?: number | null
+  memberFixedPrice?: number | null
+  // Ikke-medlemspriser (valgfritt - hvis satt, brukes for ikke-medlemmer)
+  nonMemberPricePerHour?: number | null
+  nonMemberPricePerDay?: number | null
+  nonMemberFixedPrice?: number | null
 }
 
 export interface PricingConfig {
@@ -329,6 +338,13 @@ export async function calculateBookingPrice(
     }
   }
 
+  // Hent brukerens medlemsstatus
+  const user = await prisma.user.findUnique({
+    where: { id: userId },
+    select: { isMember: true }
+  })
+  const isMember = user?.isMember ?? false
+
   // Beregn varighet
   const durationMs = endTime.getTime() - startTime.getTime()
   const durationMinutes = Math.ceil(durationMs / (1000 * 60))
@@ -340,7 +356,12 @@ export async function calculateBookingPrice(
 
   switch (rule.model) {
     case "HOURLY":
-      if (!rule.pricePerHour) {
+      // Bruk medlemspris eller ikke-medlemspris hvis satt, ellers standard pris
+      const hourlyPrice = isMember 
+        ? (rule.memberPricePerHour ?? rule.pricePerHour)
+        : (rule.nonMemberPricePerHour ?? rule.pricePerHour)
+      
+      if (!hourlyPrice) {
         return {
           price: 0,
           isFree: true,
@@ -348,15 +369,20 @@ export async function calculateBookingPrice(
           pricingModel: "HOURLY"
         }
       }
-      price = rule.pricePerHour * durationHours
+      price = hourlyPrice * durationHours
       breakdown = {
-        basePrice: rule.pricePerHour,
+        basePrice: hourlyPrice,
         hours: durationHours
       }
       break
 
     case "DAILY":
-      if (!rule.pricePerDay) {
+      // Bruk medlemspris eller ikke-medlemspris hvis satt, ellers standard pris
+      const dailyPrice = isMember
+        ? (rule.memberPricePerDay ?? rule.pricePerDay)
+        : (rule.nonMemberPricePerDay ?? rule.pricePerDay)
+      
+      if (!dailyPrice) {
         return {
           price: 0,
           isFree: true,
@@ -364,15 +390,20 @@ export async function calculateBookingPrice(
           pricingModel: "DAILY"
         }
       }
-      price = rule.pricePerDay * durationDays
+      price = dailyPrice * durationDays
       breakdown = {
-        basePrice: rule.pricePerDay,
+        basePrice: dailyPrice,
         days: durationDays
       }
       break
 
     case "FIXED":
-      if (!rule.fixedPrice) {
+      // Bruk medlemspris eller ikke-medlemspris hvis satt, ellers standard pris
+      const fixedPrice = isMember
+        ? (rule.memberFixedPrice ?? rule.fixedPrice)
+        : (rule.nonMemberFixedPrice ?? rule.fixedPrice)
+      
+      if (!fixedPrice) {
         return {
           price: 0,
           isFree: true,
@@ -380,14 +411,19 @@ export async function calculateBookingPrice(
           pricingModel: "FIXED"
         }
       }
-      price = rule.fixedPrice
+      price = fixedPrice
       breakdown = {
-        basePrice: rule.fixedPrice
+        basePrice: fixedPrice
       }
       break
 
     case "FIXED_DURATION":
-      if (!rule.fixedPrice || !rule.fixedPriceDuration) {
+      // Bruk medlemspris eller ikke-medlemspris hvis satt, ellers standard pris
+      const fixedPriceForDuration = isMember
+        ? (rule.memberFixedPrice ?? rule.fixedPrice)
+        : (rule.nonMemberFixedPrice ?? rule.fixedPrice)
+      
+      if (!fixedPriceForDuration || !rule.fixedPriceDuration) {
         return {
           price: 0,
           isFree: true,
@@ -398,23 +434,29 @@ export async function calculateBookingPrice(
       // Hvis varigheten matcher fixedPriceDuration, bruk fast pris
       // Ellers beregn basert på timepris hvis tilgjengelig
       if (durationMinutes <= rule.fixedPriceDuration) {
-        price = rule.fixedPrice
+        price = fixedPriceForDuration
         breakdown = {
-          basePrice: rule.fixedPrice,
+          basePrice: fixedPriceForDuration,
           duration: durationMinutes
-        }
-      } else if (rule.pricePerHour) {
-        // Hvis lengre enn fast pris-varighet, beregn timepris for hele perioden
-        price = rule.pricePerHour * durationHours
-        breakdown = {
-          basePrice: rule.pricePerHour,
-          hours: durationHours
         }
       } else {
-        price = rule.fixedPrice
-        breakdown = {
-          basePrice: rule.fixedPrice,
-          duration: durationMinutes
+        // Hvis lengre enn fast pris-varighet, beregn timepris for hele perioden
+        const hourlyPriceForDuration = isMember
+          ? (rule.memberPricePerHour ?? rule.pricePerHour)
+          : (rule.nonMemberPricePerHour ?? rule.pricePerHour)
+        
+        if (hourlyPriceForDuration) {
+          price = hourlyPriceForDuration * durationHours
+          breakdown = {
+            basePrice: hourlyPriceForDuration,
+            hours: durationHours
+          }
+        } else {
+          price = fixedPriceForDuration
+          breakdown = {
+            basePrice: fixedPriceForDuration,
+            duration: durationMinutes
+          }
         }
       }
       break
