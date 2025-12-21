@@ -12,6 +12,12 @@ interface LicenseInfo {
   expiresAt?: string
   daysRemaining?: number | null
   licenseType?: string
+  licenseTypeName?: string
+  modules?: {
+    booking?: boolean
+    pricing?: boolean
+    [key: string]: boolean | undefined
+  }
 }
 
 export function LicenseStatusCard() {
@@ -110,11 +116,39 @@ export function LicenseStatusCard() {
               </div>
             )}
 
-            {license.licenseType && (
-              <p className="text-xs text-gray-500 mt-1">
-                Type: {license.licenseType.charAt(0).toUpperCase() + license.licenseType.slice(1)}
-              </p>
-            )}
+            {(() => {
+              // Bygg lisens-type streng med moduler
+              const typeParts: string[] = []
+              
+              // Bruk licenseTypeName hvis tilgjengelig, ellers formater licenseType
+              if (license.licenseTypeName) {
+                typeParts.push(license.licenseTypeName)
+              } else if (license.licenseType) {
+                typeParts.push(license.licenseType.charAt(0).toUpperCase() + license.licenseType.slice(1))
+              }
+              
+              // Legg til aktive moduler (unntatt booking som alltid er aktiv)
+              if (license.modules) {
+                const activeModules: string[] = []
+                if (license.modules.pricing) {
+                  activeModules.push("Pris & Betaling")
+                }
+                // Legg til flere moduler her hvis nødvendig
+                
+                if (activeModules.length > 0) {
+                  typeParts.push(...activeModules)
+                }
+              }
+              
+              if (typeParts.length > 0) {
+                return (
+                  <p className="text-xs text-gray-500 mt-1">
+                    Type: {typeParts.join(" + ")}
+                  </p>
+                )
+              }
+              return null
+            })()}
           </div>
         </div>
 

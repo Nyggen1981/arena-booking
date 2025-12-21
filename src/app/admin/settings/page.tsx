@@ -99,6 +99,12 @@ export default function AdminSettingsPage() {
     expiresAt: string | null
     daysRemaining: number | null
     licenseType: string | null
+    licenseTypeName?: string | null
+    modules?: {
+      booking?: boolean
+      pricing?: boolean
+      [key: string]: boolean | undefined
+    }
   } | null>(null)
   
 
@@ -281,7 +287,9 @@ export default function AdminSettingsPage() {
           status: data.status,
           expiresAt: data.expiresAt || null,
           daysRemaining: data.daysRemaining || null,
-          licenseType: data.licenseType || null
+          licenseType: data.licenseType || null,
+          licenseTypeName: data.licenseTypeName || null,
+          modules: data.modules || undefined
         })
         
         // Tøm lisens-cache på serveren og last siden på nytt etter 2 sekunder
@@ -1097,11 +1105,39 @@ export default function AdminSettingsPage() {
                         )}
                       </p>
                     )}
-                    {licenseInfo.licenseType && (
-                      <p className="text-xs text-emerald-600 mt-1">
-                        Type: {licenseInfo.licenseType.charAt(0).toUpperCase() + licenseInfo.licenseType.slice(1)}
-                      </p>
-                    )}
+                    {(() => {
+                      // Bygg lisens-type streng med moduler
+                      const typeParts: string[] = []
+                      
+                      // Bruk licenseTypeName hvis tilgjengelig, ellers formater licenseType
+                      if (licenseInfo.licenseTypeName) {
+                        typeParts.push(licenseInfo.licenseTypeName)
+                      } else if (licenseInfo.licenseType) {
+                        typeParts.push(licenseInfo.licenseType.charAt(0).toUpperCase() + licenseInfo.licenseType.slice(1))
+                      }
+                      
+                      // Legg til aktive moduler (unntatt booking som alltid er aktiv)
+                      if (licenseInfo.modules) {
+                        const activeModules: string[] = []
+                        if (licenseInfo.modules.pricing) {
+                          activeModules.push("Pris & Betaling")
+                        }
+                        // Legg til flere moduler her hvis nødvendig
+                        
+                        if (activeModules.length > 0) {
+                          typeParts.push(...activeModules)
+                        }
+                      }
+                      
+                      if (typeParts.length > 0) {
+                        return (
+                          <p className="text-xs text-emerald-600 mt-1">
+                            Type: {typeParts.join(" + ")}
+                          </p>
+                        )
+                      }
+                      return null
+                    })()}
                   </div>
                 </div>
               </div>
