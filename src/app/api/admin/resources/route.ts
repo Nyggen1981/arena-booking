@@ -14,9 +14,36 @@ export async function GET() {
 
     const resources = await prisma.resource.findMany({
       where: { organizationId: session.user.organizationId },
-      include: {
-        category: true,
-        parts: true,
+      select: {
+        id: true,
+        name: true,
+        description: true,
+        location: true,
+        image: true,
+        mapImage: true,
+        color: true,
+        isActive: true,
+        showOnPublicCalendar: true,
+        categoryId: true,
+        category: {
+          select: {
+            id: true,
+            name: true,
+            color: true
+          }
+        },
+        parts: {
+          select: {
+            id: true,
+            name: true,
+            description: true,
+            capacity: true,
+            mapCoordinates: true,
+            adminNote: true,
+            parentId: true
+          },
+          orderBy: { name: "asc" }
+        },
         _count: {
           select: { bookings: true }
         }

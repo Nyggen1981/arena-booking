@@ -63,14 +63,28 @@ export default function AdminResourcesPage() {
         fetch("/api/admin/resources"),
         fetch("/api/admin/categories")
       ])
-      const [resourcesData, categoriesData] = await Promise.all([
-        resourcesRes.json(),
-        categoriesRes.json()
-      ])
-      setResources(resourcesData)
-      setCategories(categoriesData)
+      
+      if (!resourcesRes.ok) {
+        const errorData = await resourcesRes.json().catch(() => ({ error: "Unknown error" }))
+        console.error("Failed to fetch resources:", errorData)
+        setResources([])
+      } else {
+        const resourcesData = await resourcesRes.json()
+        setResources(Array.isArray(resourcesData) ? resourcesData : [])
+      }
+      
+      if (!categoriesRes.ok) {
+        const errorData = await categoriesRes.json().catch(() => ({ error: "Unknown error" }))
+        console.error("Failed to fetch categories:", errorData)
+        setCategories([])
+      } else {
+        const categoriesData = await categoriesRes.json()
+        setCategories(Array.isArray(categoriesData) ? categoriesData : [])
+      }
     } catch (error) {
       console.error("Failed to fetch data:", error)
+      setResources([])
+      setCategories([])
     } finally {
       setIsLoading(false)
     }

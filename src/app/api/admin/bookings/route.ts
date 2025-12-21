@@ -33,33 +33,68 @@ export async function GET(request: Request) {
     }
   }
 
-  const bookings = await prisma.booking.findMany({
-    where: {
-      organizationId: session.user.organizationId,
-      ...(status === "pending" ? { status: "pending" } : {}),
-      ...(isModerator && resourceIds ? { resourceId: { in: resourceIds } } : {})
-    },
-    include: {
-      resource: true,
-      resourcePart: true,
-      user: {
-        select: { name: true, email: true }
+  try {
+    const bookings = await prisma.booking.findMany({
+      where: {
+        organizationId: session.user.organizationId,
+        ...(status === "pending" ? { status: "pending" } : {}),
+        ...(isModerator && resourceIds ? { resourceId: { in: resourceIds } } : {})
       },
-      payments: {
-        select: {
-          id: true,
-          status: true,
-          paymentMethod: true,
-          amount: true
+      select: {
+        id: true,
+        title: true,
+        description: true,
+        startTime: true,
+        endTime: true,
+        status: true,
+        statusNote: true,
+        contactName: true,
+        contactEmail: true,
+        contactPhone: true,
+        totalAmount: true,
+        invoiceId: true,
+        preferredPaymentMethod: true,
+        resource: {
+          select: {
+            id: true,
+            name: true,
+            color: true
+          }
+        },
+        resourcePart: {
+          select: {
+            id: true,
+            name: true
+          }
+        },
+        user: {
+          select: { 
+            name: true, 
+            email: true 
+          }
+        },
+        payments: {
+          select: {
+            id: true,
+            status: true,
+            paymentMethod: true,
+            amount: true
+          }
         }
-      }
-    },
-    orderBy: [
-      { status: "asc" },
-      { startTime: "asc" }
-    ]
-  })
+      },
+      orderBy: [
+        { status: "asc" },
+        { startTime: "asc" }
+      ]
+    })
 
-  return NextResponse.json(bookings)
+    return NextResponse.json(bookings)
+  } catch (error) {
+    console.error("Error fetching admin bookings:", error)
+    return NextResponse.json(
+      { error: "Failed to fetch bookings" },
+      { status: 500 }
+    )
+  }
 }
 

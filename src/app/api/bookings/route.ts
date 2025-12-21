@@ -465,6 +465,7 @@ export async function GET() {
       statusNote: true,
       totalAmount: true,
       invoiceId: true,
+      preferredPaymentMethod: true,
       resource: {
         select: {
           id: true,
