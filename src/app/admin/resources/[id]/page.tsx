@@ -119,7 +119,7 @@ export default function EditResourcePage({ params }: Props) {
       fetch(`/api/admin/resources/${id}/moderators`).then(res => res.json()).catch(() => []),
       fetch("/api/admin/users").then(res => res.json()).catch(() => []),
       fetch("/api/admin/roles").then(res => res.json()).catch(() => []),
-      fetch("/api/pricing/status").then(res => res.json()).catch(() => ({ enabled: false }))
+      fetch("/api/pricing/status?forceRefresh=true").then(res => res.json()).catch(() => ({ enabled: false }))
     ]).then(([cats, resource, mods, users, roles, pricingStatus]) => {
       setCategories(cats)
       
