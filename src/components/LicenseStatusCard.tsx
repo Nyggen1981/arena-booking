@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { Key, Calendar, AlertTriangle, CheckCircle, Loader2, RefreshCw } from "lucide-react"
+import { Key, Calendar, AlertTriangle, CheckCircle, Loader2 } from "lucide-react"
 import Link from "next/link"
 import { useRouter, usePathname } from "next/navigation"
 
@@ -25,36 +25,16 @@ export function LicenseStatusCard() {
   const pathname = usePathname()
   const [license, setLicense] = useState<LicenseInfo | null>(null)
   const [loading, setLoading] = useState(true)
-  const [refreshing, setRefreshing] = useState(false)
-
-  const fetchLicenseStatus = async (forceRefresh = false) => {
-    try {
-      const url = forceRefresh 
-        ? "/api/license/status?forceRefresh=true" 
-        : "/api/license/status"
-      
-      const res = await fetch(url)
-      const data = await res.json()
-      setLicense(data)
-      setLoading(false)
-      setRefreshing(false)
-    } catch {
-      setLoading(false)
-      setRefreshing(false)
-    }
-  }
 
   useEffect(() => {
-    fetchLicenseStatus()
+    fetch("/api/license/status")
+      .then(res => res.json())
+      .then(data => {
+        setLicense(data)
+        setLoading(false)
+      })
+      .catch(() => setLoading(false))
   }, [])
-
-  const handleRefresh = async () => {
-    setRefreshing(true)
-    // Tøm cache først
-    await fetch("/api/license/clear-cache", { method: "POST" })
-    // Hent oppdatert data
-    await fetchLicenseStatus(true)
-  }
 
   if (loading) {
     return (
@@ -172,35 +152,24 @@ export function LicenseStatusCard() {
           </div>
         </div>
 
-        <div className="flex items-center gap-3">
-          <button
-            onClick={handleRefresh}
-            disabled={refreshing}
-            className="text-sm text-gray-600 hover:text-gray-700 font-medium flex items-center gap-1 disabled:opacity-50"
-            title="Oppdater lisensstatus"
-          >
-            <RefreshCw className={`w-4 h-4 ${refreshing ? "animate-spin" : ""}`} />
-            Oppdater
-          </button>
-          <Link 
-            href="/admin/settings#license"
-            onClick={(e) => {
-              // Hvis vi allerede er på settings-siden, scroller vi
-              if (pathname === "/admin/settings") {
-                e.preventDefault()
-                setTimeout(() => {
-                  const element = document.getElementById("license")
-                  if (element) {
-                    element.scrollIntoView({ behavior: "smooth", block: "start" })
-                  }
-                }, 100)
-              }
-            }}
-            className="text-sm text-blue-600 hover:text-blue-700 font-medium"
-          >
-            Administrer
-          </Link>
-        </div>
+        <Link 
+          href="/admin/settings#license"
+          onClick={(e) => {
+            // Hvis vi allerede er på settings-siden, scroller vi
+            if (pathname === "/admin/settings") {
+              e.preventDefault()
+              setTimeout(() => {
+                const element = document.getElementById("license")
+                if (element) {
+                  element.scrollIntoView({ behavior: "smooth", block: "start" })
+                }
+              }, 100)
+            }
+          }}
+          className="text-sm text-blue-600 hover:text-blue-700 font-medium"
+        >
+          Administrer
+        </Link>
       </div>
 
       {/* Warning for expiring soon */}
@@ -223,4 +192,3 @@ export function LicenseStatusCard() {
     </div>
   )
 }
-

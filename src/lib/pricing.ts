@@ -34,9 +34,9 @@ export interface BookingPriceCalculation {
  * Sjekker om prislogikk er aktivert basert på lisensserver-status
  * Prislogikk er kun aktiv hvis lisensen har "pricing" modulen aktivert
  */
-export async function isPricingEnabled(forceRefresh = false): Promise<boolean> {
+export async function isPricingEnabled(): Promise<boolean> {
   try {
-    const license = await validateLicense(forceRefresh)
+    const license = await validateLicense()
     
     // Prislogikk er aktiv hvis:
     // 1. Lisensen er gyldig (active, grace, eller error med grace)
