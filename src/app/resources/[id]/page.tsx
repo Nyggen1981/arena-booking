@@ -17,6 +17,8 @@ import {
 import { ResourceCalendar } from "@/components/ResourceCalendar"
 import { MapViewer } from "@/components/MapViewer"
 import { PartsList } from "@/components/PartsList"
+import { getPricingConfig, isPricingEnabled, PricingModel } from "@/lib/pricing"
+import { getPricingConfig, isPricingEnabled } from "@/lib/pricing"
 
 // Revalidate every 30 seconds for fresh data
 export const revalidate = 30
@@ -35,6 +37,11 @@ async function getResource(id: string) {
     return await prisma.resource.findUnique({
       where: { id },
       include: {
+        organization: {
+          select: {
+            id: true
+          }
+        },
         category: {
           select: {
             id: true,
@@ -160,6 +167,24 @@ export default async function ResourcePage({ params }: Props) {
     friday: "Fredag",
     saturday: "Lørdag",
     sunday: "Søndag"
+  }
+
+  // Hent prislogikk-konfigurasjon (kun hvis aktivert)
+  const pricingEnabled = await isPricingEnabled()
+  const pricingConfig = pricingEnabled ? await getPricingConfig(id, null) : null
+  
+  // Hent custom roles for å vise navn i pris-regler
+  let customRoles: Array<{ id: string; name: string }> = []
+  if (pricingEnabled && pricingConfig?.rules) {
+    try {
+      const roles = await prisma.customRole.findMany({
+        where: { organizationId: resource.organizationId },
+        select: { id: true, name: true }
+      })
+      customRoles = roles
+    } catch (error) {
+      console.error("Error fetching custom roles:", error)
+    }
   }
 
   return (
@@ -348,6 +373,68 @@ export default async function ResourcePage({ params }: Props) {
                 </h3>
                 <div className="text-sm text-gray-600 whitespace-pre-line">
                   {resource.prisInfo}
+                </div>
+              </div>
+            )}
+
+            {/* Pricing Logic (kun hvis aktivert) */}
+            {pricingEnabled && pricingConfig && pricingConfig.rules.length > 0 && (
+              <div className="card p-6">
+                <h3 className="font-semibold text-gray-900 mb-4">
+                  Prislogikk
+                </h3>
+                <div className="space-y-4">
+                  {pricingConfig.rules.map((rule, index) => {
+                    const getRoleNames = (roleIds: string[]) => {
+                      if (roleIds.length === 0) return "Standard (alle andre)"
+                      return roleIds.map(roleId => {
+                        if (roleId === "admin") return "Administrator"
+                        if (roleId === "user") return "Bruker"
+                        const customRole = customRoles.find(r => r.id === roleId)
+                        return customRole?.name || roleId
+                      }).join(", ")
+                    }
+
+                    const getPricingDescription = (model: PricingModel) => {
+                      switch (model) {
+                        case "FREE":
+                          return "Gratis"
+                        case "HOURLY":
+                          return rule.pricePerHour 
+                            ? `${rule.pricePerHour.toFixed(2)} kr/time`
+                            : "Per time (pris ikke satt)"
+                        case "DAILY":
+                          return rule.pricePerDay
+                            ? `${rule.pricePerDay.toFixed(2)} kr/døgn`
+                            : "Per døgn (pris ikke satt)"
+                        case "FIXED":
+                          return rule.fixedPrice
+                            ? `${rule.fixedPrice.toFixed(2)} kr (fast pris)`
+                            : "Fast pris (pris ikke satt)"
+                        case "FIXED_DURATION":
+                          return rule.fixedPrice && rule.fixedPriceDuration
+                            ? `${rule.fixedPrice.toFixed(2)} kr for ${rule.fixedPriceDuration} minutter`
+                            : "Fast pris med varighet (ikke konfigurert)"
+                        default:
+                          return "Ukjent modell"
+                      }
+                    }
+
+                    return (
+                      <div key={index} className="p-4 bg-gray-50 rounded-lg border border-gray-200">
+                        <div className="flex items-start justify-between mb-2">
+                          <div>
+                            <p className="text-sm font-medium text-gray-900">
+                              {getRoleNames(rule.forRoles)}
+                            </p>
+                            <p className="text-sm text-gray-600 mt-1">
+                              {getPricingDescription(rule.model)}
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+                    )
+                  })}
                 </div>
               </div>
             )}
