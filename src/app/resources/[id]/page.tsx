@@ -18,7 +18,6 @@ import { ResourceCalendar } from "@/components/ResourceCalendar"
 import { MapViewer } from "@/components/MapViewer"
 import { PartsList } from "@/components/PartsList"
 import { getPricingConfig, isPricingEnabled, PricingModel } from "@/lib/pricing"
-import { getPricingConfig, isPricingEnabled } from "@/lib/pricing"
 
 // Revalidate every 30 seconds for fresh data
 export const revalidate = 30
