@@ -190,6 +190,21 @@ export default function AdminUsersPage() {
     setOpenMenu(null)
   }
 
+  const toggleMembership = async (userId: string, currentStatus: boolean) => {
+    const newStatus = !currentStatus
+    const action = newStatus ? "sette" : "fjerne"
+    if (!confirm(`Er du sikker på at du vil ${action} medlemsstatus for denne brukeren?`)) {
+      return
+    }
+    await fetch(`/api/admin/users/${userId}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ isMember: newStatus })
+    })
+    fetchUsers()
+    setOpenMenu(null)
+  }
+
   const deleteUser = async (userId: string) => {
     if (!confirm("Er du sikker på at du vil slette denne brukeren? Alle bookinger vil også bli slettet.")) {
       return
@@ -402,6 +417,7 @@ export default function AdminUsersPage() {
                     customRoles={customRoles}
                     onVerifyEmail={verifyEmail}
                     onDelete={deleteUser}
+                    onToggleMembership={toggleMembership}
                   />
                 ))}
               </div>
@@ -426,6 +442,7 @@ export default function AdminUsersPage() {
                       customRoles={customRoles}
                       onVerifyEmail={verifyEmail}
                       onDelete={deleteUser}
+                      onToggleMembership={toggleMembership}
                     />
                   ))}
                 </div>
@@ -578,6 +595,7 @@ function UserCard({
   onChangeRole: (id: string, systemRole: "admin" | "user", customRoleId?: string | null) => void
   onVerifyEmail: (id: string) => void
   onDelete: (id: string) => void
+  onToggleMembership: (id: string, currentStatus: boolean) => void
   customRoles: CustomRole[]
 }) {
   const isCurrentUser = user.id === currentUserId
@@ -713,6 +731,27 @@ function UserCard({
                       Verifiser e-post
                     </button>
                   )}
+                  <div className="border-t border-gray-200 my-1" />
+                  <button
+                    onClick={() => onToggleMembership(user.id, user.isMember)}
+                    className={`flex items-center gap-2 px-4 py-2 text-sm w-full text-left ${
+                      user.isMember 
+                        ? "text-amber-600 hover:bg-amber-50" 
+                        : "text-green-600 hover:bg-green-50"
+                    }`}
+                  >
+                    {user.isMember ? (
+                      <>
+                        <UserX className="w-4 h-4" />
+                        Fjern medlemsstatus
+                      </>
+                    ) : (
+                      <>
+                        <UserCheck className="w-4 h-4" />
+                        Sett som medlem
+                      </>
+                    )}
+                  </button>
                   {/* Systemroller */}
                   {user.systemRole !== "user" && (
                     <button

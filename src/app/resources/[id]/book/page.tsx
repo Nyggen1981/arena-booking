@@ -18,7 +18,6 @@ import {
   MapPin
 } from "lucide-react"
 import { MapViewer } from "@/components/MapViewer"
-import { TimePicker } from "@/components/TimePicker"
 
 interface ResourcePart {
   id: string
@@ -103,6 +102,16 @@ export default function BookResourcePage({ params }: Props) {
   const [startTime, setStartTime] = useState("")
   const [endTime, setEndTime] = useState("")
   const [selectedParts, setSelectedParts] = useState<string[]>([])
+  
+  // Generate time options with 15-minute intervals
+  const timeOptions = useMemo(() => {
+    return Array.from({ length: 24 * 4 }, (_, i) => {
+      const hour = Math.floor(i / 4)
+      const minute = (i % 4) * 15
+      const time = `${hour.toString().padStart(2, '0')}:${minute.toString().padStart(2, '0')}`
+      return { value: time, label: time }
+    })
+  }, [])
 
   // Calculate which parts are locked based on hierarchy
   const lockedPartIds = useMemo(() => {
@@ -180,10 +189,22 @@ export default function BookResourcePage({ params }: Props) {
   const [contactEmail, setContactEmail] = useState("")
   const [contactPhone, setContactPhone] = useState("")
   
+  // Set phone from session when available
+  useEffect(() => {
+    if (session?.user?.phone) {
+      setContactPhone(session.user.phone)
+    }
+  }, [session])
+  
   // Recurring booking state
   const [isRecurring, setIsRecurring] = useState(false)
   const [recurringType, setRecurringType] = useState<"weekly" | "biweekly" | "monthly">("weekly")
   const [recurringEndDate, setRecurringEndDate] = useState("")
+  
+  // Pricing state (kun hvis pricing er aktivert)
+  const [pricingEnabled, setPricingEnabled] = useState(false)
+  const [calculatedPrice, setCalculatedPrice] = useState<{ price: number; isFree: boolean; reason?: string } | null>(null)
+  const [preferredPaymentMethod, setPreferredPaymentMethod] = useState<"INVOICE" | "VIPPS" | "CARD" | null>("INVOICE")
 
   const fetchResource = useCallback(async () => {
     try {
@@ -199,6 +220,11 @@ export default function BookResourcePage({ params }: Props) {
 
   useEffect(() => {
     fetchResource()
+    // Sjekk om pricing er aktivert
+    fetch("/api/pricing/status")
+      .then(res => res.json())
+      .then(data => setPricingEnabled(data.enabled || false))
+      .catch(() => setPricingEnabled(false))
   }, [fetchResource])
 
   useEffect(() => {
@@ -214,6 +240,52 @@ export default function BookResourcePage({ params }: Props) {
       router.push(`/login?callbackUrl=/resources/${id}/book`)
     }
   }, [status, router, id])
+
+  // Beregn pris når dato/tid/deler endres (kun hvis pricing er aktivert)
+  useEffect(() => {
+    if (!pricingEnabled || !session?.user?.id || !date || !startTime || !endTime || !resource) {
+      setCalculatedPrice(null)
+      return
+    }
+    
+    const calculatePrice = async () => {
+      try {
+        const startDateTime = new Date(`${date}T${startTime}`)
+        const endDateTime = new Date(`${date}T${endTime}`)
+        
+        // Valider at datoene er gyldige
+        if (isNaN(startDateTime.getTime()) || isNaN(endDateTime.getTime())) {
+          setCalculatedPrice(null)
+          return
+        }
+        
+        // Beregn pris for første del (eller hele fasiliteten hvis ingen deler valgt)
+        const partId = selectedParts.length > 0 ? selectedParts[0] : null
+        const response = await fetch("/api/pricing/calculate", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            resourceId: id,
+            resourcePartId: partId,
+            startTime: startDateTime.toISOString(),
+            endTime: endDateTime.toISOString()
+          })
+        })
+        
+        if (response.ok) {
+          const data = await response.json()
+          setCalculatedPrice(data)
+        } else {
+          setCalculatedPrice(null)
+        }
+      } catch (error) {
+        console.error("Error calculating price:", error)
+        setCalculatedPrice(null)
+      }
+    }
+    
+    calculatePrice()
+  }, [pricingEnabled, date, startTime, endTime, selectedParts, id, resource, session?.user?.id])
 
   const handleSubmit = useCallback(async (e: React.FormEvent) => {
     e.preventDefault()
@@ -246,7 +318,11 @@ export default function BookResourcePage({ params }: Props) {
           contactPhone,
           isRecurring,
           recurringType: isRecurring ? recurringType : undefined,
-          recurringEndDate: isRecurring ? recurringEndDate : undefined
+          recurringEndDate: isRecurring ? recurringEndDate : undefined,
+          // Legg til betalingsmetode hvis pricing er aktivert og det er valgt
+          ...(pricingEnabled && preferredPaymentMethod ? {
+            preferredPaymentMethod
+          } : {})
         })
       })
 
@@ -264,7 +340,7 @@ export default function BookResourcePage({ params }: Props) {
     } finally {
       setIsSubmitting(false)
     }
-  }, [resource, selectedParts, id, date, startTime, endTime, title, description, contactName, contactEmail, contactPhone, isRecurring, recurringType, recurringEndDate])
+  }, [resource, selectedParts, id, date, startTime, endTime, title, description, contactName, contactEmail, contactPhone, isRecurring, recurringType, recurringEndDate, pricingEnabled, calculatedPrice, preferredPaymentMethod])
 
   if (status === "loading" || isLoading) {
     return (
@@ -476,24 +552,77 @@ export default function BookResourcePage({ params }: Props) {
                   lang="no"
                   value={date}
                   onChange={(e) => setDate(e.target.value)}
-                  className="input"
+                  className="input cursor-pointer w-full"
                   min={new Date().toISOString().split("T")[0]}
                   required
                 />
               </div>
-              <TimePicker
-                value={startTime}
-                onChange={setStartTime}
-                label="Fra kl."
-                required
-              />
-              <TimePicker
-                value={endTime}
-                onChange={setEndTime}
-                label="Til kl."
-                required
-                minTime={startTime}
-              />
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <Clock className="w-4 h-4 inline mr-1" />
+                  Fra kl. *
+                </label>
+                <select
+                  value={startTime}
+                  onChange={(e) => setStartTime(e.target.value)}
+                  onMouseDown={(e) => {
+                    // Scroll to bottom when clicking to open dropdown
+                    const select = e.target as HTMLSelectElement
+                    setTimeout(() => {
+                      if (select.options.length > 0) {
+                        select.selectedIndex = select.options.length - 1
+                        // Reset to actual value after a brief moment
+                        setTimeout(() => {
+                          const selectedIndex = Array.from(select.options).findIndex(opt => opt.value === startTime)
+                          if (selectedIndex > 0) {
+                            select.selectedIndex = selectedIndex
+                          }
+                        }, 50)
+                      }
+                    }, 0)
+                  }}
+                  className="input cursor-pointer w-full"
+                  required
+                >
+                  <option value="">Velg tid</option>
+                  {timeOptions.map(({ value, label }) => (
+                    <option key={value} value={value}>{label}</option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <Clock className="w-4 h-4 inline mr-1" />
+                  Til kl. *
+                </label>
+                <select
+                  value={endTime}
+                  onChange={(e) => setEndTime(e.target.value)}
+                  onMouseDown={(e) => {
+                    // Scroll to bottom when clicking to open dropdown
+                    const select = e.target as HTMLSelectElement
+                    setTimeout(() => {
+                      if (select.options.length > 0) {
+                        select.selectedIndex = select.options.length - 1
+                        // Reset to actual value after a brief moment
+                        setTimeout(() => {
+                          const selectedIndex = Array.from(select.options).findIndex(opt => opt.value === endTime)
+                          if (selectedIndex > 0) {
+                            select.selectedIndex = selectedIndex
+                          }
+                        }, 50)
+                      }
+                    }, 0)
+                  }}
+                  className="input cursor-pointer w-full"
+                  required
+                >
+                  <option value="">Velg tid</option>
+                  {timeOptions.map(({ value, label }) => (
+                    <option key={value} value={value}>{label}</option>
+                  ))}
+                </select>
+              </div>
             </div>
 
             <p className="text-sm text-gray-500">
@@ -546,7 +675,7 @@ export default function BookResourcePage({ params }: Props) {
                       lang="no"
                       value={recurringEndDate}
                       onChange={(e) => setRecurringEndDate(e.target.value)}
-                      className="input max-w-[200px]"
+                      className="input cursor-pointer max-w-[200px]"
                       min={date || new Date().toISOString().split("T")[0]}
                       required={isRecurring}
                     />
@@ -602,6 +731,107 @@ export default function BookResourcePage({ params }: Props) {
                 </div>
               </div>
             </div>
+
+            {/* Price and Payment Method (kun hvis pricing er aktivert) */}
+            {pricingEnabled && (
+              <div className="pt-6 border-t border-gray-200">
+                <h3 className="font-medium text-gray-900 mb-4">Pris og betaling</h3>
+                
+                {/* Vis pris hvis den er beregnet */}
+                {calculatedPrice ? (
+                  calculatedPrice.isFree || calculatedPrice.price === 0 ? (
+                    <div className="p-4 bg-green-50 border border-green-200 rounded-xl mb-4">
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm font-medium text-green-700">Gratis booking</span>
+                        {calculatedPrice.reason && (
+                          <span className="text-xs text-green-600">({calculatedPrice.reason})</span>
+                        )}
+                      </div>
+                    </div>
+                  ) : (
+                    <>
+                      <div className="p-4 bg-blue-50 border border-blue-200 rounded-xl mb-4">
+                        <div className="flex items-center justify-between mb-2">
+                          <span className="text-sm font-medium text-gray-700">Estimert pris:</span>
+                          <span className="text-2xl font-bold text-gray-900">
+                            {Number(calculatedPrice.price).toFixed(2)} kr
+                          </span>
+                        </div>
+                        {calculatedPrice.reason && (
+                          <p className="text-xs text-gray-600 italic mt-2">{calculatedPrice.reason}</p>
+                        )}
+                      </div>
+                      
+                      {/* Betalingsmetode-valg */}
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-3">
+                          Foretrukken betalingsmetode
+                        </label>
+                        <div className="space-y-2">
+                          <label className="flex items-start gap-3 p-4 border-2 border-gray-200 rounded-lg cursor-pointer hover:bg-gray-50 transition-colors">
+                            <input
+                              type="radio"
+                              name="paymentMethod"
+                              value="INVOICE"
+                              checked={preferredPaymentMethod === "INVOICE"}
+                              onChange={() => setPreferredPaymentMethod("INVOICE")}
+                              className="mt-1 w-4 h-4 text-blue-600"
+                            />
+                            <div className="flex-1">
+                              <div className="font-medium text-gray-900">Faktura</div>
+                              <div className="text-sm text-gray-500">
+                                Faktura sendes til deg etter godkjenning
+                              </div>
+                            </div>
+                          </label>
+                          
+                          <label className="flex items-start gap-3 p-4 border-2 border-gray-200 rounded-lg cursor-pointer hover:bg-gray-50 transition-colors">
+                            <input
+                              type="radio"
+                              name="paymentMethod"
+                              value="VIPPS"
+                              checked={preferredPaymentMethod === "VIPPS"}
+                              onChange={() => setPreferredPaymentMethod("VIPPS")}
+                              className="mt-1 w-4 h-4 text-blue-600"
+                            />
+                            <div className="flex-1">
+                              <div className="font-medium text-gray-900">Vipps</div>
+                              <div className="text-sm text-gray-500">
+                                Vipps-betalingsforespørsel sendes etter godkjenning
+                              </div>
+                            </div>
+                          </label>
+                          
+                          <label className="flex items-start gap-3 p-4 border-2 border-gray-200 rounded-lg cursor-not-allowed opacity-50">
+                            <input
+                              type="radio"
+                              name="paymentMethod"
+                              value="CARD"
+                              checked={preferredPaymentMethod === "CARD"}
+                              onChange={() => setPreferredPaymentMethod("CARD")}
+                              disabled
+                              className="mt-1 w-4 h-4 text-gray-400 cursor-not-allowed"
+                            />
+                            <div className="flex-1">
+                              <div className="font-medium text-gray-500">Kortbetaling</div>
+                              <div className="text-sm text-gray-400">
+                                Betalingslink sendes etter godkjenning (kommer snart)
+                              </div>
+                            </div>
+                          </label>
+                        </div>
+                      </div>
+                    </>
+                  )
+                ) : (
+                  <div className="p-4 bg-gray-50 border border-gray-200 rounded-xl mb-4">
+                    <p className="text-sm text-gray-600">
+                      Fyll ut dato og tid for å se estimert pris
+                    </p>
+                  </div>
+                )}
+              </div>
+            )}
 
             {/* Submit */}
             <div className="space-y-3 pt-4">

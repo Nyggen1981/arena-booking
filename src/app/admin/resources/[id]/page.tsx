@@ -19,7 +19,12 @@ import {
   Users,
   ShieldCheck,
   Plus,
-  Trash2
+  Trash2,
+  Info,
+  Calendar,
+  DollarSign,
+  Layers,
+  Settings
 } from "lucide-react"
 import { MapEditor } from "@/components/MapEditor"
 import { PartsHierarchyEditor, HierarchicalPart } from "@/components/PartsHierarchyEditor"
@@ -41,6 +46,20 @@ interface Part {
   image?: string | null
   parentId?: string | null
   isNew?: boolean
+  pricingRules?: Array<{
+    forRoles: string[]
+    model: "FREE" | "HOURLY" | "DAILY" | "FIXED_DURATION"
+    pricePerHour?: string
+    pricePerDay?: string
+    fixedPrice?: string
+    fixedPriceDuration?: string
+    memberPricePerHour?: string
+    memberPricePerDay?: string
+    memberFixedPrice?: string
+    nonMemberPricePerHour?: string
+    nonMemberPricePerDay?: string
+    nonMemberFixedPrice?: string
+  }>
 }
 
 interface Props {
@@ -69,6 +88,7 @@ export default function EditResourcePage({ params }: Props) {
   const [limitDuration, setLimitDuration] = useState(false)
   const [minBookingMinutes, setMinBookingMinutes] = useState("60")
   const [maxBookingMinutes, setMaxBookingMinutes] = useState("240")
+  const [minBookingHours, setMinBookingHours] = useState<string>("")
   const [requiresApproval, setRequiresApproval] = useState(true)
   const [limitAdvanceBooking, setLimitAdvanceBooking] = useState(true)
   const [advanceBookingDays, setAdvanceBookingDays] = useState("30")
@@ -78,12 +98,13 @@ export default function EditResourcePage({ params }: Props) {
   const [parts, setParts] = useState<Part[]>([])
   const [prisInfo, setPrisInfo] = useState("")
   const [visPrisInfo, setVisPrisInfo] = useState(false)
+  const [visPrislogikk, setVisPrislogikk] = useState(false)
   
   // Pricing state (kun aktiv hvis lisensserver tillater det)
   const [pricingEnabled, setPricingEnabled] = useState(false)
   const [pricingRules, setPricingRules] = useState<Array<{
     forRoles: string[]
-    model: "FREE" | "HOURLY" | "DAILY" | "FIXED" | "FIXED_DURATION"
+    model: "FREE" | "HOURLY" | "DAILY" | "FIXED_DURATION"
     pricePerHour?: string
     pricePerDay?: string
     fixedPrice?: string
@@ -143,6 +164,7 @@ export default function EditResourcePage({ params }: Props) {
       setLimitDuration(hasLimit)
       setMinBookingMinutes(String(resource.minBookingMinutes || 60))
       setMaxBookingMinutes(String(resource.maxBookingMinutes || 240))
+      setMinBookingHours(resource.minBookingHours ? String(resource.minBookingHours) : "")
       setRequiresApproval(resource.requiresApproval ?? true)
       setLimitAdvanceBooking(resource.advanceBookingDays !== null)
       setAdvanceBookingDays(String(resource.advanceBookingDays || 30))
@@ -151,6 +173,7 @@ export default function EditResourcePage({ params }: Props) {
       setMapImage(resource.mapImage || null)
       setPrisInfo(resource.prisInfo || "")
       setVisPrisInfo(resource.visPrisInfo ?? false)
+      setVisPrislogikk(resource.visPrislogikk ?? false)
       
       // Pricing configuration (kun hvis aktivert)
       setPricingEnabled(pricingStatus.enabled || false)
@@ -213,7 +236,29 @@ export default function EditResourcePage({ params }: Props) {
         }
       }
       
-      setParts(resource.parts?.map((p: { id: string; name: string; description?: string; capacity?: number; mapCoordinates?: string; adminNote?: string; image?: string; parentId?: string }) => ({
+      setParts(resource.parts?.map((p: any) => {
+        let pricingRules: Part["pricingRules"] = []
+        if (p.pricingRules) {
+          try {
+            const parsed = JSON.parse(p.pricingRules)
+            pricingRules = parsed.map((r: any) => ({
+              ...r,
+              pricePerHour: r.pricePerHour ? String(r.pricePerHour) : "",
+              pricePerDay: r.pricePerDay ? String(r.pricePerDay) : "",
+              fixedPrice: r.fixedPrice ? String(r.fixedPrice) : "",
+              fixedPriceDuration: r.fixedPriceDuration ? String(r.fixedPriceDuration) : "",
+              memberPricePerHour: r.memberPricePerHour ? String(r.memberPricePerHour) : "",
+              memberPricePerDay: r.memberPricePerDay ? String(r.memberPricePerDay) : "",
+              memberFixedPrice: r.memberFixedPrice ? String(r.memberFixedPrice) : "",
+              nonMemberPricePerHour: r.nonMemberPricePerHour ? String(r.nonMemberPricePerHour) : "",
+              nonMemberPricePerDay: r.nonMemberPricePerDay ? String(r.nonMemberPricePerDay) : "",
+              nonMemberFixedPrice: r.nonMemberFixedPrice ? String(r.nonMemberFixedPrice) : ""
+            }))
+          } catch (e) {
+            console.error("Error parsing part pricingRules:", e)
+          }
+        }
+        return {
         id: p.id,
         name: p.name,
         description: p.description || "",
@@ -221,8 +266,10 @@ export default function EditResourcePage({ params }: Props) {
         mapCoordinates: p.mapCoordinates || null,
         adminNote: p.adminNote || null,
         image: p.image || null,
-        parentId: p.parentId || null
-      })) || [])
+          parentId: p.parentId || null,
+          pricingRules
+        }
+      }) || [])
       
       // Set moderators
       setModerators(mods || [])
@@ -289,6 +336,7 @@ export default function EditResourcePage({ params }: Props) {
           categoryId: categoryId || null,
           minBookingMinutes: limitDuration ? parseInt(minBookingMinutes) : null,
           maxBookingMinutes: limitDuration ? parseInt(maxBookingMinutes) : null,
+          minBookingHours: minBookingHours && minBookingHours.trim() !== "" ? parseFloat(minBookingHours) : null,
           requiresApproval,
           advanceBookingDays: limitAdvanceBooking ? parseInt(advanceBookingDays) : null,
           showOnPublicCalendar,
@@ -297,12 +345,9 @@ export default function EditResourcePage({ params }: Props) {
           visPrisInfo,
           // Pricing fields (kun hvis aktivert)
           ...(pricingEnabled && {
-            pricingRules: JSON.stringify(pricingRules.map(r => ({
+            pricingRules: allowWholeBooking ? JSON.stringify(pricingRules.map(r => ({
               forRoles: r.forRoles,
               model: r.model,
-              pricePerHour: r.pricePerHour ? parseFloat(r.pricePerHour) : null,
-              pricePerDay: r.pricePerDay ? parseFloat(r.pricePerDay) : null,
-              fixedPrice: r.fixedPrice ? parseFloat(r.fixedPrice) : null,
               fixedPriceDuration: r.fixedPriceDuration ? parseInt(r.fixedPriceDuration) : null,
               memberPricePerHour: r.memberPricePerHour ? parseFloat(r.memberPricePerHour) : null,
               memberPricePerDay: r.memberPricePerDay ? parseFloat(r.memberPricePerDay) : null,
@@ -310,7 +355,8 @@ export default function EditResourcePage({ params }: Props) {
               nonMemberPricePerHour: r.nonMemberPricePerHour ? parseFloat(r.nonMemberPricePerHour) : null,
               nonMemberPricePerDay: r.nonMemberPricePerDay ? parseFloat(r.nonMemberPricePerDay) : null,
               nonMemberFixedPrice: r.nonMemberFixedPrice ? parseFloat(r.nonMemberFixedPrice) : null
-            })))
+            }))) : null,
+            visPrislogikk
           }),
           parts: parts.filter(p => p.name.trim()).map(p => ({
             id: p.id,
@@ -321,7 +367,21 @@ export default function EditResourcePage({ params }: Props) {
             mapCoordinates: p.mapCoordinates || null,
             adminNote: p.adminNote || null,
             image: p.image || null,
-            parentId: p.parentId || null
+            parentId: p.parentId || null,
+            // Pricing rules for deler (alltid send, selv om pricingEnabled er false, for å bevare eksisterende regler)
+            pricingRules: pricingEnabled && p.pricingRules && p.pricingRules.length > 0 
+              ? JSON.stringify(p.pricingRules.map(r => ({
+                  forRoles: r.forRoles,
+                  model: r.model,
+                  fixedPriceDuration: r.fixedPriceDuration ? parseInt(r.fixedPriceDuration) : null,
+                  memberPricePerHour: r.memberPricePerHour ? parseFloat(r.memberPricePerHour) : null,
+                  memberPricePerDay: r.memberPricePerDay ? parseFloat(r.memberPricePerDay) : null,
+                  memberFixedPrice: r.memberFixedPrice ? parseFloat(r.memberFixedPrice) : null,
+                  nonMemberPricePerHour: r.nonMemberPricePerHour ? parseFloat(r.nonMemberPricePerHour) : null,
+                  nonMemberPricePerDay: r.nonMemberPricePerDay ? parseFloat(r.nonMemberPricePerDay) : null,
+                  nonMemberFixedPrice: r.nonMemberFixedPrice ? parseFloat(r.nonMemberFixedPrice) : null
+                })))
+              : null
           }))
         })
       })
@@ -340,9 +400,34 @@ export default function EditResourcePage({ params }: Props) {
       setLimitDuration(hasLimit)
       setMinBookingMinutes(String(updatedResource.minBookingMinutes || 60))
       setMaxBookingMinutes(String(updatedResource.maxBookingMinutes || 240))
+      setMinBookingHours(updatedResource.minBookingHours ? String(updatedResource.minBookingHours) : "")
       setPrisInfo(updatedResource.prisInfo || "")
       setVisPrisInfo(updatedResource.visPrisInfo ?? false)
-      setParts(updatedResource.parts?.map((p: { id: string; name: string; description?: string; capacity?: number; mapCoordinates?: string; adminNote?: string; image?: string; parentId?: string }) => ({
+      setParts(updatedResource.parts?.map((p: any) => {
+        let pricingRules: Part["pricingRules"] = []
+        if (p.pricingRules) {
+          try {
+            const rules = JSON.parse(p.pricingRules)
+            pricingRules = rules.map((r: any) => ({
+              ...r,
+              pricePerHour: r.pricePerHour ? String(r.pricePerHour) : "",
+              pricePerDay: r.pricePerDay ? String(r.pricePerDay) : "",
+              fixedPrice: r.fixedPrice ? String(r.fixedPrice) : "",
+              fixedPriceDuration: r.fixedPriceDuration ? String(r.fixedPriceDuration) : "",
+              memberPricePerHour: r.memberPricePerHour ? String(r.memberPricePerHour) : "",
+              memberPricePerDay: r.memberPricePerDay ? String(r.memberPricePerDay) : "",
+              memberFixedPrice: r.memberFixedPrice ? String(r.memberFixedPrice) : "",
+              nonMemberPricePerHour: r.nonMemberPricePerHour ? String(r.nonMemberPricePerHour) : "",
+              nonMemberPricePerDay: r.nonMemberPricePerDay ? String(r.nonMemberPricePerDay) : "",
+              nonMemberFixedPrice: r.nonMemberFixedPrice ? String(r.nonMemberFixedPrice) : ""
+            }))
+          } catch (e) {
+            // Hvis parsing feiler, start med tom liste
+            pricingRules = []
+          }
+        }
+        
+        return {
         id: p.id,
         name: p.name,
         description: p.description || "",
@@ -350,8 +435,10 @@ export default function EditResourcePage({ params }: Props) {
         mapCoordinates: p.mapCoordinates || null,
         adminNote: p.adminNote || null,
         image: p.image || null,
-        parentId: p.parentId || null
-      })) || [])
+          parentId: p.parentId || null,
+          pricingRules
+        }
+      }) || [])
 
       // Show success message
       setSuccessMessage("Endringene ble lagret!")
@@ -378,13 +465,13 @@ export default function EditResourcePage({ params }: Props) {
     <div className="min-h-screen bg-slate-50">
       <Navbar />
 
-      <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <Link href="/admin/resources" className="inline-flex items-center gap-2 text-gray-500 hover:text-gray-700 mb-6">
           <ArrowLeft className="w-4 h-4" />
           Tilbake til fasiliteter
         </Link>
 
-        <div className="card p-6 md:p-8">
+        <div className="space-y-6">
           <div className="flex items-center gap-3 mb-6">
             <div className="w-12 h-12 rounded-xl bg-blue-100 flex items-center justify-center">
               <Building2 className="w-6 h-6 text-blue-600" />
@@ -395,7 +482,7 @@ export default function EditResourcePage({ params }: Props) {
             </div>
           </div>
 
-          <form onSubmit={handleSubmit} className="space-y-6">
+          <form id="resource-form" onSubmit={handleSubmit} className="space-y-6">
             {error && (
               <div className="p-4 rounded-xl bg-red-50 border border-red-100 text-red-700 text-sm">
                 {error}
@@ -412,8 +499,11 @@ export default function EditResourcePage({ params }: Props) {
             )}
 
             {/* Basic info */}
-            <div className="space-y-4">
-              <h2 className="font-semibold text-gray-900 border-b pb-2">Grunnleggende info</h2>
+            <div className="bg-white rounded-xl border border-gray-200 p-6 space-y-4">
+              <div className="flex items-center gap-2 border-b border-gray-200 pb-3 mb-4">
+                <Info className="w-5 h-5 text-blue-600" />
+                <h2 className="text-lg font-semibold text-gray-900">Grunnleggende informasjon</h2>
+              </div>
               
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -514,12 +604,12 @@ export default function EditResourcePage({ params }: Props) {
                 
                 {image ? (
                   <div className="flex items-start gap-4">
-                    <div className="relative w-40 h-24 rounded-xl overflow-hidden bg-gray-100">
+                    <div className="relative w-full max-w-md aspect-video rounded-xl overflow-hidden bg-gray-100">
                       <Image
                         src={image}
                         alt="Fasilitetsbilde"
                         fill
-                        className="object-cover"
+                        className="object-contain"
                       />
                     </div>
                     <div className="flex flex-col gap-2">
@@ -563,10 +653,35 @@ export default function EditResourcePage({ params }: Props) {
             </div>
 
             {/* Booking settings */}
-            <div className="space-y-4">
-              <h2 className="font-semibold text-gray-900 border-b pb-2">Booking-innstillinger</h2>
+            <div className="bg-white rounded-xl border border-gray-200 p-6 space-y-6">
+              <div className="flex items-center gap-2 border-b border-gray-200 pb-3 mb-4">
+                <Calendar className="w-5 h-5 text-blue-600" />
+                <h2 className="text-lg font-semibold text-gray-900">Booking-innstillinger</h2>
+              </div>
               
-              <div className="space-y-3">
+              {/* Varighet */}
+              {/* Minimum antall timer (uavhengig av lisens) */}
+              <div className="space-y-3 p-4 bg-gray-50 rounded-lg">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Minimum antall timer en fasilitet kan bookes
+                  </label>
+                  <input
+                    type="number"
+                    value={minBookingHours}
+                    onChange={(e) => setMinBookingHours(e.target.value)}
+                    className="input"
+                    min="0"
+                    step="0.5"
+                    placeholder="F.eks. 2 (tom = ingen minimum)"
+                  />
+                  <p className="text-xs text-gray-500 mt-1">
+                    Hvis satt, må bookinger være minst dette antallet timer. La stå tomt for ingen minimum.
+                  </p>
+                </div>
+              </div>
+
+              <div className="space-y-3 p-4 bg-gray-50 rounded-lg">
                 <div className="flex items-center gap-3">
                   <input
                     type="checkbox"
@@ -581,7 +696,7 @@ export default function EditResourcePage({ params }: Props) {
                 </div>
                 
                 {limitDuration && (
-                  <div className="ml-8 grid md:grid-cols-2 gap-4">
+                  <div className="ml-8 grid md:grid-cols-2 gap-4 mt-3">
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-2">
                         Min. varighet (minutter)
@@ -612,7 +727,8 @@ export default function EditResourcePage({ params }: Props) {
                 )}
               </div>
 
-              <div className="space-y-3">
+              {/* Forhåndsbestilling */}
+              <div className="space-y-3 p-4 bg-gray-50 rounded-lg">
                 <div className="flex items-center gap-3">
                   <input
                     type="checkbox"
@@ -627,7 +743,7 @@ export default function EditResourcePage({ params }: Props) {
                 </div>
                 
                 {limitAdvanceBooking && (
-                  <div className="ml-8">
+                  <div className="ml-8 mt-3">
                     <label className="block text-sm font-medium text-gray-700 mb-2">
                       Maks antall dager frem
                     </label>
@@ -642,6 +758,8 @@ export default function EditResourcePage({ params }: Props) {
                 )}
               </div>
 
+              {/* Godkjenning og synlighet */}
+              <div className="space-y-3 p-4 bg-gray-50 rounded-lg">
               <div className="flex items-center gap-3">
                 <input
                   type="checkbox"
@@ -650,7 +768,7 @@ export default function EditResourcePage({ params }: Props) {
                   onChange={(e) => setRequiresApproval(e.target.checked)}
                   className="w-5 h-5 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
                 />
-                <label htmlFor="requiresApproval" className="text-sm text-gray-700">
+                  <label htmlFor="requiresApproval" className="text-sm font-medium text-gray-700">
                   Krever godkjenning fra admin før booking er bekreftet
                 </label>
               </div>
@@ -663,18 +781,20 @@ export default function EditResourcePage({ params }: Props) {
                   onChange={(e) => setShowOnPublicCalendar(e.target.checked)}
                   className="w-5 h-5 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
                 />
-                <label htmlFor="showOnPublicCalendar" className="text-sm text-gray-700">
+                  <label htmlFor="showOnPublicCalendar" className="text-sm font-medium text-gray-700">
                   Vis fasiliteten på offentlig kalender (forsiden)
                 </label>
+                </div>
               </div>
             </div>
 
-            {/* Price info - Uavhengig av "pris & betaling" modulen */}
-            <div className="space-y-4">
-              <h2 className="font-semibold text-gray-900 border-b pb-2">Prisinfo</h2>
-              <p className="text-xs text-gray-500 -mt-2">
-                Denne informasjonen vises alltid på fasilitetssiden, uavhengig av "pris & betaling" modulen.
-              </p>
+            {/* Price info - Kun for standardlisens (ikke "pris & betaling" modul) */}
+            {!pricingEnabled && (
+              <div className="bg-white rounded-xl border border-gray-200 p-6 space-y-4">
+                <div className="flex items-center gap-2 border-b border-gray-200 pb-3 mb-4">
+                  <DollarSign className="w-5 h-5 text-blue-600" />
+                  <h2 className="text-lg font-semibold text-gray-900">Prisinfo</h2>
+                </div>
               
               <div className="flex items-center gap-3">
                 <input
@@ -706,55 +826,100 @@ export default function EditResourcePage({ params }: Props) {
                 </div>
               )}
             </div>
+            )}
 
-            {/* Pricing Configuration (kun hvis "pris & betaling" modulen er aktivert) */}
+            {/* Pricing Configuration - Samlet for fasilitet og deler */}
             {pricingEnabled && (
-              <div className="space-y-4 p-4 bg-blue-50 border border-blue-200 rounded-xl">
-                <div className="flex items-center justify-between border-b pb-2">
-                  <div>
-                    <h2 className="font-semibold text-gray-900">Prislogikk</h2>
-                    <p className="text-xs text-gray-500 mt-1">
-                      Kun tilgjengelig når "pris & betaling" modulen er aktivert i lisensen.
-                    </p>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setPricingRules([...pricingRules, {
-                        forRoles: [],
-                        model: "FREE"
-                      }])
-                    }}
-                    className="text-sm text-blue-600 hover:text-blue-700 flex items-center gap-1"
-                  >
-                    <Plus className="w-4 h-4" />
-                    Legg til pris-regel
-                  </button>
-                </div>
-                <p className="text-sm text-gray-600">
-                  Konfigurer automatisk prisberegning for bookinger. Du kan sette forskjellige priser for forskjellige roller.
-                </p>
-                
-                {pricingRules.length === 0 && (
-                  <div className="p-4 bg-gray-50 rounded-lg text-center text-gray-500">
-                    Ingen pris-regler satt. Klikk "Legg til pris-regel" for å begynne.
-                  </div>
-                )}
-
-                {pricingRules.map((rule, index) => (
-                  <div key={index} className="p-4 bg-white border border-gray-200 rounded-lg space-y-4">
-                    <div className="flex items-center justify-between">
-                      <h3 className="font-medium text-gray-900">Regel {index + 1}</h3>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setPricingRules(pricingRules.filter((_, i) => i !== index))
-                        }}
-                        className="text-red-600 hover:text-red-700"
-                      >
-                        <X className="w-4 h-4" />
-                      </button>
+              <div className="bg-white rounded-xl border-2 border-blue-200 bg-blue-50/30 p-6 space-y-6">
+                <div className="flex items-center justify-between border-b border-blue-200 pb-3 mb-4">
+                  <div className="flex items-center gap-2">
+                    <DollarSign className="w-5 h-5 text-blue-600" />
+                    <div>
+                      <h2 className="text-lg font-semibold text-gray-900">Prislogikk</h2>
+                      <p className="text-xs text-gray-500 mt-1">
+                        Konfigurer prising for hele fasiliteten og hver del. Deler uten egen prislogikk bruker fasilitetens prislogikk.
+                      </p>
                     </div>
+                  </div>
+                </div>
+                
+                {/* Vis prisinfo checkbox */}
+                <div className="flex items-center gap-3 p-3 bg-white rounded-lg border border-gray-200">
+                  <input
+                    type="checkbox"
+                    id="visPrislogikk"
+                    checked={visPrislogikk}
+                    onChange={(e) => setVisPrislogikk(e.target.checked)}
+                    className="w-5 h-5 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                  />
+                  <label htmlFor="visPrislogikk" className="text-sm font-medium text-gray-700">
+                    Vis prisinfo på fasilitetssiden
+                  </label>
+                </div>
+
+                {/* Fasilitet prislogikk - kun hvis allowWholeBooking er true */}
+                {allowWholeBooking && (
+            <div className="space-y-4">
+                    <div className="flex items-center justify-between border-b border-gray-200 pb-2">
+                      <h3 className="font-semibold text-gray-900">Hele fasiliteten</h3>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setPricingRules([...pricingRules, {
+                          forRoles: [],
+                          model: "FREE"
+                        }])
+                      }}
+                      className="btn btn-secondary text-sm py-1.5 flex items-center gap-1"
+                    >
+                      <Plus className="w-4 h-4" />
+                      Legg til regel
+                    </button>
+                  </div>
+                  
+                  {pricingRules.length === 0 && (
+                    <div className="p-4 bg-gray-50 rounded-lg text-center text-gray-500 text-sm">
+                      Ingen pris-regler satt. Klikk "Legg til regel" for å begynne.
+                    </div>
+                  )}
+
+                  {pricingRules.map((rule, index) => {
+                    const isDefaultRule = rule.forRoles.length === 0
+                    const hasNoPrices = !rule.memberPricePerHour && !rule.memberPricePerDay && !rule.memberFixedPrice &&
+                                       !rule.nonMemberPricePerHour && !rule.nonMemberPricePerDay && !rule.nonMemberFixedPrice
+                    const isFreeButShouldHavePrice = rule.model === "FREE" && isDefaultRule
+                    
+                    return (
+                    <div key={index} className="p-4 bg-white border-2 border-gray-200 rounded-lg space-y-4">
+                      {isFreeButShouldHavePrice && (
+                        <div className="p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
+                          <p className="text-sm text-yellow-800">
+                            <strong>Advarsel:</strong> Standardregelen (for alle roller) er satt til "Gratis". 
+                            Hvis du vil ha priser, endre modellen til "Per time", "Per døgn" eller "Fast pris med varighet" og sett priser.
+                          </p>
+                        </div>
+                      )}
+                      {rule.model !== "FREE" && hasNoPrices && (
+                        <div className="p-3 bg-red-50 border border-red-200 rounded-lg">
+                          <p className="text-sm text-red-800">
+                            <strong>Feil:</strong> Du har valgt en pris-modell, men ingen priser er satt. 
+                            Sett minst én pris (medlemspris eller ikke-medlemspris) for at regelen skal fungere.
+                          </p>
+                        </div>
+                      )}
+                      <div className="flex items-center justify-between border-b pb-2">
+                        <h3 className="font-semibold text-gray-900">Regel {index + 1}</h3>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setPricingRules(pricingRules.filter((_, i) => i !== index))
+                          }}
+                          className="text-red-600 hover:text-red-700 p-1 hover:bg-red-50 rounded"
+                          title="Fjern regel"
+                        >
+                          <X className="w-4 h-4" />
+                        </button>
+                      </div>
 
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -778,23 +943,6 @@ export default function EditResourcePage({ params }: Props) {
                           />
                           <span className="text-sm text-gray-700">Administrator</span>
                         </label>
-                        <label className="flex items-center gap-2">
-                          <input
-                            type="checkbox"
-                            checked={rule.forRoles.includes("user")}
-                            onChange={(e) => {
-                              const newRules = [...pricingRules]
-                              if (e.target.checked) {
-                                newRules[index].forRoles = [...newRules[index].forRoles, "user"]
-                              } else {
-                                newRules[index].forRoles = newRules[index].forRoles.filter(r => r !== "user")
-                              }
-                              setPricingRules(newRules)
-                            }}
-                            className="w-4 h-4"
-                          />
-                          <span className="text-sm text-gray-700">Bruker</span>
-                        </label>
                         {customRoles.map(role => (
                           <label key={role.id} className="flex items-center gap-2">
                             <input
@@ -814,9 +962,26 @@ export default function EditResourcePage({ params }: Props) {
                             <span className="text-sm text-gray-700">{role.name}</span>
                           </label>
                         ))}
+                        <label className="flex items-center gap-2">
+                          <input
+                            type="checkbox"
+                            checked={rule.forRoles.includes("user")}
+                            onChange={(e) => {
+                              const newRules = [...pricingRules]
+                              if (e.target.checked) {
+                                newRules[index].forRoles = [...newRules[index].forRoles, "user"]
+                              } else {
+                                newRules[index].forRoles = newRules[index].forRoles.filter(r => r !== "user")
+                              }
+                              setPricingRules(newRules)
+                            }}
+                            className="w-4 h-4"
+                          />
+                          <span className="text-sm text-gray-700">Bruker (standardbrukere)</span>
+                        </label>
                         {rule.forRoles.length === 0 && (
                           <p className="text-xs text-gray-500 italic">
-                            Ingen roller valgt = standard for alle andre roller
+                            Ingen roller valgt = standard for alle standardbrukere (systemRole: "user" uten custom role)
                           </p>
                         )}
                       </div>
@@ -838,198 +1003,135 @@ export default function EditResourcePage({ params }: Props) {
                         <option value="FREE">Gratis</option>
                         <option value="HOURLY">Per time</option>
                         <option value="DAILY">Per døgn</option>
-                        <option value="FIXED">Fast pris</option>
                         <option value="FIXED_DURATION">Fast pris (med varighet)</option>
                       </select>
                     </div>
 
                     {rule.model === "HOURLY" && (
-                      <div className="space-y-3">
-                        <div>
-                          <label className="block text-sm font-medium text-gray-700 mb-2">
-                            Standard pris per time (NOK)
-                          </label>
-                          <input
-                            type="number"
-                            value={rule.pricePerHour || ""}
-                            onChange={(e) => {
-                              const newRules = [...pricingRules]
-                              newRules[index].pricePerHour = e.target.value
-                              setPricingRules(newRules)
-                            }}
-                            className="input"
-                            placeholder="500"
-                            min="0"
-                            step="0.01"
-                          />
-                          <p className="text-xs text-gray-500 mt-1">
-                            Brukes hvis medlemspris/ikke-medlemspris ikke er satt
-                          </p>
-                        </div>
-                        <div>
-                          <label className="block text-sm font-medium text-gray-700 mb-2">
-                            Medlemspris per time (NOK) <span className="text-gray-400">(valgfritt)</span>
-                          </label>
-                          <input
-                            type="number"
-                            value={rule.memberPricePerHour || ""}
-                            onChange={(e) => {
-                              const newRules = [...pricingRules]
-                              newRules[index].memberPricePerHour = e.target.value
-                              setPricingRules(newRules)
-                            }}
-                            className="input"
-                            placeholder="300"
-                            min="0"
-                            step="0.01"
-                          />
-                        </div>
-                        <div>
-                          <label className="block text-sm font-medium text-gray-700 mb-2">
-                            Ikke-medlemspris per time (NOK) <span className="text-gray-400">(valgfritt)</span>
-                          </label>
-                          <input
-                            type="number"
-                            value={rule.nonMemberPricePerHour || ""}
-                            onChange={(e) => {
-                              const newRules = [...pricingRules]
-                              newRules[index].nonMemberPricePerHour = e.target.value
-                              setPricingRules(newRules)
-                            }}
-                            className="input"
-                            placeholder="600"
-                            min="0"
-                            step="0.01"
-                          />
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                          Pris per time (NOK)
+                        </label>
+                        <div className="grid grid-cols-2 gap-3">
+                          <div>
+                            <input
+                              type="number"
+                              value={rule.memberPricePerHour || ""}
+                              onChange={(e) => {
+                                const newRules = [...pricingRules]
+                                newRules[index].memberPricePerHour = e.target.value
+                                setPricingRules(newRules)
+                              }}
+                              className="input"
+                              placeholder="Medlemspris"
+                              min="0"
+                              step="0.01"
+                            />
+                            <p className="text-xs text-gray-500 mt-1">Medlem</p>
+                          </div>
+                          <div>
+                            <input
+                              type="number"
+                              value={rule.nonMemberPricePerHour || ""}
+                              onChange={(e) => {
+                                const newRules = [...pricingRules]
+                                newRules[index].nonMemberPricePerHour = e.target.value
+                                setPricingRules(newRules)
+                              }}
+                              className="input"
+                              placeholder="Ikke-medlem"
+                              min="0"
+                              step="0.01"
+                            />
+                            <p className="text-xs text-gray-500 mt-1">Ikke-medlem</p>
+                          </div>
                         </div>
                       </div>
                     )}
 
                     {rule.model === "DAILY" && (
-                      <div className="space-y-3">
-                        <div>
-                          <label className="block text-sm font-medium text-gray-700 mb-2">
-                            Standard pris per døgn (NOK)
-                          </label>
-                          <input
-                            type="number"
-                            value={rule.pricePerDay || ""}
-                            onChange={(e) => {
-                              const newRules = [...pricingRules]
-                              newRules[index].pricePerDay = e.target.value
-                              setPricingRules(newRules)
-                            }}
-                            className="input"
-                            placeholder="2000"
-                            min="0"
-                            step="0.01"
-                          />
-                          <p className="text-xs text-gray-500 mt-1">
-                            Brukes hvis medlemspris/ikke-medlemspris ikke er satt
-                          </p>
-                        </div>
-                        <div>
-                          <label className="block text-sm font-medium text-gray-700 mb-2">
-                            Medlemspris per døgn (NOK) <span className="text-gray-400">(valgfritt)</span>
-                          </label>
-                          <input
-                            type="number"
-                            value={rule.memberPricePerDay || ""}
-                            onChange={(e) => {
-                              const newRules = [...pricingRules]
-                              newRules[index].memberPricePerDay = e.target.value
-                              setPricingRules(newRules)
-                            }}
-                            className="input"
-                            placeholder="1500"
-                            min="0"
-                            step="0.01"
-                          />
-                        </div>
-                        <div>
-                          <label className="block text-sm font-medium text-gray-700 mb-2">
-                            Ikke-medlemspris per døgn (NOK) <span className="text-gray-400">(valgfritt)</span>
-                          </label>
-                          <input
-                            type="number"
-                            value={rule.nonMemberPricePerDay || ""}
-                            onChange={(e) => {
-                              const newRules = [...pricingRules]
-                              newRules[index].nonMemberPricePerDay = e.target.value
-                              setPricingRules(newRules)
-                            }}
-                            className="input"
-                            placeholder="2500"
-                            min="0"
-                            step="0.01"
-                          />
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                          Pris per døgn (NOK)
+                        </label>
+                        <div className="grid grid-cols-2 gap-3">
+                          <div>
+                            <input
+                              type="number"
+                              value={rule.memberPricePerDay || ""}
+                              onChange={(e) => {
+                                const newRules = [...pricingRules]
+                                newRules[index].memberPricePerDay = e.target.value
+                                setPricingRules(newRules)
+                              }}
+                              className="input"
+                              placeholder="Medlemspris"
+                              min="0"
+                              step="0.01"
+                            />
+                            <p className="text-xs text-gray-500 mt-1">Medlem</p>
+                          </div>
+                          <div>
+                            <input
+                              type="number"
+                              value={rule.nonMemberPricePerDay || ""}
+                              onChange={(e) => {
+                                const newRules = [...pricingRules]
+                                newRules[index].nonMemberPricePerDay = e.target.value
+                                setPricingRules(newRules)
+                              }}
+                              className="input"
+                              placeholder="Ikke-medlem"
+                              min="0"
+                              step="0.01"
+                            />
+                            <p className="text-xs text-gray-500 mt-1">Ikke-medlem</p>
+                          </div>
                         </div>
                       </div>
                     )}
 
-                    {(rule.model === "FIXED" || rule.model === "FIXED_DURATION") && (
+                    {rule.model === "FIXED_DURATION" && (
                       <>
-                        <div className="space-y-3">
-                          <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-2">
-                              Standard fast pris (NOK)
-                            </label>
-                            <input
-                              type="number"
-                              value={rule.fixedPrice || ""}
-                              onChange={(e) => {
-                                const newRules = [...pricingRules]
-                                newRules[index].fixedPrice = e.target.value
-                                setPricingRules(newRules)
-                              }}
-                              className="input"
-                              placeholder="1000"
-                              min="0"
-                              step="0.01"
-                            />
-                            <p className="text-xs text-gray-500 mt-1">
-                              Brukes hvis medlemspris/ikke-medlemspris ikke er satt
-                            </p>
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-2">
+                            Fast pris (NOK)
+                          </label>
+                          <div className="grid grid-cols-2 gap-3 mb-3">
+                            <div>
+                              <input
+                                type="number"
+                                value={rule.memberFixedPrice || ""}
+                                onChange={(e) => {
+                                  const newRules = [...pricingRules]
+                                  newRules[index].memberFixedPrice = e.target.value
+                                  setPricingRules(newRules)
+                                }}
+                                className="input"
+                                placeholder="Medlemspris"
+                                min="0"
+                                step="0.01"
+                              />
+                              <p className="text-xs text-gray-500 mt-1">Medlem</p>
+                            </div>
+                            <div>
+                              <input
+                                type="number"
+                                value={rule.nonMemberFixedPrice || ""}
+                                onChange={(e) => {
+                                  const newRules = [...pricingRules]
+                                  newRules[index].nonMemberFixedPrice = e.target.value
+                                  setPricingRules(newRules)
+                                }}
+                                className="input"
+                                placeholder="Ikke-medlem"
+                                min="0"
+                                step="0.01"
+                              />
+                              <p className="text-xs text-gray-500 mt-1">Ikke-medlem</p>
+                            </div>
                           </div>
                           <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-2">
-                              Medlemspris (NOK) <span className="text-gray-400">(valgfritt)</span>
-                            </label>
-                            <input
-                              type="number"
-                              value={rule.memberFixedPrice || ""}
-                              onChange={(e) => {
-                                const newRules = [...pricingRules]
-                                newRules[index].memberFixedPrice = e.target.value
-                                setPricingRules(newRules)
-                              }}
-                              className="input"
-                              placeholder="800"
-                              min="0"
-                              step="0.01"
-                            />
-                          </div>
-                          <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-2">
-                              Ikke-medlemspris (NOK) <span className="text-gray-400">(valgfritt)</span>
-                            </label>
-                            <input
-                              type="number"
-                              value={rule.nonMemberFixedPrice || ""}
-                              onChange={(e) => {
-                                const newRules = [...pricingRules]
-                                newRules[index].nonMemberFixedPrice = e.target.value
-                                setPricingRules(newRules)
-                              }}
-                              className="input"
-                              placeholder="1200"
-                              min="0"
-                              step="0.01"
-                            />
-                          </div>
-                        </div>
-                        {rule.model === "FIXED_DURATION" && (
-                          <div className="mt-3">
                             <label className="block text-sm font-medium text-gray-700 mb-2">
                               Varighet for fast pris (minutter)
                             </label>
@@ -1049,17 +1151,339 @@ export default function EditResourcePage({ params }: Props) {
                               Hvis booking er lengre enn denne varigheten, beregnes pris per time (hvis timepris er satt)
                             </p>
                           </div>
-                        )}
+                        </div>
                       </>
                     )}
                   </div>
-                ))}
+                    )
+                  })}
+                  </div>
+                )}
+
+                {/* Deler prislogikk */}
+                {parts.length > 0 && (
+                  <div className="space-y-4 pt-6 border-t-2 border-gray-200">
+                    <div className="flex items-center justify-between">
+                      <h3 className="font-semibold text-gray-900">Deler</h3>
+                    </div>
+                    <p className="text-sm text-gray-600">
+                      Konfigurer prising for hver del. Hvis ingen prislogikk er satt for en del, brukes fasilitetens prislogikk.
+                    </p>
+                    
+                    {parts.map((part, partIndex) => {
+                    const partPricingRules = part.pricingRules || []
+                    const isTopLevel = !part.parentId
+                    const partType = isTopLevel ? "Hoveddel" : "Underdel"
+                    
+                    return (
+                      <div key={part.id || part.tempId || partIndex} className="p-4 bg-white border border-gray-200 rounded-lg space-y-3">
+                        <div className="flex items-center justify-between">
+                          <div>
+                            <h4 className="font-medium text-gray-900">{part.name}</h4>
+                            <p className="text-xs text-gray-500">{partType}</p>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const newParts = [...parts]
+                              if (!newParts[partIndex].pricingRules) {
+                                newParts[partIndex].pricingRules = []
+                              }
+                              newParts[partIndex].pricingRules!.push({
+                                forRoles: [],
+                                model: "FREE"
+                              })
+                              setParts(newParts)
+                            }}
+                            className="text-sm text-blue-600 hover:text-blue-700 flex items-center gap-1"
+                          >
+                            <Plus className="w-4 h-4" />
+                            Legg til pris-regel
+                          </button>
+                        </div>
+                        
+                        {partPricingRules.length === 0 ? (
+                          <p className="text-xs text-gray-500 italic">
+                            Ingen prislogikk satt. Bruker fasilitetens prislogikk.
+                          </p>
+                        ) : (
+                          <div className="space-y-3">
+                            {partPricingRules.map((rule, ruleIndex) => (
+                              <div key={ruleIndex} className="p-3 bg-gray-50 rounded-lg space-y-2">
+                                <div className="flex items-center justify-between">
+                                  <span className="text-sm font-medium text-gray-700">Regel {ruleIndex + 1}</span>
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      const newParts = [...parts]
+                                      newParts[partIndex].pricingRules = partPricingRules.filter((_, i) => i !== ruleIndex)
+                                      setParts(newParts)
+                                    }}
+                                    className="text-red-600 hover:text-red-700"
+                                  >
+                                    <X className="w-4 h-4" />
+                                  </button>
+                                </div>
+                                
+                                {/* Same pricing rule UI as for resource - simplified version */}
+                                <div>
+                                  <label className="block text-xs font-medium text-gray-700 mb-1">
+                                    Gjelder for roller
+                                  </label>
+                                  <div className="space-y-1 p-2 bg-white rounded border border-gray-200">
+                                    <label className="flex items-center gap-2">
+                                      <input
+                                        type="checkbox"
+                                        checked={rule.forRoles.includes("admin")}
+                                        onChange={(e) => {
+                                          const newParts = [...parts]
+                                          const newRules = [...partPricingRules]
+                                          if (e.target.checked) {
+                                            newRules[ruleIndex].forRoles = [...newRules[ruleIndex].forRoles, "admin"]
+                                          } else {
+                                            newRules[ruleIndex].forRoles = newRules[ruleIndex].forRoles.filter(r => r !== "admin")
+                                          }
+                                          newParts[partIndex].pricingRules = newRules
+                                          setParts(newParts)
+                                        }}
+                                        className="w-3.5 h-3.5"
+                                      />
+                                      <span className="text-xs text-gray-700">Administrator</span>
+                                    </label>
+                                    <label className="flex items-center gap-2">
+                                      <input
+                                        type="checkbox"
+                                        checked={rule.forRoles.includes("user")}
+                                        onChange={(e) => {
+                                          const newParts = [...parts]
+                                          const newRules = [...partPricingRules]
+                                          if (e.target.checked) {
+                                            newRules[ruleIndex].forRoles = [...newRules[ruleIndex].forRoles, "user"]
+                                          } else {
+                                            newRules[ruleIndex].forRoles = newRules[ruleIndex].forRoles.filter(r => r !== "user")
+                                          }
+                                          newParts[partIndex].pricingRules = newRules
+                                          setParts(newParts)
+                                        }}
+                                        className="w-3.5 h-3.5"
+                                      />
+                                      <span className="text-xs text-gray-700">Bruker</span>
+                                    </label>
+                                    {customRoles.map(role => (
+                                      <label key={role.id} className="flex items-center gap-2">
+                                        <input
+                                          type="checkbox"
+                                          checked={rule.forRoles.includes(role.id)}
+                                          onChange={(e) => {
+                                            const newParts = [...parts]
+                                            const newRules = [...partPricingRules]
+                                            if (e.target.checked) {
+                                              newRules[ruleIndex].forRoles = [...newRules[ruleIndex].forRoles, role.id]
+                                            } else {
+                                              newRules[ruleIndex].forRoles = newRules[ruleIndex].forRoles.filter(r => r !== role.id)
+                                            }
+                                            newParts[partIndex].pricingRules = newRules
+                                            setParts(newParts)
+                                          }}
+                                          className="w-3.5 h-3.5"
+                                        />
+                                        <span className="text-xs text-gray-700">{role.name}</span>
+                                      </label>
+                                    ))}
+                                  </div>
+                                </div>
+                                
+                                <div>
+                                  <label className="block text-xs font-medium text-gray-700 mb-1">
+                                    Pris-modell
+                                  </label>
+                                  <select
+                                    value={rule.model}
+                                    onChange={(e) => {
+                                      const newParts = [...parts]
+                                      const newRules = [...partPricingRules]
+                                      newRules[ruleIndex].model = e.target.value as typeof rule.model
+                                      newParts[partIndex].pricingRules = newRules
+                                      setParts(newParts)
+                                    }}
+                                    className="input text-sm"
+                                  >
+                                    <option value="FREE">Gratis</option>
+                                    <option value="HOURLY">Per time</option>
+                                    <option value="DAILY">Per døgn</option>
+                                    <option value="FIXED_DURATION">Fast pris (med varighet)</option>
+                                  </select>
+                                </div>
+                                
+                                {/* Simplified price inputs - same structure as resource pricing */}
+                                {rule.model === "HOURLY" && (
+                                  <div>
+                                    <label className="block text-xs font-medium text-gray-700 mb-1">
+                                      Pris per time (NOK)
+                                    </label>
+                                    <div className="grid grid-cols-2 gap-2">
+                                      <div>
+                                        <input
+                                          type="number"
+                                          value={rule.memberPricePerHour || ""}
+                                          onChange={(e) => {
+                                            const newParts = [...parts]
+                                            const newRules = [...partPricingRules]
+                                            newRules[ruleIndex].memberPricePerHour = e.target.value
+                                            newParts[partIndex].pricingRules = newRules
+                                            setParts(newParts)
+                                          }}
+                                          className="input text-sm"
+                                          placeholder="Medlem"
+                                          min="0"
+                                          step="0.01"
+                                        />
+                                      </div>
+                                      <div>
+                                        <input
+                                          type="number"
+                                          value={rule.nonMemberPricePerHour || ""}
+                                          onChange={(e) => {
+                                            const newParts = [...parts]
+                                            const newRules = [...partPricingRules]
+                                            newRules[ruleIndex].nonMemberPricePerHour = e.target.value
+                                            newParts[partIndex].pricingRules = newRules
+                                            setParts(newParts)
+                                          }}
+                                          className="input text-sm"
+                                          placeholder="Ikke-medlem"
+                                          min="0"
+                                          step="0.01"
+                                        />
+                                      </div>
+                                    </div>
+                                  </div>
+                                )}
+                                
+                                {rule.model === "DAILY" && (
+                                  <div>
+                                    <label className="block text-xs font-medium text-gray-700 mb-1">
+                                      Pris per døgn (NOK)
+                                    </label>
+                                    <div className="grid grid-cols-2 gap-2">
+                                      <div>
+                                        <input
+                                          type="number"
+                                          value={rule.memberPricePerDay || ""}
+                                          onChange={(e) => {
+                                            const newParts = [...parts]
+                                            const newRules = [...partPricingRules]
+                                            newRules[ruleIndex].memberPricePerDay = e.target.value
+                                            newParts[partIndex].pricingRules = newRules
+                                            setParts(newParts)
+                                          }}
+                                          className="input text-sm"
+                                          placeholder="Medlem"
+                                          min="0"
+                                          step="0.01"
+                                        />
+                                      </div>
+                                      <div>
+                                        <input
+                                          type="number"
+                                          value={rule.nonMemberPricePerDay || ""}
+                                          onChange={(e) => {
+                                            const newParts = [...parts]
+                                            const newRules = [...partPricingRules]
+                                            newRules[ruleIndex].nonMemberPricePerDay = e.target.value
+                                            newParts[partIndex].pricingRules = newRules
+                                            setParts(newParts)
+                                          }}
+                                          className="input text-sm"
+                                          placeholder="Ikke-medlem"
+                                          min="0"
+                                          step="0.01"
+                                        />
+                                      </div>
+                                    </div>
+                                  </div>
+                                )}
+                                
+                                {rule.model === "FIXED_DURATION" && (
+                                  <div className="space-y-2">
+                                    <label className="block text-xs font-medium text-gray-700 mb-1">
+                                      Fast pris (NOK)
+                                    </label>
+                                    <div className="grid grid-cols-2 gap-2 mb-2">
+                                      <div>
+                                        <input
+                                          type="number"
+                                          value={rule.memberFixedPrice || ""}
+                                          onChange={(e) => {
+                                            const newParts = [...parts]
+                                            const newRules = [...partPricingRules]
+                                            newRules[ruleIndex].memberFixedPrice = e.target.value
+                                            newParts[partIndex].pricingRules = newRules
+                                            setParts(newParts)
+                                          }}
+                                          className="input text-sm"
+                                          placeholder="Medlem"
+                                          min="0"
+                                          step="0.01"
+                                        />
+                                      </div>
+                                      <div>
+                                        <input
+                                          type="number"
+                                          value={rule.nonMemberFixedPrice || ""}
+                                          onChange={(e) => {
+                                            const newParts = [...parts]
+                                            const newRules = [...partPricingRules]
+                                            newRules[ruleIndex].nonMemberFixedPrice = e.target.value
+                                            newParts[partIndex].pricingRules = newRules
+                                            setParts(newParts)
+                                          }}
+                                          className="input text-sm"
+                                          placeholder="Ikke-medlem"
+                                          min="0"
+                                          step="0.01"
+                                        />
+                                      </div>
+                                    </div>
+                                    <div>
+                                      <label className="block text-xs font-medium text-gray-700 mb-1">
+                                        Varighet (minutter)
+                                      </label>
+                                      <input
+                                        type="number"
+                                        value={rule.fixedPriceDuration || ""}
+                                        onChange={(e) => {
+                                          const newParts = [...parts]
+                                          const newRules = [...partPricingRules]
+                                          newRules[ruleIndex].fixedPriceDuration = e.target.value
+                                          newParts[partIndex].pricingRules = newRules
+                                          setParts(newParts)
+                                        }}
+                                        className="input text-sm"
+                                        placeholder="120"
+                                        min="1"
+                                      />
+                                    </div>
+                                  </div>
+                                )}
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    )
+                  })}
+                  </div>
+                )}
               </div>
             )}
 
             {/* Parts - Hierarchical */}
-            <div className="space-y-4">
-              <h2 className="font-semibold text-gray-900 border-b pb-2">Deler som kan bookes</h2>
+            <div className="bg-white rounded-xl border border-gray-200 p-6 space-y-4">
+              <div className="flex items-center gap-2 border-b border-gray-200 pb-3 mb-4">
+                <Layers className="w-5 h-5 text-blue-600" />
+                <h2 className="text-lg font-semibold text-gray-900">Deler som kan bookes</h2>
+              </div>
               
               <PartsHierarchyEditor
                 parts={parts}
@@ -1084,10 +1508,10 @@ export default function EditResourcePage({ params }: Props) {
 
             {/* Map Editor */}
             {parts.length > 0 && (
-              <div className="space-y-4">
-                <div className="flex items-center gap-2 border-b pb-2">
+              <div className="bg-white rounded-xl border border-gray-200 p-6 space-y-4">
+                <div className="flex items-center gap-2 border-b border-gray-200 pb-3 mb-4">
                   <Map className="w-5 h-5 text-blue-600" />
-                  <h2 className="font-semibold text-gray-900">Oversiktskart</h2>
+                  <h2 className="text-lg font-semibold text-gray-900">Oversiktskart</h2>
                 </div>
                 
                 {/* Check if any parts are unsaved (no id) */}
@@ -1114,10 +1538,10 @@ export default function EditResourcePage({ params }: Props) {
             )}
 
             {/* Moderators */}
-            <div className="space-y-4">
-              <div className="flex items-center gap-2 border-b pb-2">
-                <ShieldCheck className="w-5 h-5 text-amber-600" />
-                <h2 className="font-semibold text-gray-900">Moderatorer</h2>
+            <div className="bg-white rounded-xl border border-gray-200 p-6 space-y-4">
+              <div className="flex items-center gap-2 border-b border-gray-200 pb-3 mb-4">
+                <ShieldCheck className="w-5 h-5 text-blue-600" />
+                <h2 className="text-lg font-semibold text-gray-900">Moderatorer</h2>
               </div>
               
               <p className="text-sm text-gray-500">
@@ -1251,12 +1675,15 @@ export default function EditResourcePage({ params }: Props) {
               )}
             </div>
 
-            {/* Submit */}
-            <div className="flex gap-3 pt-4 border-t">
+            {/* Submit - Sticky at bottom */}
+            <div className="sticky bottom-0 bg-white border-t border-gray-200 py-4 mt-8 flex items-center justify-between shadow-lg">
+              <Link href="/admin/resources" className="btn btn-secondary py-2.5">
+                Avbryt
+              </Link>
               <button
                 type="submit"
                 disabled={isSubmitting}
-                className="btn btn-primary flex-1 py-3 disabled:opacity-50"
+                className="btn btn-primary py-2.5 flex items-center gap-2 disabled:opacity-50"
               >
                 {isSubmitting ? (
                   <>
@@ -1270,9 +1697,6 @@ export default function EditResourcePage({ params }: Props) {
                   </>
                 )}
               </button>
-              <Link href="/admin/resources" className="btn btn-secondary py-3">
-                Avbryt
-              </Link>
             </div>
           </form>
         </div>

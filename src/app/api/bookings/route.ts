@@ -39,7 +39,8 @@ export async function POST(request: Request) {
       contactPhone,
       isRecurring,
       recurringType,
-      recurringEndDate
+      recurringEndDate,
+      preferredPaymentMethod // Brukerens foretrukne betalingsmetode (kun hvis pricing er aktivert)
     } = body
 
     // Normalize to array: use resourcePartIds if provided, otherwise use resourcePartId as single-item array
@@ -69,6 +70,17 @@ export async function POST(request: Request) {
     const start = new Date(startTime)
     const end = new Date(endTime)
     const durationMinutes = (end.getTime() - start.getTime()) / (1000 * 60)
+    const durationHours = durationMinutes / 60
+
+    // Validate minimum hours (uavhengig av lisens)
+    if (resource.minBookingHours !== null && resource.minBookingHours !== undefined) {
+      if (durationHours < Number(resource.minBookingHours)) {
+        return NextResponse.json(
+          { error: `Minimum antall timer er ${Number(resource.minBookingHours)} timer` },
+          { status: 400 }
+        )
+      }
+    }
 
     // Only validate duration if limits are set (0/9999 or null = unlimited)
     const hasMinLimit = resource.minBookingMinutes !== null && resource.minBookingMinutes !== 0
@@ -255,26 +267,34 @@ export async function POST(request: Request) {
       )
       
       // Create parent booking for this part
+      // Bygg booking data objekt - kun inkluder preferredPaymentMethod hvis det er definert
+      const bookingData: any = {
+        title,
+        description,
+        startTime: bookingDates[0].start,
+        endTime: bookingDates[0].end,
+        status: resource.requiresApproval ? "pending" : "approved",
+        approvedAt: resource.requiresApproval ? null : new Date(),
+        contactName,
+        contactEmail,
+        contactPhone,
+        organizationId: session.user.organizationId,
+        resourceId,
+        resourcePartId: partId,
+        userId: session.user.id,
+        isRecurring: isRecurringBooking,
+        recurringPattern: isRecurringBooking ? recurringType : null,
+        recurringEndDate: isRecurringBooking ? new Date(recurringEndDate) : null,
+        totalAmount: priceCalculation.price > 0 ? priceCalculation.price : null
+      }
+      
+      // Legg til preferredPaymentMethod hvis det er definert (uavhengig av pris)
+      if (preferredPaymentMethod) {
+        bookingData.preferredPaymentMethod = preferredPaymentMethod
+      }
+      
       const parentBooking = await prisma.booking.create({
-        data: {
-          title,
-          description,
-          startTime: bookingDates[0].start,
-          endTime: bookingDates[0].end,
-          status: resource.requiresApproval ? "pending" : "approved",
-          approvedAt: resource.requiresApproval ? null : new Date(),
-          contactName,
-          contactEmail,
-          contactPhone,
-          organizationId: session.user.organizationId,
-          resourceId,
-          resourcePartId: partId,
-          userId: session.user.id,
-          isRecurring: isRecurringBooking,
-          recurringPattern: isRecurringBooking ? recurringType : null,
-          recurringEndDate: isRecurringBooking ? new Date(recurringEndDate) : null,
-          totalAmount: priceCalculation.price > 0 ? priceCalculation.price : null
-        }
+        data: bookingData
       })
       
       allCreatedBookings.push(parentBooking)
@@ -302,30 +322,37 @@ export async function POST(request: Request) {
         
         // Opprett child bookings i en transaksjon
         const childBookings = await prisma.$transaction(
-          childBookingsData.map(({ start: bookingStart, end: bookingEnd, price }) =>
-            prisma.booking.create({
-              data: {
-                title,
-                description,
-                startTime: bookingStart,
-                endTime: bookingEnd,
-                status: resource.requiresApproval ? "pending" : "approved",
-                approvedAt: resource.requiresApproval ? null : new Date(),
-                contactName,
-                contactEmail,
-                contactPhone,
-                organizationId: session.user.organizationId,
-                resourceId,
-                resourcePartId: partId,
-                userId: session.user.id,
-                isRecurring: true,
-                recurringPattern: recurringType,
-                recurringEndDate: new Date(recurringEndDate),
-                parentBookingId: parentBooking.id,
-                totalAmount: price > 0 ? price : null
-              }
+          childBookingsData.map(({ start: bookingStart, end: bookingEnd, price }) => {
+            const childBookingData: any = {
+              title,
+              description,
+              startTime: bookingStart,
+              endTime: bookingEnd,
+              status: resource.requiresApproval ? "pending" : "approved",
+              approvedAt: resource.requiresApproval ? null : new Date(),
+              contactName,
+              contactEmail,
+              contactPhone,
+              organizationId: session.user.organizationId,
+              resourceId,
+              resourcePartId: partId,
+              userId: session.user.id,
+              isRecurring: true,
+              recurringPattern: recurringType,
+              recurringEndDate: new Date(recurringEndDate),
+              parentBookingId: parentBooking.id,
+              totalAmount: price > 0 ? price : null
+            }
+            
+            // Legg til preferredPaymentMethod hvis det er definert (uavhengig av pris)
+            if (preferredPaymentMethod) {
+              childBookingData.preferredPaymentMethod = preferredPaymentMethod
+            }
+            
+            return prisma.booking.create({
+              data: childBookingData
             })
-          )
+          })
         )
         allCreatedBookings.push(...childBookings)
       }
@@ -436,6 +463,8 @@ export async function GET() {
       endTime: true,
       status: true,
       statusNote: true,
+      totalAmount: true,
+      invoiceId: true,
       resource: {
         select: {
           id: true,
@@ -455,6 +484,14 @@ export async function GET() {
         select: { 
           id: true,
           name: true 
+        }
+      },
+      payments: {
+        select: {
+          id: true,
+          status: true,
+          paymentMethod: true,
+          amount: true
         }
       }
     },

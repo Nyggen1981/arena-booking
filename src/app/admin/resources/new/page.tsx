@@ -311,12 +311,12 @@ export default function NewResourcePage() {
                 
                 {image ? (
                   <div className="flex items-start gap-4">
-                    <div className="relative w-40 h-24 rounded-xl overflow-hidden bg-gray-100">
+                    <div className="relative w-full max-w-md aspect-video rounded-xl overflow-hidden bg-gray-100">
                       <Image
                         src={image}
                         alt="Fasilitetsbilde"
                         fill
-                        className="object-cover"
+                        className="object-contain"
                       />
                     </div>
                     <div className="flex flex-col gap-2">

@@ -44,6 +44,14 @@ export async function GET(request: Request) {
       resourcePart: true,
       user: {
         select: { name: true, email: true }
+      },
+      payments: {
+        select: {
+          id: true,
+          status: true,
+          paymentMethod: true,
+          amount: true
+        }
       }
     },
     orderBy: [

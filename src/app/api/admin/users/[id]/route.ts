@@ -14,7 +14,7 @@ export async function PATCH(
   }
 
   const { id } = await params
-  const { systemRole, customRoleId, name, phone, isApproved, emailVerified } = await request.json()
+  const { systemRole, customRoleId, name, phone, isApproved, emailVerified, isMember } = await request.json()
 
   const user = await prisma.user.findUnique({ 
     where: { id },
@@ -41,6 +41,7 @@ export async function PATCH(
     approvedAt?: Date | null
     emailVerified?: boolean
     emailVerifiedAt?: Date | null
+    isMember?: boolean
   } = {}
 
   if (systemRole !== undefined) {
@@ -90,6 +91,7 @@ export async function PATCH(
     updateData.emailVerified = emailVerified
     updateData.emailVerifiedAt = emailVerified ? new Date() : null
   }
+  if (isMember !== undefined) updateData.isMember = isMember
 
   // Hvis brukeren får en rolle uten moderator-tilgang, fjern resource assignments
   const newSystemRole = systemRole !== undefined ? systemRole : user.systemRole
@@ -123,7 +125,8 @@ export async function PATCH(
         }
       },
       role: true, // Legacy
-      isApproved: true
+      isApproved: true,
+      isMember: true
     }
   })
 

@@ -5,6 +5,9 @@ import { authOptions } from "@/lib/auth"
 import { sendEmail, getBookingApprovedEmail, getBookingRejectedEmail } from "@/lib/email"
 import { format } from "date-fns"
 import { nb } from "date-fns/locale"
+import { isPricingEnabled } from "@/lib/pricing"
+import { createInvoiceForBooking } from "@/lib/invoice"
+import { getVippsClient } from "@/lib/vipps"
 
 export async function PATCH(
   request: Request,
@@ -19,7 +22,12 @@ export async function PATCH(
   const { id } = await params
   
   // Parse request body
-  let body: { action?: string; status?: string; statusNote?: string; applyToAll?: boolean } = {}
+  let body: { 
+    action?: string
+    status?: string
+    statusNote?: string
+    applyToAll?: boolean
+  } = {}
   try {
     body = await request.json()
   } catch (jsonError) {
@@ -123,6 +131,87 @@ export async function PATCH(
 
   // Determine the new status
   const newStatus = action === "approve" ? "approved" : "rejected"
+
+  // Håndter betaling hvis booking godkjennes og har kostnad (kun hvis pricing er aktivert)
+  const pricingEnabled = await isPricingEnabled()
+  if (action === "approve" && pricingEnabled && booking.totalAmount && booking.totalAmount > 0) {
+    // Bruk brukerens foretrukne betalingsmetode fra booking, eller faktura som standard
+    const method = (booking as any).preferredPaymentMethod || "INVOICE"
+    
+    try {
+      if (method === "INVOICE") {
+        // Opprett faktura for booking
+        const { invoiceId, invoiceNumber } = await createInvoiceForBooking(
+          booking.id,
+          booking.organizationId
+        )
+        console.log(`[Booking Approval] Created invoice ${invoiceNumber} for booking ${booking.id}`)
+      } else if (method === "VIPPS") {
+        // Opprett Vipps-betaling
+        const organization = await prisma.organization.findUnique({
+          where: { id: booking.organizationId }
+        })
+        
+        if (!organization?.vippsClientId || !organization?.vippsClientSecret || !organization?.vippsSubscriptionKey) {
+          console.warn(`[Booking Approval] Vipps not configured for organization ${booking.organizationId}, falling back to invoice`)
+          // Fallback til faktura hvis Vipps ikke er konfigurert
+          await createInvoiceForBooking(booking.id, booking.organizationId)
+        } else {
+          // Opprett payment record
+          const payment = await prisma.payment.create({
+            data: {
+              organizationId: booking.organizationId,
+              bookingId: booking.id,
+              paymentType: "BOOKING",
+              amount: booking.totalAmount,
+              currency: "NOK",
+              status: "PENDING",
+              paymentMethod: "VIPPS",
+              description: `Betaling for booking: ${booking.title} - ${booking.resource.name}`
+            }
+          })
+          
+          // Opprett Vipps payment
+          const vippsClient = await getVippsClient(booking.organizationId)
+          const baseUrl = process.env.NEXTAUTH_URL || "http://localhost:3000"
+          
+          const vippsPayment = await vippsClient.createPayment({
+            amount: Math.round(Number(booking.totalAmount) * 100), // Convert to øre
+            currency: "NOK",
+            reference: payment.id,
+            userFlow: "WEB_REDIRECT",
+            returnUrl: `${baseUrl}/payment/success?paymentId=${payment.id}`,
+            cancelUrl: `${baseUrl}/payment/cancel?paymentId=${payment.id}`,
+            paymentDescription: `Betaling for booking: ${booking.title} - ${booking.resource.name}`,
+            userDetails: {
+              userId: booking.user.email,
+              phoneNumber: booking.user.phone || undefined,
+              email: booking.user.email
+            }
+          })
+          
+          // Update payment with Vipps order ID
+          await prisma.payment.update({
+            where: { id: payment.id },
+            data: {
+              vippsOrderId: vippsPayment.orderId
+            }
+          })
+          
+          console.log(`[Booking Approval] Created Vipps payment ${vippsPayment.orderId} for booking ${booking.id}`)
+        }
+      } else if (method === "CARD") {
+        // Opprett kortbetaling (TODO: Implementer kortbetaling når kortbetaling-API er klar)
+        // For nå, fallback til faktura
+        console.log(`[Booking Approval] Card payment not yet implemented, creating invoice instead`)
+        await createInvoiceForBooking(booking.id, booking.organizationId)
+      }
+    } catch (error) {
+      console.error(`[Booking Approval] Error creating payment for booking ${booking.id}:`, error)
+      // Fortsett med booking-godkjenning selv om betalingsopprettelse feiler
+      // Admin kan håndtere betaling manuelt senere
+    }
+  }
 
   // Update all selected bookings
   await prisma.booking.updateMany({

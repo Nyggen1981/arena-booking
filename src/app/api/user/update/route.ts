@@ -15,17 +15,16 @@ export async function PATCH(request: Request) {
   }
 
   try {
-    const { name, phone, isMember } = await request.json()
+    const { name, phone } = await request.json()
 
     const updateData: {
       name?: string
       phone?: string
-      isMember?: boolean
     } = {}
 
     if (name !== undefined) updateData.name = name
     if (phone !== undefined) updateData.phone = phone
-    if (isMember !== undefined) updateData.isMember = isMember
+    // isMember kan kun settes av admin via /api/admin/users/[id]
 
     const updated = await prisma.user.update({
       where: { id: session.user.id },

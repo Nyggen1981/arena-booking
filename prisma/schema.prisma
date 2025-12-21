@@ -178,14 +178,15 @@ model Resource {
   isActive    Boolean @default(true)
   showOnPublicCalendar Boolean @default(true)  // Show on public calendar
   // Optional price information (legacy - kept for backwards compatibility)
-  prisInfo    String?    // Text shown under "Prisinfo"
-  visPrisInfo Boolean?   // Whether price info should be shown
+  prisInfo    String?    // Text shown under "Prisinfo" (kun for standardlisens)
+  visPrisInfo Boolean?   // Whether price info should be shown (kun for standardlisens)
   
   // Pricing for booking (avhengig av lisensserver-status)
   // Multiple pricing rules: JSON array of pricing configurations
   // Each rule has: { forRoles: ["admin", "roleId"], model: "FREE"|"HOURLY"|"DAILY"|"FIXED"|"FIXED_DURATION", pricePerHour?, pricePerDay?, fixedPrice?, fixedPriceDuration? }
   // If forRoles is null/empty, it's the default pricing for all roles not covered by other rules
   pricingRules String? // JSON array: [{ forRoles: ["admin"], model: "FREE" }, { forRoles: [], model: "HOURLY", pricePerHour: 500 }]
+  visPrislogikk Boolean? @default(false) // Whether pricing logic should be shown on facility page (kun for "pris & betaling" modul)
   
   // Legacy fields (deprecated, bruk pricingRules i stedet)
   pricingModel String? @default("FREE")
@@ -205,6 +206,7 @@ model Resource {
   // Booking settings
   minBookingMinutes  Int?    // null = no limit
   maxBookingMinutes  Int?    // null = no limit
+  minBookingHours    Decimal? // Minimum antall timer en fasilitet kan bookes (uavhengig av lisens)
   requiresApproval   Boolean @default(true)
   advanceBookingDays Int?    @default(30)
 
@@ -322,6 +324,7 @@ model Booking {
   invoice   Invoice? @relation(fields: [invoiceId], references: [id])
   payments  Payment[]
   totalAmount Decimal?  // Total price for this booking in NOK
+  preferredPaymentMethod String? // Brukerens foretrukne betalingsmetode: "INVOICE", "VIPPS", "CARD" (kun hvis pricing er aktivert)
 
   // Indexes for faster queries
   @@index([resourceId, status, startTime])

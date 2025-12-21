@@ -15,16 +15,22 @@ export const authOptions: NextAuthOptions = {
       async authorize(credentials) {
         try {
         if (!credentials?.email || !credentials?.password) {
+          console.log("[Auth] Missing credentials")
           return null
         }
 
+        console.log("[Auth] Attempting login for:", credentials.email)
+
           // Use select instead of include to avoid relation validation issues
+        // Normalize email to lowercase for case-insensitive lookup
+        const normalizedEmail = credentials.email.toLowerCase().trim()
         const user = await prisma.user.findUnique({
-          where: { email: credentials.email },
+          where: { email: normalizedEmail },
             select: {
               id: true,
               email: true,
               name: true,
+              phone: true,
               password: true,
               systemRole: true,
               customRoleId: true,
@@ -53,17 +59,22 @@ export const authOptions: NextAuthOptions = {
         })
 
         if (!user) {
+          console.log("[Auth] User not found:", credentials.email)
           return null
         }
 
+        console.log("[Auth] User found, checking password...")
         const isPasswordValid = await bcrypt.compare(
           credentials.password,
           user.password
         )
 
         if (!isPasswordValid) {
+          console.log("[Auth] Invalid password for:", credentials.email)
           return null
         }
+
+        console.log("[Auth] Password valid, checking permissions...")
 
         // Check if user is approved (admins and organization creators are always approved)
         // Sjekk både systemRole og role (legacy) for bakoverkompatibilitet
@@ -113,6 +124,7 @@ export const authOptions: NextAuthOptions = {
           id: user.id,
           email: user.email,
           name: user.name,
+          phone: user.phone,
           systemRole: systemRole as "admin" | "user",
           customRoleId: user.customRoleId,
           customRoleName: user.customRole?.name || null,
@@ -141,6 +153,14 @@ export const authOptions: NextAuthOptions = {
             ) {
               throw error
             }
+            // For lokal utvikling, log alle feil detaljert
+            if (process.env.NODE_ENV === "development") {
+              console.error("[Auth] Detailed error:", {
+                message: error.message,
+                stack: error.stack,
+                name: error.name
+              })
+            }
           }
           // Log other errors but show generic message
           console.error("Auth error:", error)
@@ -153,6 +173,7 @@ export const authOptions: NextAuthOptions = {
     async jwt({ token, user }) {
       if (user) {
         token.id = user.id
+        token.phone = (user as any).phone
         token.systemRole = (user as any).systemRole
         token.customRoleId = (user as any).customRoleId
         token.customRoleName = (user as any).customRoleName
@@ -171,6 +192,7 @@ export const authOptions: NextAuthOptions = {
     async session({ session, token }) {
       if (session.user) {
         session.user.id = token.id as string
+        session.user.phone = token.phone as string | null
         session.user.systemRole = token.systemRole as "admin" | "user"
         session.user.customRoleId = token.customRoleId as string | null
         session.user.customRoleName = token.customRoleName as string | null

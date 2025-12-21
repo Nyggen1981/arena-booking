@@ -40,7 +40,11 @@ export interface LicenseValidationResult {
 // Cache for å unngå for mange API-kall
 let cachedResult: LicenseValidationResult | null = null
 let cacheTimestamp: number = 0
-const CACHE_DURATION = 5 * 60 * 1000 // 5 minutter
+// I development mode: 10 sekunder cache (for raskere testing)
+// I produksjon: 5 minutter cache
+const CACHE_DURATION = process.env.NODE_ENV === "development" 
+  ? 10 * 1000 // 10 sekunder i development
+  : 5 * 60 * 1000 // 5 minutter i produksjon
 
 // Hardkodet lisensserver URL
 const LICENSE_SERVER_URL = process.env.LICENSE_SERVER_URL || "https://sportflow-license.vercel.app"

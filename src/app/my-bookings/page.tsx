@@ -18,7 +18,10 @@ import {
   ChevronRight,
   Plus,
   Pencil,
-  ClipboardList
+  ClipboardList,
+  X,
+  ChevronUp,
+  ChevronDown
 } from "lucide-react"
 import { EditBookingModal } from "@/components/EditBookingModal"
 import { format, isToday, isTomorrow, isThisWeek, parseISO } from "date-fns"
@@ -32,6 +35,9 @@ interface Booking {
   endTime: string
   status: string
   statusNote: string | null
+  totalAmount: number | null
+  invoiceId: string | null
+  preferredPaymentMethod: string | null
   resource: {
     id: string
     name: string
@@ -44,6 +50,7 @@ interface Booking {
     } | null
   }
   resourcePart: { id: string; name: string } | null
+  payments?: Array<{ id: string; status: string; paymentMethod: string; amount: number }>
 }
 
 type Tab = "upcoming" | "history"
@@ -63,6 +70,10 @@ export default function MyBookingsPage() {
   const [unreadCounts, setUnreadCounts] = useState({ upcoming: 0, history: 0 })
   const [selectedForDelete, setSelectedForDelete] = useState<Set<string>>(new Set())
   const [showBulkDeleteModal, setShowBulkDeleteModal] = useState(false)
+  const [pricingEnabled, setPricingEnabled] = useState(false)
+  const [selectedBooking, setSelectedBooking] = useState<Booking | null>(null)
+  const [sortColumn, setSortColumn] = useState<string | null>(null)
+  const [sortDirection, setSortDirection] = useState<"asc" | "desc">("asc")
 
   // Get unique categories from bookings
   const categories = useMemo(() => {
@@ -115,6 +126,11 @@ export default function MyBookingsPage() {
   useEffect(() => {
     if (session) {
       fetchBookings()
+      // Sjekk om pricing er aktivert
+      fetch("/api/pricing/status")
+        .then(res => res.json())
+        .then(data => setPricingEnabled(data.enabled || false))
+        .catch(() => setPricingEnabled(false))
     }
   }, [session, fetchBookings])
 
@@ -242,6 +258,49 @@ export default function MyBookingsPage() {
     })
   }, [])
 
+  // Helper function to determine payment status
+  const getPaymentStatus = (booking: Booking): "paid" | "unpaid" | "pending_payment" | "free" => {
+    if (!pricingEnabled || !booking.totalAmount || booking.totalAmount === 0) {
+      return "free"
+    }
+    
+    if (!booking.payments || booking.payments.length === 0) {
+      return "unpaid"
+    }
+    
+    const totalPaid = booking.payments
+      .filter(p => p.status === "COMPLETED")
+      .reduce((sum, p) => sum + Number(p.amount), 0)
+    
+    if (totalPaid >= Number(booking.totalAmount)) {
+      return "paid"
+    }
+    
+    const hasPending = booking.payments.some(p => 
+      p.status === "PENDING" || p.status === "PROCESSING"
+    )
+    
+    return hasPending ? "pending_payment" : "unpaid"
+  }
+
+  const handleSort = (column: string) => {
+    if (sortColumn === column) {
+      setSortDirection(sortDirection === "asc" ? "desc" : "asc")
+    } else {
+      setSortColumn(column)
+      setSortDirection("asc")
+    }
+  }
+
+  const getSortIcon = (column: string) => {
+    if (sortColumn !== column) {
+      return <ChevronUp className="w-4 h-4 text-gray-300" />
+    }
+    return sortDirection === "asc" 
+      ? <ChevronUp className="w-4 h-4 text-gray-600" />
+      : <ChevronDown className="w-4 h-4 text-gray-600" />
+  }
+
   // Categorize and filter bookings
   const { upcoming, history } = useMemo(() => {
     const now = new Date()
@@ -257,18 +316,69 @@ export default function MyBookingsPage() {
       filtered = filtered.filter(b => b.resource.id === selectedResourceId)
     }
     
-    return {
-      upcoming: filtered.filter(b => 
-        new Date(b.startTime) >= now && 
-        (b.status === "pending" || b.status === "approved")
-      ).sort((a, b) => new Date(a.startTime).getTime() - new Date(b.startTime).getTime()),
-      history: filtered.filter(b => 
-        new Date(b.startTime) < now || 
-        b.status === "rejected" || 
-        b.status === "cancelled"
-      ).sort((a, b) => new Date(b.startTime).getTime() - new Date(a.startTime).getTime())
+    let upcomingBookings = filtered.filter(b => 
+      new Date(b.startTime) >= now && 
+      (b.status === "pending" || b.status === "approved")
+    )
+    
+    let historyBookings = filtered.filter(b => 
+      new Date(b.startTime) < now || 
+      b.status === "rejected" || 
+      b.status === "cancelled"
+    )
+    
+    // Apply sorting
+    const sortBookings = (bookings: Booking[]) => {
+      if (!sortColumn) {
+        return bookings.sort((a, b) => {
+          if (activeTab === "history") {
+            return new Date(b.startTime).getTime() - new Date(a.startTime).getTime()
+          }
+          return new Date(a.startTime).getTime() - new Date(b.startTime).getTime()
+        })
+      }
+      
+      return bookings.sort((a, b) => {
+        let aValue: any
+        let bValue: any
+        
+        switch (sortColumn) {
+          case "title":
+            aValue = a.title.toLowerCase()
+            bValue = b.title.toLowerCase()
+            break
+          case "resource":
+            aValue = a.resource.name.toLowerCase()
+            bValue = b.resource.name.toLowerCase()
+            break
+          case "date":
+            aValue = new Date(a.startTime).getTime()
+            bValue = new Date(b.startTime).getTime()
+            break
+          case "price":
+            aValue = a.totalAmount || 0
+            bValue = b.totalAmount || 0
+            break
+          case "status":
+            aValue = a.status
+            bValue = b.status
+            break
+          default:
+            aValue = new Date(a.startTime).getTime()
+            bValue = new Date(b.startTime).getTime()
+        }
+        
+        if (aValue < bValue) return sortDirection === "asc" ? -1 : 1
+        if (aValue > bValue) return sortDirection === "asc" ? 1 : -1
+        return 0
+      })
     }
-  }, [bookings, selectedCategoryId, selectedResourceId])
+    
+    return {
+      upcoming: sortBookings(upcomingBookings),
+      history: sortBookings(historyBookings)
+    }
+  }, [bookings, selectedCategoryId, selectedResourceId, sortColumn, sortDirection, activeTab])
 
   const activeBookings = activeTab === "upcoming" ? upcoming : history
 
@@ -465,128 +575,187 @@ export default function MyBookingsPage() {
                   )}
                 </div>
               ) : (
-                <div className="space-y-3">
-                  {activeBookings.map((booking) => {
-                    const statusInfo = getStatusInfo(booking.status)
-                    const StatusIcon = statusInfo.icon
-                    const canCancel = booking.status === "pending" || booking.status === "approved"
-                    const isPast = new Date(booking.startTime) < new Date()
+                <div className="bg-white rounded-xl border border-gray-200 overflow-x-auto">
+                  <table className="w-full min-w-[1000px]">
+                    <thead className="bg-gray-50 border-b border-gray-200">
+                      <tr>
+                        {activeTab === "history" && (
+                          <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider w-12">
+                            <input
+                              type="checkbox"
+                              checked={activeBookings.length > 0 && activeBookings.every(b => selectedForDelete.has(b.id))}
+                              onChange={() => toggleSelectAll(activeBookings.map(b => b.id))}
+                              className="w-4 h-4 rounded border-gray-300 text-red-600 focus:ring-red-500"
+                            />
+                          </th>
+                        )}
+                        <th 
+                          className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider w-64 cursor-pointer hover:bg-gray-100 select-none transition-colors"
+                          onClick={() => handleSort("title")}
+                        >
+                          <div className="flex items-center gap-2">
+                            Booking
+                            {getSortIcon("title")}
+                          </div>
+                        </th>
+                        <th 
+                          className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 select-none transition-colors"
+                          onClick={() => handleSort("resource")}
+                        >
+                          <div className="flex items-center gap-2">
+                            Fasilitet
+                            {getSortIcon("resource")}
+                          </div>
+                        </th>
+                        <th 
+                          className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 select-none transition-colors"
+                          onClick={() => handleSort("date")}
+                        >
+                          <div className="flex items-center gap-2">
+                            Dato & Tid
+                            {getSortIcon("date")}
+                          </div>
+                        </th>
+                        {pricingEnabled && (
+                          <>
+                            <th 
+                              className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 select-none"
+                              onClick={() => handleSort("price")}
+                            >
+                              <div className="flex items-center gap-2">
+                                Pris
+                                {getSortIcon("price")}
+                              </div>
+                            </th>
+                            <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Betalingsmetode</th>
+                            <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Betalingsstatus</th>
+                          </>
+                        )}
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-gray-100">
+                      {activeBookings.map((booking) => {
+                        const statusInfo = getStatusInfo(booking.status)
+                        const StatusIcon = statusInfo.icon
+                        const isPast = new Date(booking.startTime) < new Date()
+                        const paymentStatus = getPaymentStatus(booking)
 
-                    return (
-                      <div 
-                        key={booking.id} 
-                        className={`bg-white rounded-xl border border-gray-200 overflow-hidden transition-all hover:shadow-md ${
-                          isPast || booking.status === "cancelled" || booking.status === "rejected" ? "opacity-70" : ""
-                        }`}
-                      >
-                        <div className="flex">
-                          {/* Checkbox for history tab */}
-                          {activeTab === "history" && (
-                            <div className="flex items-center px-3 border-r border-gray-100">
-                              <input
-                                type="checkbox"
-                                checked={selectedForDelete.has(booking.id)}
-                                onChange={() => toggleSelectBooking(booking.id)}
-                                className="w-4 h-4 rounded border-gray-300 text-red-600 focus:ring-red-500"
-                              />
-                            </div>
-                          )}
-                          
-                          {/* Color bar */}
-                          <div 
-                            className="w-1.5 flex-shrink-0"
-                            style={{ backgroundColor: booking.resource.color || "#3b82f6" }}
-                          />
-                          
-                          <div className="flex-1 p-4">
-                            <div className="flex items-start justify-between gap-4">
-                              <div className="flex-1 min-w-0">
-                                {/* Title and status */}
-                                <div className="flex items-center gap-2 flex-wrap mb-1">
-                                  <h3 className="font-semibold text-gray-900">{booking.title}</h3>
-                                  <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium ${statusInfo.color}`}>
-                                    <StatusIcon className="w-3 h-3" />
-                                    {statusInfo.label}
-                                  </span>
-                                </div>
-
-                                {/* Resource */}
-                                <p className="text-sm text-gray-600 mb-2">
-                                  {booking.resource.name}
-                                  {booking.resourcePart && <span className="text-gray-400"> → {booking.resourcePart.name}</span>}
-                                </p>
-
-                                {/* Date and time */}
-                                <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-gray-500">
-                                  <span className="flex items-center gap-1">
-                                    <Calendar className="w-4 h-4 text-gray-400" />
-                                    {formatDateLabel(booking.startTime)}
-                                  </span>
-                                  <span className="flex items-center gap-1">
-                                    <Clock className="w-4 h-4 text-gray-400" />
-                                    {format(parseISO(booking.startTime), "HH:mm")} - {format(parseISO(booking.endTime), "HH:mm")}
-                                  </span>
-                                  {booking.resource.location && (
-                                    <span className="flex items-center gap-1">
-                                      <MapPin className="w-4 h-4 text-gray-400" />
-                                      {booking.resource.location}
+                        return (
+                          <tr 
+                            key={booking.id} 
+                            className={`hover:bg-gray-50 transition-colors cursor-pointer ${
+                              isPast || booking.status === "cancelled" || booking.status === "rejected" ? "opacity-70" : ""
+                            }`}
+                            onClick={(e) => {
+                              // Don't open modal if clicking on checkbox
+                              const target = e.target as HTMLElement
+                              if (target.closest('input[type="checkbox"]')) {
+                                return
+                              }
+                              setSelectedBooking(booking)
+                            }}
+                          >
+                            {activeTab === "history" && (
+                              <td className="px-4 py-4">
+                                <input
+                                  type="checkbox"
+                                  checked={selectedForDelete.has(booking.id)}
+                                  onChange={() => toggleSelectBooking(booking.id)}
+                                  onClick={(e) => e.stopPropagation()}
+                                  className="w-4 h-4 rounded border-gray-300 text-red-600 focus:ring-red-500"
+                                />
+                              </td>
+                            )}
+                            <td className="px-4 py-4">
+                              <div className="flex items-center gap-2">
+                                <div 
+                                  className="w-3 h-3 rounded-full flex-shrink-0"
+                                  style={{ backgroundColor: booking.resource.color || "#3b82f6" }}
+                                />
+                                <div className="flex-1 min-w-0">
+                                  <div className="flex items-center gap-2 flex-wrap">
+                                    <span className="font-medium text-gray-900">{booking.title}</span>
+                                    <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium ${statusInfo.color}`}>
+                                      <StatusIcon className="w-3 h-3" />
+                                      {statusInfo.label}
                                     </span>
+                                  </div>
+                                  {booking.description && (
+                                    <p className="text-xs text-gray-500 mt-1 line-clamp-2">{booking.description}</p>
                                   )}
                                 </div>
-
-                                {/* Status note */}
-                                {booking.statusNote && (
-                                  <p className="mt-2 text-sm text-red-600 flex items-start gap-1">
-                                    <AlertCircle className="w-4 h-4 mt-0.5 flex-shrink-0" />
-                                    {booking.statusNote}
-                                  </p>
+                              </div>
+                            </td>
+                            <td className="px-4 py-4">
+                              <div>
+                                <p className="text-sm font-medium text-gray-900">{booking.resource.name}</p>
+                                {booking.resourcePart && (
+                                  <p className="text-xs text-gray-500 mt-0.5">{booking.resourcePart.name}</p>
                                 )}
                               </div>
-
-                              {/* Actions */}
-                              <div className="flex items-center gap-2">
-                                {canCancel && !isPast && (
-                                  <>
-                                    <button
-                                      onClick={() => setEditingBooking(booking)}
-                                      className="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
-                                      title="Rediger"
-                                    >
-                                      <Pencil className="w-5 h-5" />
-                                    </button>
-                                    <button
-                                      onClick={() => setCancellingId(booking.id)}
-                                      className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                                      title="Kanseller"
-                                    >
-                                      <Trash2 className="w-5 h-5" />
-                                    </button>
-                                  </>
-                                )}
-                                {/* Delete button for historical bookings */}
-                                {activeTab === "history" && (
-                                  <button
-                                    onClick={() => setDeletingId(booking.id)}
-                                    className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                                    title="Slett"
-                                  >
-                                    <Trash2 className="w-5 h-5" />
-                                  </button>
-                                )}
-                                <Link
-                                  href={`/resources/${booking.resource.id}/book`}
-                                  className="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
-                                  title="Book igjen"
-                                >
-                                  <ChevronRight className="w-5 h-5" />
-                                </Link>
+                            </td>
+                            <td className="px-4 py-4">
+                              <div>
+                                <p className="text-sm font-medium text-gray-900">
+                                  {format(parseISO(booking.startTime), "d. MMM yyyy", { locale: nb })}
+                                </p>
+                                <p className="text-xs text-gray-500">
+                                  {format(parseISO(booking.startTime), "HH:mm")} - {format(parseISO(booking.endTime), "HH:mm")}
+                                </p>
+                                <p className="text-xs text-gray-400 mt-0.5">
+                                  {Math.round((new Date(booking.endTime).getTime() - new Date(booking.startTime).getTime()) / (1000 * 60 * 60) * 10) / 10} timer
+                                </p>
                               </div>
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                    )
-                  })}
+                            </td>
+                            {pricingEnabled && (
+                              <>
+                                <td className="px-4 py-4">
+                                  {booking.totalAmount && booking.totalAmount > 0 ? (
+                                    <p className="text-sm font-semibold text-gray-900">
+                                      {Number(booking.totalAmount).toFixed(2)} kr
+                                    </p>
+                                  ) : (
+                                    <p className="text-xs text-gray-400">Gratis</p>
+                                  )}
+                                </td>
+                                <td className="px-4 py-4">
+                                  {booking.preferredPaymentMethod ? (
+                                    <span className="inline-flex items-center px-2 py-1 text-xs font-medium rounded-full bg-blue-50 text-blue-700">
+                                      {booking.preferredPaymentMethod === "INVOICE" && "Faktura"}
+                                      {booking.preferredPaymentMethod === "VIPPS" && "Vipps"}
+                                      {booking.preferredPaymentMethod === "CARD" && "Kort"}
+                                    </span>
+                                  ) : (
+                                    <p className="text-xs text-gray-400">—</p>
+                                  )}
+                                </td>
+                                <td className="px-4 py-4">
+                                  {paymentStatus === "paid" && (
+                                    <span className="inline-flex items-center px-2 py-1 text-xs font-medium rounded-full bg-green-100 text-green-700">
+                                      Betalt
+                                    </span>
+                                  )}
+                                  {paymentStatus === "unpaid" && (
+                                    <span className="inline-flex items-center px-2 py-1 text-xs font-medium rounded-full bg-red-100 text-red-700">
+                                      Ikke betalt
+                                    </span>
+                                  )}
+                                  {paymentStatus === "pending_payment" && (
+                                    <span className="inline-flex items-center px-2 py-1 text-xs font-medium rounded-full bg-amber-100 text-amber-700">
+                                      Venter på betaling
+                                    </span>
+                                  )}
+                                  {paymentStatus === "free" && (
+                                    <p className="text-xs text-gray-400">Gratis</p>
+                                  )}
+                                </td>
+                              </>
+                            )}
+                          </tr>
+                        )
+                      })}
+                    </tbody>
+                  </table>
                 </div>
               )}
             </>
@@ -725,6 +894,185 @@ export default function MyBookingsPage() {
           onClose={() => setEditingBooking(null)}
           onSaved={handleBookingSaved}
         />
+      )}
+
+      {/* Booking details modal */}
+      {selectedBooking && (
+        <div 
+          className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
+          onClick={() => setSelectedBooking(null)}
+        >
+          <div 
+            className="bg-white rounded-xl max-w-2xl w-full shadow-2xl max-h-[90vh] overflow-y-auto"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Header */}
+            <div 
+              className="p-6 rounded-t-xl"
+              style={{ 
+                backgroundColor: selectedBooking.resource.color || "#3b82f6" 
+              }}
+            >
+              <div className="flex items-start justify-between">
+                <div className="flex-1">
+                  <p className="text-white/80 text-sm font-medium">
+                    {selectedBooking.resource.name}
+                    {selectedBooking.resourcePart && ` • ${selectedBooking.resourcePart.name}`}
+                  </p>
+                  <h3 className="text-2xl font-bold text-white mt-1">
+                    {selectedBooking.title}
+                  </h3>
+                </div>
+                <button
+                  onClick={() => setSelectedBooking(null)}
+                  className="p-1 rounded-full hover:bg-white/20 transition-colors"
+                >
+                  <X className="w-6 h-6 text-white" />
+                </button>
+              </div>
+            </div>
+
+            {/* Content */}
+            <div className="p-6 space-y-6">
+              {/* Status */}
+              <div className="flex items-center gap-2 flex-wrap">
+                {selectedBooking.status === "pending" && (
+                  <span className="px-3 py-1 text-sm font-medium rounded-full bg-amber-100 text-amber-700">
+                    Venter på godkjenning
+                  </span>
+                )}
+                {selectedBooking.status === "approved" && (
+                  <span className="px-3 py-1 text-sm font-medium rounded-full bg-green-100 text-green-700">
+                    Godkjent
+                  </span>
+                )}
+                {selectedBooking.status === "rejected" && (
+                  <span className="px-3 py-1 text-sm font-medium rounded-full bg-red-100 text-red-700">
+                    Avslått
+                  </span>
+                )}
+                {selectedBooking.status === "cancelled" && (
+                  <span className="px-3 py-1 text-sm font-medium rounded-full bg-gray-100 text-gray-600">
+                    Kansellert
+                  </span>
+                )}
+              </div>
+
+              {/* Description */}
+              {selectedBooking.description && (
+                <div>
+                  <h4 className="text-sm font-semibold text-gray-700 mb-2">Beskrivelse</h4>
+                  <p className="text-gray-600 whitespace-pre-wrap">{selectedBooking.description}</p>
+                </div>
+              )}
+
+              {/* Date and time */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <h4 className="text-sm font-semibold text-gray-700 mb-2">Dato</h4>
+                  <div className="flex items-center gap-2 text-gray-600">
+                    <Calendar className="w-4 h-4 text-gray-400" />
+                    <span>{format(parseISO(selectedBooking.startTime), "EEEE d. MMMM yyyy", { locale: nb })}</span>
+                  </div>
+                </div>
+                <div>
+                  <h4 className="text-sm font-semibold text-gray-700 mb-2">Tid</h4>
+                  <div className="flex items-center gap-2 text-gray-600">
+                    <Clock className="w-4 h-4 text-gray-400" />
+                    <span>
+                      {format(parseISO(selectedBooking.startTime), "HH:mm")} - {format(parseISO(selectedBooking.endTime), "HH:mm")}
+                    </span>
+                  </div>
+                  <p className="text-xs text-gray-500 mt-1">
+                    {Math.round((new Date(selectedBooking.endTime).getTime() - new Date(selectedBooking.startTime).getTime()) / (1000 * 60 * 60) * 10) / 10} timer
+                  </p>
+                </div>
+              </div>
+
+              {/* Location */}
+              {selectedBooking.resource.location && (
+                <div>
+                  <h4 className="text-sm font-semibold text-gray-700 mb-2">Lokasjon</h4>
+                  <div className="flex items-center gap-2 text-gray-600">
+                    <MapPin className="w-4 h-4 text-gray-400" />
+                    <span>{selectedBooking.resource.location}</span>
+                  </div>
+                </div>
+              )}
+
+              {/* Price and payment info */}
+              {pricingEnabled && (
+                <div className="border-t pt-4">
+                  <h4 className="text-sm font-semibold text-gray-700 mb-3">Pris og betaling</h4>
+                  {selectedBooking.totalAmount && selectedBooking.totalAmount > 0 ? (
+                    <div className="space-y-3">
+                      <div className="flex items-center justify-between p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                        <span className="text-sm font-medium text-gray-900">Totalpris:</span>
+                        <span className="text-lg font-bold text-gray-900">
+                          {Number(selectedBooking.totalAmount).toFixed(2)} kr
+                        </span>
+                      </div>
+                      {selectedBooking.preferredPaymentMethod && (
+                        <div>
+                          <p className="text-xs text-gray-500 mb-1">Foretrukket betalingsmetode:</p>
+                          <span className="inline-flex items-center px-3 py-1 text-sm font-medium rounded-full bg-blue-100 text-blue-700">
+                            {selectedBooking.preferredPaymentMethod === "INVOICE" && "Faktura"}
+                            {selectedBooking.preferredPaymentMethod === "VIPPS" && "Vipps"}
+                            {selectedBooking.preferredPaymentMethod === "CARD" && "Kort"}
+                          </span>
+                        </div>
+                      )}
+                      {selectedBooking.payments && selectedBooking.payments.length > 0 && (
+                        <div>
+                          <p className="text-xs text-gray-500 mb-2">Betalinger:</p>
+                          <div className="space-y-2">
+                            {selectedBooking.payments.map((payment) => (
+                              <div key={payment.id} className="flex items-center justify-between p-2 bg-gray-50 rounded-lg">
+                                <div>
+                                  <p className="text-sm font-medium text-gray-900">
+                                    {payment.paymentMethod === "VIPPS" && "Vipps"}
+                                    {payment.paymentMethod === "CARD" && "Kort"}
+                                    {payment.paymentMethod === "BANK_TRANSFER" && "Bankoverføring"}
+                                    {payment.paymentMethod === "INVOICE" && "Faktura"}
+                                  </p>
+                                  <p className="text-xs text-gray-500">{Number(payment.amount).toFixed(2)} kr</p>
+                                </div>
+                                <span className={`text-xs font-medium px-2 py-1 rounded-full ${
+                                  payment.status === "COMPLETED" ? "bg-green-100 text-green-700" :
+                                  payment.status === "PENDING" ? "bg-amber-100 text-amber-700" :
+                                  payment.status === "FAILED" ? "bg-red-100 text-red-700" :
+                                  "bg-gray-100 text-gray-700"
+                                }`}>
+                                  {payment.status === "COMPLETED" && "Betalt"}
+                                  {payment.status === "PENDING" && "Venter"}
+                                  {payment.status === "PROCESSING" && "Behandler"}
+                                  {payment.status === "FAILED" && "Feilet"}
+                                </span>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                      {selectedBooking.invoiceId && (!selectedBooking.payments || selectedBooking.payments.length === 0) && (
+                        <p className="text-sm text-gray-600">Faktura opprettet</p>
+                      )}
+                    </div>
+                  ) : (
+                    <p className="text-sm text-gray-600">Gratis booking</p>
+                  )}
+                </div>
+              )}
+
+              {/* Status note */}
+              {selectedBooking.statusNote && (
+                <div className="border-t pt-4">
+                  <h4 className="text-sm font-semibold text-gray-700 mb-2">Statusnotat</h4>
+                  <p className="text-sm text-red-600 bg-red-50 p-3 rounded-lg">{selectedBooking.statusNote}</p>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
       )}
     </PageLayout>
   )

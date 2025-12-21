@@ -2,16 +2,12 @@ import { prisma } from "./prisma"
 import { validateLicense } from "./license"
 import { getUserRoleInfo } from "./roles"
 
-export type PricingModel = "FREE" | "HOURLY" | "DAILY" | "FIXED" | "FIXED_DURATION"
+export type PricingModel = "FREE" | "HOURLY" | "DAILY" | "FIXED_DURATION"
 
 export interface PricingRule {
-  forRoles: string[] // Array av role IDs eller "admin", "user". Tom array = standard for alle andre
+  forRoles: string[] // Array av role IDs, "admin", eller "user". Tom array = standard for alle standardbrukere (systemRole: "user" uten custom role)
   model: PricingModel
-  // Standard priser (brukes hvis medlemspriser ikke er satt)
-  pricePerHour?: number | null
-  pricePerDay?: number | null
-  fixedPrice?: number | null
-  fixedPriceDuration?: number | null // minutter
+  fixedPriceDuration?: number | null // minutter (kun for FIXED_DURATION)
   // Medlemspriser (valgfritt - hvis satt, brukes for medlemmer)
   memberPricePerHour?: number | null
   memberPricePerDay?: number | null
@@ -184,6 +180,17 @@ export async function getPricingConfig(
       if (resource.pricingRules) {
         try {
           const rules = JSON.parse(resource.pricingRules) as PricingRule[]
+          console.log("[Pricing] Loaded pricingRules from database:", {
+            rulesCount: rules.length,
+            rules: rules.map(r => ({
+              forRoles: r.forRoles,
+              model: r.model,
+              hasMemberPrice: !!(r.memberPricePerHour || r.memberPricePerDay || r.memberFixedPrice),
+              hasNonMemberPrice: !!(r.nonMemberPricePerHour || r.nonMemberPricePerDay || r.nonMemberFixedPrice),
+              memberPricePerHour: r.memberPricePerHour,
+              nonMemberPricePerHour: r.nonMemberPricePerHour
+            }))
+          })
           return { rules }
         } catch (e) {
           console.error("[Pricing] Error parsing pricingRules:", e)
@@ -225,7 +232,7 @@ export async function getPricingConfig(
 /**
  * Finner riktig pris-regel for en bruker basert på deres roller
  */
-async function findPricingRuleForUser(
+export async function findPricingRuleForUser(
   userId: string,
   rules: PricingRule[]
 ): Promise<{ rule: PricingRule | null; reason?: string }> {
@@ -236,45 +243,98 @@ async function findPricingRuleForUser(
   try {
     const roleInfo = await getUserRoleInfo(userId)
     
-    // Sjekk regler i rekkefølge - første match vinner
-    for (const rule of rules) {
-      // Hvis forRoles er tom, er det standard-regelen (brukes hvis ingen annen match)
-      if (rule.forRoles.length === 0) {
-        continue // Skip standard-regelen til vi har sjekket alle spesifikke
-      }
-      
-      // Sjekk om brukeren er admin og admin er i listen
-      if (roleInfo.isAdmin && rule.forRoles.includes("admin")) {
+    // Debug logging
+    console.log("[Pricing] Finding rule for user:", {
+      userId,
+      systemRole: roleInfo.systemRole,
+      isAdmin: roleInfo.isAdmin,
+      customRole: roleInfo.customRole?.name || null,
+      rulesCount: rules.length,
+      rules: rules.map(r => ({ forRoles: r.forRoles, model: r.model }))
+    })
+    
+    // Først: sjekk spesifikke regler (forRoles er ikke tom)
+    // Prioriter rekkefølge: admin > custom role > user > standard (tom forRoles)
+    // Standardbrukere (systemRole: "user" uten custom role) kan matche enten "user"-regel eller standardregel (forRoles: [])
+    
+    // 1. Sjekk om brukeren er admin og admin er i listen
+    if (roleInfo.isAdmin) {
+      const adminRule = rules.find(r => r.forRoles.includes("admin"))
+      if (adminRule) {
         return { 
-          rule, 
-          reason: rule.model === "FREE" ? "Gratis for administrator" : undefined 
-        }
-      }
-      
-      // Sjekk om brukeren har en custom role som er i listen
-      if (roleInfo.customRole && rule.forRoles.includes(roleInfo.customRole.id)) {
-        return { 
-          rule, 
-          reason: rule.model === "FREE" ? `Gratis for ${roleInfo.customRole.name}` : undefined 
-        }
-      }
-      
-      // Sjekk om systemRole "user" er i listen
-      if (roleInfo.systemRole === "user" && rule.forRoles.includes("user")) {
-        return { 
-          rule, 
-          reason: rule.model === "FREE" ? "Gratis for brukere" : undefined 
+          rule: adminRule, 
+          reason: adminRule.model === "FREE" ? "Gratis for administrator" : undefined 
         }
       }
     }
     
-    // Hvis ingen spesifikk match, bruk standard-regelen (forRoles er tom)
+    // 2. Sjekk om brukeren har en custom role som er i listen
+    if (roleInfo.customRole) {
+      const customRoleRule = rules.find(r => r.forRoles.includes(roleInfo.customRole!.id))
+      if (customRoleRule) {
+        return { 
+          rule: customRoleRule, 
+          reason: customRoleRule.model === "FREE" ? `Gratis for ${roleInfo.customRole.name}` : undefined 
+        }
+      }
+    }
+    
+    // 3. Sjekk om systemRole "user" er i listen (for standardbrukere)
+    if (roleInfo.systemRole === "user") {
+      const userRule = rules.find(r => r.forRoles.includes("user"))
+      if (userRule) {
+        return { 
+          rule: userRule, 
+          reason: userRule.model === "FREE" ? "Gratis for brukere" : undefined 
+        }
+      }
+    }
+    
+    // 4. Hvis ingen spesifikk match, bruk standard-regelen (forRoles er tom)
+    // Dette gjelder alle standardbrukere (systemRole: "user" uten custom role) hvis ingen "user"-regel finnes
     const defaultRule = rules.find(r => r.forRoles.length === 0)
+    console.log("[Pricing] No specific rule matched, checking default rule:", {
+      defaultRuleFound: !!defaultRule,
+      defaultRuleDetails: defaultRule ? { 
+        model: defaultRule.model,
+        forRoles: defaultRule.forRoles,
+        hasMemberPrice: !!(defaultRule.memberPricePerHour || defaultRule.memberPricePerDay || defaultRule.memberFixedPrice),
+        hasNonMemberPrice: !!(defaultRule.nonMemberPricePerHour || defaultRule.nonMemberPricePerDay || defaultRule.nonMemberFixedPrice),
+        memberPricePerHour: defaultRule.memberPricePerHour,
+        nonMemberPricePerHour: defaultRule.nonMemberPricePerHour,
+        allRules: rules.map(r => ({ 
+          forRoles: r.forRoles, 
+          model: r.model,
+          isDefault: r.forRoles.length === 0
+        }))
+      } : null,
+      allRules: rules.map(r => ({ 
+        forRoles: r.forRoles, 
+        model: r.model,
+        isDefault: r.forRoles.length === 0,
+        forRolesString: JSON.stringify(r.forRoles)
+      })),
+      rulesCount: rules.length
+    })
     if (defaultRule) {
       return { rule: defaultRule }
     }
     
+    // Hvis ingen standardregel finnes, men det finnes regler, logg en advarsel
+    if (rules.length > 0) {
+      console.warn("[Pricing] No default rule found, but rules exist. User will see 'gratis'. Rules:", rules.map(r => ({
+        forRoles: r.forRoles,
+        forRolesString: JSON.stringify(r.forRoles),
+        model: r.model,
+        isDefault: r.forRoles.length === 0,
+        hasMemberPrice: !!(r.memberPricePerHour || r.memberPricePerDay || r.memberFixedPrice),
+        hasNonMemberPrice: !!(r.nonMemberPricePerHour || r.nonMemberPricePerDay || r.nonMemberFixedPrice)
+      })))
+      console.warn("[Pricing] SOLUTION: Add a rule with NO roles selected (empty forRoles array) to make it the default rule for standard users.")
+    }
+    
     // Hvis ingen regel funnet, returner null (gratis)
+    console.log("[Pricing] No rule found for user, returning null (gratis)")
     return { rule: null }
   } catch (error) {
     console.error("[Pricing] Error finding pricing rule:", error)
@@ -356,10 +416,12 @@ export async function calculateBookingPrice(
 
   switch (rule.model) {
     case "HOURLY":
-      // Bruk medlemspris eller ikke-medlemspris hvis satt, ellers standard pris
+      // Bruk medlemspris eller ikke-medlemspris
+      // Hvis medlem: bruk medlemspris, ellers ikke-medlemspris som fallback
+      // Hvis ikke-medlem: bruk ikke-medlemspris, ellers medlemspris som fallback
       const hourlyPrice = isMember 
-        ? (rule.memberPricePerHour ?? rule.pricePerHour)
-        : (rule.nonMemberPricePerHour ?? rule.pricePerHour)
+        ? (rule.memberPricePerHour ?? rule.nonMemberPricePerHour)
+        : (rule.nonMemberPricePerHour ?? rule.memberPricePerHour)
       
       if (!hourlyPrice) {
         return {
@@ -377,10 +439,12 @@ export async function calculateBookingPrice(
       break
 
     case "DAILY":
-      // Bruk medlemspris eller ikke-medlemspris hvis satt, ellers standard pris
+      // Bruk medlemspris eller ikke-medlemspris
+      // Hvis medlem: bruk medlemspris, ellers ikke-medlemspris som fallback
+      // Hvis ikke-medlem: bruk ikke-medlemspris, ellers medlemspris som fallback
       const dailyPrice = isMember
-        ? (rule.memberPricePerDay ?? rule.pricePerDay)
-        : (rule.nonMemberPricePerDay ?? rule.pricePerDay)
+        ? (rule.memberPricePerDay ?? rule.nonMemberPricePerDay)
+        : (rule.nonMemberPricePerDay ?? rule.memberPricePerDay)
       
       if (!dailyPrice) {
         return {
@@ -397,31 +461,13 @@ export async function calculateBookingPrice(
       }
       break
 
-    case "FIXED":
-      // Bruk medlemspris eller ikke-medlemspris hvis satt, ellers standard pris
-      const fixedPrice = isMember
-        ? (rule.memberFixedPrice ?? rule.fixedPrice)
-        : (rule.nonMemberFixedPrice ?? rule.fixedPrice)
-      
-      if (!fixedPrice) {
-        return {
-          price: 0,
-          isFree: true,
-          reason: "Ingen fast pris satt",
-          pricingModel: "FIXED"
-        }
-      }
-      price = fixedPrice
-      breakdown = {
-        basePrice: fixedPrice
-      }
-      break
-
     case "FIXED_DURATION":
-      // Bruk medlemspris eller ikke-medlemspris hvis satt, ellers standard pris
+      // Bruk medlemspris eller ikke-medlemspris
+      // Hvis medlem: bruk medlemspris, ellers ikke-medlemspris som fallback
+      // Hvis ikke-medlem: bruk ikke-medlemspris, ellers medlemspris som fallback
       const fixedPriceForDuration = isMember
-        ? (rule.memberFixedPrice ?? rule.fixedPrice)
-        : (rule.nonMemberFixedPrice ?? rule.fixedPrice)
+        ? (rule.memberFixedPrice ?? rule.nonMemberFixedPrice)
+        : (rule.nonMemberFixedPrice ?? rule.memberFixedPrice)
       
       if (!fixedPriceForDuration || !rule.fixedPriceDuration) {
         return {
@@ -441,9 +487,10 @@ export async function calculateBookingPrice(
         }
       } else {
         // Hvis lengre enn fast pris-varighet, beregn timepris for hele perioden
+        // Bruk samme fallback-logikk for timepris
         const hourlyPriceForDuration = isMember
-          ? (rule.memberPricePerHour ?? rule.pricePerHour)
-          : (rule.nonMemberPricePerHour ?? rule.pricePerHour)
+          ? (rule.memberPricePerHour ?? rule.nonMemberPricePerHour)
+          : (rule.nonMemberPricePerHour ?? rule.memberPricePerHour)
         
         if (hourlyPriceForDuration) {
           price = hourlyPriceForDuration * durationHours

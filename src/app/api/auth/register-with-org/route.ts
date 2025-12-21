@@ -4,7 +4,7 @@ import bcrypt from "bcryptjs"
 
 export async function POST(request: Request) {
   try {
-    const { name, email, phone, password, orgName, orgSlug, isMember } = await request.json()
+    const { name, email, phone, password, orgName, orgSlug } = await request.json()
 
     // Validate required fields
     if (!email || !password || !orgName || !orgSlug) {
@@ -90,7 +90,7 @@ export async function POST(request: Request) {
           approvedAt: new Date(),
           emailVerified: true, // Admin users are automatically verified
           emailVerifiedAt: new Date(),
-          isMember: isMember === true, // Set membership status
+          isMember: false, // Medlemsstatus settes av admin
           organizationId: organization.id
         },
         select: {

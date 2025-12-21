@@ -34,11 +34,16 @@ interface Booking {
   statusNote: string | null
   contactName: string | null
   contactEmail: string | null
+  contactPhone: string | null
   isRecurring: boolean
   parentBookingId: string | null
+  totalAmount: number | null
+  preferredPaymentMethod: string | null
+  invoiceId: string | null
   resource: { name: string }
   resourcePart: { name: string } | null
   user: { name: string | null; email: string }
+  payments?: Array<{ id: string; status: string; paymentMethod: string; amount: number }>
 }
 
 type Tab = "pending" | "approved" | "history"
@@ -57,6 +62,7 @@ export default function AdminBookingsPage() {
   const [rejectingId, setRejectingId] = useState<string | null>(null)
   const [rejectReason, setRejectReason] = useState("")
   const [rejectApplyToAll, setRejectApplyToAll] = useState(false)
+  const [pricingEnabled, setPricingEnabled] = useState(false)
 
   useEffect(() => {
     if (status === "unauthenticated") {
@@ -88,6 +94,11 @@ export default function AdminBookingsPage() {
     const isModerator = session?.user?.role === "moderator"
     if (isAdmin || isModerator) {
       fetchBookings()
+      // Sjekk om pricing er aktivert
+      fetch("/api/pricing/status")
+        .then(res => res.json())
+        .then(data => setPricingEnabled(data.enabled || false))
+        .catch(() => setPricingEnabled(false))
     }
   }, [session, fetchBookings])
 
@@ -159,6 +170,11 @@ export default function AdminBookingsPage() {
     history: bookings.filter(b => b.status !== "pending" && (b.status !== "approved" || new Date(b.startTime) < new Date())).length
   }), [bookings])
 
+  // Godkjenn booking direkte (brukeren har allerede valgt betalingsmetode)
+  const handleApproveClick = useCallback((bookingId: string, applyToAll: boolean = false) => {
+    handleAction(bookingId, "approve", applyToAll)
+  }, [handleAction])
+
   const handleAction = useCallback(async (bookingId: string, action: "approve" | "reject", applyToAll: boolean = false, statusNote?: string) => {
     setProcessingId(bookingId)
     const booking = bookings.find(b => b.id === bookingId)
@@ -197,7 +213,7 @@ export default function AdminBookingsPage() {
       // Refresh bookings from server to get accurate state
       await fetchBookings()
       
-      // Close reject modal if it was open
+      // Close modals
       if (action === "reject") {
         setRejectingId(null)
         setRejectReason("")
@@ -361,13 +377,22 @@ export default function AdminBookingsPage() {
             </p>
           </div>
         ) : (
-          <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
-            <table className="w-full">
+          <div className="bg-white rounded-xl border border-gray-200 overflow-x-auto">
+            <table className="w-full min-w-[1000px]">
               <thead className="bg-gray-50 border-b border-gray-200">
                 <tr>
                   <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Booking</th>
-                  <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider hidden md:table-cell">Dato</th>
-                  <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider hidden lg:table-cell">Bruker</th>
+                  <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Fasilitet</th>
+                  <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Dato & Tid</th>
+                  <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Bruker</th>
+                  <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Kontakt</th>
+                  {pricingEnabled && (
+                    <>
+                      <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Pris</th>
+                      <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Betalingsmetode</th>
+                      <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Betalingsstatus</th>
+                    </>
+                  )}
                   <th className="text-right px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Handling</th>
                 </tr>
               </thead>
@@ -396,7 +421,7 @@ export default function AdminBookingsPage() {
                           )}
                           <div className="flex-1 min-w-0">
                             <div className="flex items-center gap-2 flex-wrap">
-                              <span className="font-medium text-gray-900 truncate">{booking.title}</span>
+                              <span className="font-medium text-gray-900">{booking.title}</span>
                               {booking.status === "pending" && (
                                 <span className="px-2 py-0.5 text-xs font-medium rounded-full bg-amber-100 text-amber-700">Venter</span>
                               )}
@@ -410,6 +435,16 @@ export default function AdminBookingsPage() {
                                 <span className="px-2 py-0.5 text-xs font-medium rounded-full bg-gray-100 text-gray-600">Kansellert</span>
                               )}
                             </div>
+                            {booking.description && (
+                              <p className="text-xs text-gray-500 mt-1 line-clamp-2">{booking.description}</p>
+                            )}
+                            {isGrouped && (
+                              <span className="inline-flex items-center gap-1 px-2 py-0.5 text-xs font-medium rounded-full bg-blue-100 text-blue-700 mt-1">
+                                <Repeat className="w-3 h-3" />
+                                {booking._groupCount} ganger
+                                {pendingInGroup > 0 && activeTab !== "pending" && ` (${pendingInGroup} venter)`}
+                              </span>
+                            )}
                             {booking.status === "rejected" && booking.statusNote && (
                               <div className="mt-2 p-2 bg-red-50 border border-red-200 rounded-lg">
                                 <p className="text-xs text-red-800">
@@ -417,33 +452,93 @@ export default function AdminBookingsPage() {
                                 </p>
                               </div>
                             )}
-                            <p className="text-sm text-gray-500 truncate">
-                              {booking.resource.name}
-                              {booking.resourcePart && ` → ${booking.resourcePart.name}`}
-                            </p>
-                            {isGrouped && (
-                              <span className="px-2 py-0.5 text-xs font-medium rounded-full bg-blue-100 text-blue-700 flex items-center gap-1">
-                                <Repeat className="w-3 h-3" />
-                                {booking._groupCount} ganger
-                                {pendingInGroup > 0 && activeTab !== "pending" && ` (${pendingInGroup} venter)`}
-                              </span>
-                            )}
-                            <p className="text-xs text-gray-400 md:hidden mt-1">
-                              {formatDateLabel(booking.startTime)} • {format(parseISO(booking.startTime), "HH:mm")}
-                            </p>
                           </div>
                         </div>
                       </td>
-                      <td className="px-4 py-4 hidden md:table-cell">
-                        <p className="text-sm font-medium text-gray-900">{formatDateLabel(booking.startTime)}</p>
-                        <p className="text-xs text-gray-500">
-                          {format(parseISO(booking.startTime), "HH:mm")} - {format(parseISO(booking.endTime), "HH:mm")}
-                        </p>
+                      <td className="px-4 py-4">
+                        <div>
+                          <p className="text-sm font-medium text-gray-900">{booking.resource.name}</p>
+                          {booking.resourcePart && (
+                            <p className="text-xs text-gray-500 mt-0.5">{booking.resourcePart.name}</p>
+                          )}
+                        </div>
                       </td>
-                      <td className="px-4 py-4 hidden lg:table-cell">
-                        <p className="text-sm text-gray-900">{booking.user.name || booking.contactName || "—"}</p>
-                        <p className="text-xs text-gray-500">{booking.user.email}</p>
+                      <td className="px-4 py-4">
+                        <div>
+                          <p className="text-sm font-medium text-gray-900">{formatDateLabel(booking.startTime)}</p>
+                          <p className="text-xs text-gray-500">
+                            {format(parseISO(booking.startTime), "HH:mm")} - {format(parseISO(booking.endTime), "HH:mm")}
+                          </p>
+                          <p className="text-xs text-gray-400 mt-0.5">
+                            {Math.round((new Date(booking.endTime).getTime() - new Date(booking.startTime).getTime()) / (1000 * 60 * 60) * 10) / 10} timer
+                          </p>
+                        </div>
                       </td>
+                      <td className="px-4 py-4">
+                        <div>
+                          <p className="text-sm text-gray-900">{booking.user.name || booking.contactName || "—"}</p>
+                          <p className="text-xs text-gray-500">{booking.user.email}</p>
+                        </div>
+                      </td>
+                      <td className="px-4 py-4">
+                        <div>
+                          <p className="text-xs text-gray-900">{booking.contactName || booking.user.name || "—"}</p>
+                          <p className="text-xs text-gray-500">{booking.contactEmail || booking.user.email}</p>
+                          {booking.contactPhone && (
+                            <p className="text-xs text-gray-500 mt-0.5">{booking.contactPhone}</p>
+                          )}
+                        </div>
+                      </td>
+                      {pricingEnabled && (
+                        <>
+                          <td className="px-4 py-4">
+                            {booking.totalAmount && booking.totalAmount > 0 ? (
+                              <p className="text-sm font-semibold text-gray-900">
+                                {Number(booking.totalAmount).toFixed(2)} kr
+                              </p>
+                            ) : (
+                              <p className="text-xs text-gray-400">Gratis</p>
+                            )}
+                          </td>
+                          <td className="px-4 py-4">
+                            {booking.preferredPaymentMethod ? (
+                              <span className="inline-flex items-center px-2 py-1 text-xs font-medium rounded-full bg-blue-50 text-blue-700">
+                                {booking.preferredPaymentMethod === "INVOICE" && "Faktura"}
+                                {booking.preferredPaymentMethod === "VIPPS" && "Vipps"}
+                                {booking.preferredPaymentMethod === "CARD" && "Kort"}
+                              </span>
+                            ) : (
+                              <p className="text-xs text-gray-400">—</p>
+                            )}
+                          </td>
+                          <td className="px-4 py-4">
+                            {booking.payments && booking.payments.length > 0 ? (
+                              <div className="space-y-1">
+                                {booking.payments.map((payment: any) => (
+                                  <div key={payment.id} className="flex items-center gap-2">
+                                    <span className={`inline-flex items-center px-2 py-0.5 text-xs font-medium rounded-full ${
+                                      payment.status === "COMPLETED" 
+                                        ? "bg-green-100 text-green-700" 
+                                        : "bg-amber-100 text-amber-700"
+                                    }`}>
+                                      {payment.status === "COMPLETED" ? "Betalt" : "Venter"}
+                                    </span>
+                                    <span className="text-xs text-gray-500">
+                                      {Number(payment.amount).toFixed(2)} kr
+                                    </span>
+                                  </div>
+                                ))}
+                              </div>
+                            ) : booking.totalAmount && booking.totalAmount > 0 ? (
+                              <span className="inline-flex items-center px-2 py-1 text-xs font-medium rounded-full bg-gray-100 text-gray-600">
+                                Ikke betalt
+                              </span>
+                            ) : (
+                              <p className="text-xs text-gray-400">—</p>
+                            )}
+                          </td>
+                        </>
+                      )}
                       <td className="px-4 py-4">
                         <div className="flex items-center justify-end gap-2">
                           {booking.status === "pending" && (
@@ -451,7 +546,7 @@ export default function AdminBookingsPage() {
                               {isGrouped ? (
                                 <div className="flex flex-col gap-1">
                                   <button
-                                    onClick={() => handleAction(booking.id, "approve", true)}
+                                    onClick={() => handleApproveClick(booking.id, true)}
                                     disabled={processingId === booking.id}
                                     className="px-3 py-1.5 text-xs font-medium rounded-lg bg-green-600 text-white hover:bg-green-700 disabled:opacity-50 flex items-center gap-1"
                                   >
@@ -473,7 +568,7 @@ export default function AdminBookingsPage() {
                               ) : (
                                 <>
                                   <button
-                                    onClick={() => handleAction(booking.id, "approve", false)}
+                                    onClick={() => handleApproveClick(booking.id, false)}
                                     disabled={processingId === booking.id}
                                     className="p-2 rounded-lg bg-green-100 text-green-700 hover:bg-green-200 disabled:opacity-50"
                                     title="Godkjenn"
@@ -530,35 +625,87 @@ export default function AdminBookingsPage() {
                                   {childBooking.status === "rejected" && (
                                     <span className="px-2 py-0.5 text-xs font-medium rounded-full bg-red-100 text-red-700">Avslått</span>
                                   )}
-                                  {childBooking.status === "rejected" && childBooking.statusNote && (
-                                    <div className="mt-2 p-2 bg-red-50 border border-red-200 rounded-lg">
-                                      <p className="text-xs text-red-800">
-                                        <span className="font-medium">Begrunnelse:</span> {childBooking.statusNote}
-                                      </p>
-                                    </div>
-                                  )}
                                   {childBooking.status === "cancelled" && (
                                     <span className="px-2 py-0.5 text-xs font-medium rounded-full bg-gray-100 text-gray-600">Kansellert</span>
                                   )}
                                 </div>
+                                {childBooking.description && (
+                                  <p className="text-xs text-gray-500 mt-1 line-clamp-2">{childBooking.description}</p>
+                                )}
                               </div>
                             </div>
                           </td>
-                          <td className="px-4 py-3 hidden md:table-cell">
-                            <p className="text-sm text-gray-700">{formatDateLabel(childBooking.startTime)}</p>
-                            <p className="text-xs text-gray-500">
-                              {format(parseISO(childBooking.startTime), "HH:mm")} - {format(parseISO(childBooking.endTime), "HH:mm")}
-                            </p>
+                          <td className="px-4 py-3">
+                            <div>
+                              <p className="text-sm text-gray-700">{childBooking.resource.name}</p>
+                              {childBooking.resourcePart && (
+                                <p className="text-xs text-gray-500 mt-0.5">{childBooking.resourcePart.name}</p>
+                              )}
+                            </div>
                           </td>
-                          <td className="px-4 py-3 hidden lg:table-cell">
+                          <td className="px-4 py-3">
+                            <div>
+                              <p className="text-sm text-gray-700">{formatDateLabel(childBooking.startTime)}</p>
+                              <p className="text-xs text-gray-500">
+                                {format(parseISO(childBooking.startTime), "HH:mm")} - {format(parseISO(childBooking.endTime), "HH:mm")}
+                              </p>
+                            </div>
+                          </td>
+                          <td className="px-4 py-3">
                             <p className="text-xs text-gray-500">—</p>
                           </td>
+                          <td className="px-4 py-3">
+                            <p className="text-xs text-gray-500">—</p>
+                          </td>
+                          {pricingEnabled && (
+                            <>
+                              <td className="px-4 py-3">
+                                {childBooking.totalAmount && childBooking.totalAmount > 0 ? (
+                                  <p className="text-sm font-semibold text-gray-900">
+                                    {Number(childBooking.totalAmount).toFixed(2)} kr
+                                  </p>
+                                ) : (
+                                  <p className="text-xs text-gray-400">Gratis</p>
+                                )}
+                              </td>
+                              <td className="px-4 py-3">
+                                {childBooking.preferredPaymentMethod ? (
+                                  <span className="inline-flex items-center px-2 py-1 text-xs font-medium rounded-full bg-blue-50 text-blue-700">
+                                    {childBooking.preferredPaymentMethod === "INVOICE" && "Faktura"}
+                                    {childBooking.preferredPaymentMethod === "VIPPS" && "Vipps"}
+                                    {childBooking.preferredPaymentMethod === "CARD" && "Kort"}
+                                  </span>
+                                ) : (
+                                  <p className="text-xs text-gray-400">—</p>
+                                )}
+                              </td>
+                              <td className="px-4 py-3">
+                                {childBooking.payments && childBooking.payments.length > 0 ? (
+                                  <div className="space-y-1">
+                                    {childBooking.payments.map((payment: any) => (
+                                      <div key={payment.id} className="flex items-center gap-2">
+                                        <span className={`inline-flex items-center px-2 py-0.5 text-xs font-medium rounded-full ${
+                                          payment.status === "COMPLETED" 
+                                            ? "bg-green-100 text-green-700" 
+                                            : "bg-amber-100 text-amber-700"
+                                        }`}>
+                                          {payment.status === "COMPLETED" ? "Betalt" : "Venter"}
+                                        </span>
+                                      </div>
+                                    ))}
+                                  </div>
+                                ) : (
+                                  <p className="text-xs text-gray-400">—</p>
+                                )}
+                              </td>
+                            </>
+                          )}
                           <td className="px-4 py-3">
                             <div className="flex items-center justify-end gap-2">
                               {childBooking.status === "pending" && (
                                 <>
                                   <button
-                                    onClick={() => handleAction(childBooking.id, "approve", false)}
+                                    onClick={() => handleApproveClick(childBooking.id, false)}
                                     disabled={processingId === childBooking.id}
                                     className="p-1.5 rounded-lg bg-green-100 text-green-700 hover:bg-green-200 disabled:opacity-50"
                                     title="Godkjenn"
@@ -677,6 +824,7 @@ export default function AdminBookingsPage() {
           </div>
         </div>
       )}
+
     </div>
   )
 }

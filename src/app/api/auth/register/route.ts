@@ -6,7 +6,7 @@ import { sendVerificationEmail } from "@/lib/email-verification"
 
 export async function POST(request: Request) {
   try {
-    const { name, email, phone, password, orgSlug, isMember } = await request.json()
+    const { name, email, phone, password, orgSlug } = await request.json()
 
     // Validate required fields (orgSlug is now optional - will auto-detect)
     if (!email || !password) {
@@ -86,7 +86,7 @@ export async function POST(request: Request) {
         organizationId: organization.id,
         isApproved: !needsApproval, // Auto-approve if org doesn't require approval
         approvedAt: !needsApproval ? new Date() : null,
-        isMember: isMember === true, // Set membership status
+        isMember: false, // Medlemsstatus settes av admin
         emailVerified: false, // Email must be verified
       },
       select: {

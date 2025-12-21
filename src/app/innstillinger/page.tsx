@@ -42,7 +42,6 @@ export default function InnstillingerPage() {
   // Form state
   const [editName, setEditName] = useState("")
   const [editPhone, setEditPhone] = useState("")
-  const [editIsMember, setEditIsMember] = useState(false)
   const [isEditing, setIsEditing] = useState(false)
 
   useEffect(() => {
@@ -71,7 +70,6 @@ export default function InnstillingerPage() {
         })
         setEditName(data.user.name || "")
         setEditPhone(data.user.phone || "")
-        setEditIsMember(data.user.isMember || false)
       }
     } catch (error) {
       console.error("Error loading user info:", error)
@@ -91,7 +89,6 @@ export default function InnstillingerPage() {
         body: JSON.stringify({
           name: editName,
           phone: editPhone,
-          isMember: editIsMember,
         }),
       })
 
@@ -322,24 +319,6 @@ export default function InnstillingerPage() {
                   />
                 </div>
 
-                <div className="p-3 bg-white border border-gray-200 rounded-lg">
-                  <label className="flex items-center gap-3 cursor-pointer">
-                    <input
-                      type="checkbox"
-                      checked={editIsMember}
-                      onChange={(e) => setEditIsMember(e.target.checked)}
-                      className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
-                    />
-                    <div>
-                      <span className="text-sm font-medium text-gray-700">
-                        Jeg er medlem av idrettslaget
-                      </span>
-                      <p className="text-xs text-gray-500 mt-1">
-                        Medlemmer kan få rabatterte priser på bookinger
-                      </p>
-                    </div>
-                  </label>
-                </div>
 
                 <div className="flex items-center gap-3">
                   <button
@@ -364,7 +343,6 @@ export default function InnstillingerPage() {
                       setIsEditing(false)
                       setEditName(userInfo?.name || "")
                       setEditPhone(userInfo?.phone || "")
-                      setEditIsMember(userInfo?.isMember || false)
                     }}
                     disabled={isUpdating}
                     className="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors disabled:opacity-50"

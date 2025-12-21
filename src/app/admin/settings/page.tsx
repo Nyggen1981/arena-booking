@@ -259,6 +259,25 @@ export default function AdminSettingsPage() {
     }
   }
 
+  const handleRefreshLicense = async () => {
+    try {
+      // Tøm cache og hent ny lisensinfo
+      await fetch("/api/license/clear-cache", { method: "POST" })
+      const response = await fetch("/api/license/status")
+      const data = await response.json()
+      setLicenseInfo(data)
+      setLicenseTestResult({
+        success: true,
+        message: "Lisensinfo oppdatert"
+      })
+    } catch (error) {
+      setLicenseTestResult({
+        success: false,
+        message: "Kunne ikke oppdatere lisensinfo.",
+      })
+    }
+  }
+
   const handleTestLicense = async () => {
     setIsTestingLicense(true)
     setLicenseTestResult(null)
@@ -1165,7 +1184,7 @@ export default function AdminSettingsPage() {
                 <div>
                   <h3 className="font-medium text-gray-900">Lagre og teste lisens</h3>
                   <p className="text-sm text-gray-500">
-                    Lagre først, deretter test at lisensnøkkelen er gyldig.
+                    Lagre først, deretter test at lisensnøkkelen er gyldig. Bruk "Oppdater lisens" for å tømme cache og hente ny lisensinfo raskt.
                   </p>
                 </div>
                 <div className="flex gap-2">
@@ -1186,6 +1205,15 @@ export default function AdminSettingsPage() {
                         Lagre
                       </>
                     )}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleRefreshLicense}
+                    className="inline-flex items-center justify-center gap-1.5 rounded-md border border-blue-300 bg-blue-50 px-3 py-1.5 text-sm font-medium text-blue-700 shadow-sm hover:bg-blue-100"
+                    title="Tøm cache og oppdater lisensinfo (nyttig i testfasen)"
+                  >
+                    <Settings className="w-4 h-4" />
+                    Oppdater lisens
                   </button>
                   <button
                     type="button"
