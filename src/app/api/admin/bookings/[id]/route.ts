@@ -132,9 +132,9 @@ export async function PATCH(
   // Determine the new status
   const newStatus = action === "approve" ? "approved" : "rejected"
 
-  // Håndter betaling hvis booking godkjennes og har kostnad (kun hvis pricing er aktivert)
-  const pricingEnabled = await isPricingEnabled()
-  if (action === "approve" && pricingEnabled && booking.totalAmount && booking.totalAmount > 0) {
+        // Håndter betaling hvis booking godkjennes og har kostnad (kun hvis pricing er aktivert)
+        const pricingEnabled = await isPricingEnabled()
+        if (action === "approve" && pricingEnabled && booking.totalAmount && Number(booking.totalAmount) > 0) {
     // Bruk brukerens foretrukne betalingsmetode fra booking, eller faktura som standard
     const method = (booking as any).preferredPaymentMethod || "INVOICE"
     
