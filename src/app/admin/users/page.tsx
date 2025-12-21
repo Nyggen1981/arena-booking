@@ -587,6 +587,7 @@ function UserCard({
   onChangeRole,
   onVerifyEmail,
   onDelete,
+  onToggleMembership,
   customRoles
 }: { 
   user: UserData
