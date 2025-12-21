@@ -470,9 +470,10 @@ export default function AdminUsersPage() {
                       openMenu={openMenu}
                       setOpenMenu={setOpenMenu}
                       onChangeRole={changeRole}
-                    customRoles={customRoles}
+                      customRoles={customRoles}
                       onVerifyEmail={verifyEmail}
                       onDelete={deleteUser}
+                      onToggleMembership={toggleMembership}
                     />
                   ))}
                 </div>
