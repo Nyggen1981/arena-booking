@@ -22,7 +22,7 @@ export async function createInvoiceForBooking(
     throw new Error("Booking not found")
   }
 
-  if (!booking.totalAmount || booking.totalAmount <= 0) {
+  if (!booking.totalAmount || Number(booking.totalAmount) <= 0) {
     throw new Error("Booking has no amount to invoice")
   }
 
