@@ -645,9 +645,12 @@ export default function EditResourcePage({ params }: Props) {
               </div>
             </div>
 
-            {/* Price info */}
+            {/* Price info - Uavhengig av "pris & betaling" modulen */}
             <div className="space-y-4">
               <h2 className="font-semibold text-gray-900 border-b pb-2">Prisinfo</h2>
+              <p className="text-xs text-gray-500 -mt-2">
+                Denne informasjonen vises alltid på fasilitetssiden, uavhengig av "pris & betaling" modulen.
+              </p>
               
               <div className="flex items-center gap-3">
                 <input
@@ -680,11 +683,16 @@ export default function EditResourcePage({ params }: Props) {
               )}
             </div>
 
-            {/* Pricing Configuration (kun hvis aktivert via lisensserver) */}
+            {/* Pricing Configuration (kun hvis "pris & betaling" modulen er aktivert) */}
             {pricingEnabled && (
               <div className="space-y-4 p-4 bg-blue-50 border border-blue-200 rounded-xl">
                 <div className="flex items-center justify-between border-b pb-2">
-                  <h2 className="font-semibold text-gray-900">Prislogikk</h2>
+                  <div>
+                    <h2 className="font-semibold text-gray-900">Prislogikk</h2>
+                    <p className="text-xs text-gray-500 mt-1">
+                      Kun tilgjengelig når "pris & betaling" modulen er aktivert i lisensen.
+                    </p>
+                  </div>
                   <button
                     type="button"
                     onClick={() => {
