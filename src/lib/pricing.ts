@@ -32,7 +32,7 @@ export interface BookingPriceCalculation {
 
 /**
  * Sjekker om prislogikk er aktivert basert på lisensserver-status
- * Prislogikk er kun aktiv hvis lisensen har "pricing" feature aktivert
+ * Prislogikk er kun aktiv hvis lisensen har "pricing" modulen aktivert
  */
 export async function isPricingEnabled(): Promise<boolean> {
   try {
@@ -40,21 +40,28 @@ export async function isPricingEnabled(): Promise<boolean> {
     
     // Prislogikk er aktiv hvis:
     // 1. Lisensen er gyldig (active, grace, eller error med grace)
-    // 2. Lisensen har pricing-feature aktivert (sjekkes via licenseType eller features)
+    // 2. Lisensen har pricing-modulen aktivert
     
     if (!license.valid && license.status !== "grace" && license.status !== "error") {
       return false
     }
     
-    // Sjekk om lisensen har pricing-feature
-    // Pilot, premium og standard lisenser har tilgang til prislogikk
-    const hasPricingFeature = 
-      license.licenseType === "premium" || 
-      license.licenseType === "standard" ||
-      license.licenseType === "pilot" ||
-      license.features?.emailNotifications === true // Bruker eksisterende feature som indikator
+    // Sjekk om lisensen har pricing-modulen aktivert
+    // Booking er alltid tilgjengelig (modules.booking), men pricing er en tilleggsmodul
+    const hasPricingModule = license.modules?.pricing === true
     
-    return hasPricingFeature
+    // Fallback til legacy sjekk for bakoverkompatibilitet
+    // (hvis modules ikke er tilgjengelig, sjekk licenseType)
+    if (license.modules === undefined) {
+      const hasPricingFeature = 
+        license.licenseType === "premium" || 
+        license.licenseType === "standard" ||
+        license.licenseType === "pilot" ||
+        license.features?.emailNotifications === true
+      return hasPricingFeature
+    }
+    
+    return hasPricingModule
   } catch (error) {
     console.error("[Pricing] Error checking license:", error)
     // Ved feil, returner false for å være på den sikre siden

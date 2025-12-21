@@ -7,6 +7,17 @@ export interface LicenseValidationResult {
   expiresAt?: string
   daysRemaining?: number
   licenseType?: string // "free", "trial", "standard", "premium"
+  licenseTypeName?: string // ✨ NYTT: "Gratis", "Standard", "Premium", etc.
+  modules?: { // ✨ NYTT: Modulbasert lisenssystem
+    booking: boolean // Alltid true (unntatt inaktiv lisens)
+    pricing?: boolean // Hvis aktivert
+    [key: string]: boolean | undefined
+  }
+  pricing?: { // ✨ NYTT: Prisinformasjon
+    basePrice: number
+    totalMonthlyPrice: number
+    moduleCount: number
+  }
   limits?: {
     maxUsers: number | null
     maxResources: number | null
@@ -32,7 +43,7 @@ let cacheTimestamp: number = 0
 const CACHE_DURATION = 5 * 60 * 1000 // 5 minutter
 
 // Hardkodet lisensserver URL
-const LICENSE_SERVER_URL = "https://arena-booking-lisence-server.vercel.app"
+const LICENSE_SERVER_URL = process.env.LICENSE_SERVER_URL || "https://sportflow-lisence-server.vercel.app"
 
 // Cache for database config
 let cachedLicenseKey: string | null = null
@@ -264,6 +275,9 @@ export async function getLicenseInfo(): Promise<{
   expiresAt: string | null
   daysRemaining: number | null
   licenseType: string | null
+  licenseTypeName: string | null
+  modules: LicenseValidationResult["modules"]
+  pricing: LicenseValidationResult["pricing"]
   showWarning: boolean
   warningMessage: string | null
   limits: LicenseValidationResult["limits"]
@@ -294,6 +308,9 @@ export async function getLicenseInfo(): Promise<{
     expiresAt: license.expiresAt || null,
     daysRemaining: license.daysRemaining ?? null,
     licenseType: license.licenseType || null,
+    licenseTypeName: license.licenseTypeName || null,
+    modules: license.modules,
+    pricing: license.pricing,
     showWarning,
     warningMessage,
     limits: license.limits

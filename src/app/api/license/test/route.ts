@@ -5,7 +5,7 @@ import { authOptions } from "@/lib/auth"
 export const dynamic = "force-dynamic"
 
 // Hardkodet lisensserver URL
-const LICENSE_SERVER_URL = "https://arena-booking-lisence-server.vercel.app"
+const LICENSE_SERVER_URL = process.env.LICENSE_SERVER_URL || "https://sportflow-lisence-server.vercel.app"
 
 export async function POST(req: Request) {
   try {
