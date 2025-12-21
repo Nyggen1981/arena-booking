@@ -36,6 +36,7 @@ interface Booking {
   contactEmail: string | null
   contactPhone: string | null
   totalAmount: number | null
+  invoiceId: string | null
   preferredPaymentMethod: string | null
   resource: {
     id: string
