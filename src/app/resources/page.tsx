@@ -11,10 +11,29 @@ async function getResources() {
   try {
     return await prisma.resource.findMany({
       where: { isActive: true },
-      include: {
-        category: true,
+      select: {
+        id: true,
+        name: true,
+        description: true,
+        location: true,
+        image: true,
+        color: true,
+        minBookingMinutes: true,
+        maxBookingMinutes: true,
+        requiresApproval: true,
+        category: {
+          select: {
+            id: true,
+            name: true,
+            color: true
+          }
+        },
         parts: {
           where: { isActive: true },
+          select: {
+            id: true,
+            name: true
+          },
           orderBy: { name: "asc" }
         },
       },
@@ -23,8 +42,13 @@ async function getResources() {
         { name: "asc" }
       ]
     })
-  } catch (error) {
+  } catch (error: any) {
     console.error("Error fetching resources:", error)
+    console.error("Error details:", {
+      message: error?.message,
+      code: error?.code,
+      meta: error?.meta
+    })
     return []
   }
 }
