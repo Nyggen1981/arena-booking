@@ -170,11 +170,6 @@ export default function AdminBookingsPage() {
     history: bookings.filter(b => b.status !== "pending" && (b.status !== "approved" || new Date(b.startTime) < new Date())).length
   }), [bookings])
 
-  // Godkjenn booking direkte (brukeren har allerede valgt betalingsmetode)
-  const handleApproveClick = useCallback((bookingId: string, applyToAll: boolean = false) => {
-    handleAction(bookingId, "approve", applyToAll)
-  }, [handleAction])
-
   const handleAction = useCallback(async (bookingId: string, action: "approve" | "reject", applyToAll: boolean = false, statusNote?: string) => {
     setProcessingId(bookingId)
     const booking = bookings.find(b => b.id === bookingId)
@@ -226,6 +221,11 @@ export default function AdminBookingsPage() {
       setProcessingId(null)
     }
   }, [bookings, fetchBookings])
+
+  // Godkjenn booking direkte (brukeren har allerede valgt betalingsmetode)
+  const handleApproveClick = useCallback((bookingId: string, applyToAll: boolean = false) => {
+    handleAction(bookingId, "approve", applyToAll)
+  }, [handleAction])
 
   const handleCancel = useCallback(async (bookingId: string) => {
     setProcessingId(bookingId)
