@@ -433,10 +433,18 @@ async function migrateDatabase() {
       log(`   Funnet ${payments.length} betalinger`, 'reset')
       
       for (const payment of payments) {
+        // Håndter metadata-feltet eksplisitt for å unngå type-feil
+        const { metadata, ...paymentData } = payment
         await targetPrisma.payment.upsert({
           where: { id: payment.id },
-          update: payment,
-          create: payment,
+          update: {
+            ...paymentData,
+            metadata: metadata as any, // Konverter JsonValue til InputJsonValue
+          },
+          create: {
+            ...paymentData,
+            metadata: metadata as any, // Konverter JsonValue til InputJsonValue
+          },
         })
       }
       log(`✅ Migrert ${payments.length} betalinger`, 'green')
