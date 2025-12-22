@@ -25,6 +25,7 @@ import {
   ChevronRight,
   Key,
   Shield,
+  FileText,
 } from "lucide-react"
 import Image from "next/image"
 import { EmailTemplateEditor } from "@/components/EmailTemplateEditor"
@@ -48,6 +49,12 @@ interface Organization {
   vippsClientSecret?: string | null
   vippsSubscriptionKey?: string | null
   vippsTestMode?: boolean
+  invoiceAddress?: string | null
+  invoicePhone?: string | null
+  invoiceEmail?: string | null
+  invoiceOrgNumber?: string | null
+  invoiceBankAccount?: string | null
+  invoiceNotes?: string | null
 }
 
 export default function AdminSettingsPage() {
@@ -104,6 +111,14 @@ export default function AdminSettingsPage() {
   const [vippsSubscriptionKey, setVippsSubscriptionKey] = useState("")
   const [vippsTestMode, setVippsTestMode] = useState(true)
   const [showVippsSecret, setShowVippsSecret] = useState(false)
+
+  // Invoice template settings state
+  const [invoiceAddress, setInvoiceAddress] = useState("")
+  const [invoicePhone, setInvoicePhone] = useState("")
+  const [invoiceEmail, setInvoiceEmail] = useState("")
+  const [invoiceOrgNumber, setInvoiceOrgNumber] = useState("")
+  const [invoiceBankAccount, setInvoiceBankAccount] = useState("")
+  const [invoiceNotes, setInvoiceNotes] = useState("")
   const [licenseInfo, setLicenseInfo] = useState<{
     valid: boolean
     status: string
@@ -160,6 +175,14 @@ export default function AdminSettingsPage() {
           setVippsClientSecret(orgData.vippsClientSecret || "")
           setVippsSubscriptionKey(orgData.vippsSubscriptionKey || "")
           setVippsTestMode(orgData.vippsTestMode !== false) // Default to true
+          
+          // Load Invoice template settings
+          setInvoiceAddress(orgData.invoiceAddress || "")
+          setInvoicePhone(orgData.invoicePhone || "")
+          setInvoiceEmail(orgData.invoiceEmail || "")
+          setInvoiceOrgNumber(orgData.invoiceOrgNumber || "")
+          setInvoiceBankAccount(orgData.invoiceBankAccount || "")
+          setInvoiceNotes(orgData.invoiceNotes || "")
           
           setIsLoading(false)
           
@@ -421,6 +444,12 @@ export default function AdminSettingsPage() {
           vippsClientSecret: vippsClientSecret || null,
           vippsSubscriptionKey: vippsSubscriptionKey || null,
           vippsTestMode: vippsTestMode,
+          invoiceAddress: invoiceAddress || null,
+          invoicePhone: invoicePhone || null,
+          invoiceEmail: invoiceEmail || null,
+          invoiceOrgNumber: invoiceOrgNumber || null,
+          invoiceBankAccount: invoiceBankAccount || null,
+          invoiceNotes: invoiceNotes || null,
         }),
       })
 

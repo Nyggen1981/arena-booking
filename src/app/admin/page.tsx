@@ -14,6 +14,8 @@ import {
 } from "lucide-react"
 import { BookingManagement } from "@/components/BookingManagement"
 import { LicenseStatusCard } from "@/components/LicenseStatusCard"
+import { InvoiceManagement } from "@/components/InvoiceManagement"
+import { isPricingEnabled } from "@/lib/pricing"
 
 async function getModeratorResources(userId: string) {
   const moderatorResources = await prisma.resourceModerator.findMany({
@@ -71,6 +73,8 @@ export default async function AdminPage() {
     const stats = isAdmin 
       ? await getQuickStats(session.user.organizationId)
       : null
+
+    const pricingEnabled = isAdmin ? await isPricingEnabled() : false
 
   return (
     <div className="min-h-screen bg-slate-50 flex flex-col">
@@ -193,7 +197,15 @@ export default async function AdminPage() {
             <div className="card p-6">
               <h2 className="text-lg font-semibold text-gray-900 mb-4">Bookinger</h2>
               <BookingManagement />
-        </div>
+            </div>
+
+            {/* Invoice Management (only if pricing is enabled) */}
+            {isAdmin && pricingEnabled && (
+              <div className="card p-6 mt-6">
+                <h2 className="text-lg font-semibold text-gray-900 mb-4">Fakturaer</h2>
+                <InvoiceManagement />
+              </div>
+            )}
         </div>
       </main>
       <Footer />

@@ -54,6 +54,14 @@ model Organization {
   vippsClientSecret String?  // Vipps API client secret (encrypted)
   vippsSubscriptionKey String?  // Vipps subscription key
   vippsTestMode     Boolean  @default(true)  // Use Vipps test environment
+  
+  // Invoice template settings
+  invoiceAddress    String?  // Fakturaadresse
+  invoicePhone      String?  // Fakturatelefon
+  invoiceEmail      String?  // Faktura e-post
+  invoiceOrgNumber  String?  // Organisasjonsnummer
+  invoiceBankAccount String?  // Kontonummer for betaling
+  invoiceNotes      String?  // Standard notater på faktura
 }
 
 // Egendefinerte roller per organisasjon

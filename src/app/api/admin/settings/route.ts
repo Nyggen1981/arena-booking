@@ -39,6 +39,12 @@ export async function GET() {
           vippsClientSecret: true,
           vippsSubscriptionKey: true,
           vippsTestMode: true,
+          invoiceAddress: true,
+          invoicePhone: true,
+          invoiceEmail: true,
+          invoiceOrgNumber: true,
+          invoiceBankAccount: true,
+          invoiceNotes: true,
           createdAt: true,
           updatedAt: true,
           isActive: true,
@@ -147,6 +153,12 @@ export async function PUT(request: Request) {
         vippsClientSecret: vippsClientSecret || null,
         vippsSubscriptionKey: vippsSubscriptionKey || null,
         vippsTestMode: vippsTestMode !== undefined ? vippsTestMode : true,
+        invoiceAddress: invoiceAddress || null,
+        invoicePhone: invoicePhone || null,
+        invoiceEmail: invoiceEmail || null,
+        invoiceOrgNumber: invoiceOrgNumber || null,
+        invoiceBankAccount: invoiceBankAccount || null,
+        invoiceNotes: invoiceNotes || null,
       }
     })
 

@@ -2,6 +2,7 @@ import { prisma } from "./prisma"
 import { sendEmail } from "./email"
 import { format } from "date-fns"
 import { nb } from "date-fns/locale"
+import { generateInvoicePDF } from "./invoice-pdf"
 
 /**
  * Oppretter en faktura for en booking
@@ -107,13 +108,21 @@ export async function sendInvoiceEmail(
     include: {
       organization: {
         select: {
-          name: true
+          name: true,
+          logo: true,
+          invoiceAddress: true,
+          invoicePhone: true,
+          invoiceEmail: true,
+          invoiceOrgNumber: true,
+          invoiceBankAccount: true,
+          invoiceNotes: true,
         }
       },
       bookings: {
         include: {
           resource: true,
-          resourcePart: true
+          resourcePart: true,
+          user: true
         }
       }
     }
@@ -128,9 +137,44 @@ export async function sendInvoiceEmail(
     throw new Error("Invoice has no bookings")
   }
 
+  // Generate PDF invoice
   const resourceName = booking.resourcePart 
     ? `${booking.resource.name} → ${booking.resourcePart.name}`
     : booking.resource.name
+
+  const invoiceDate = invoice.createdAt
+  const pdfBuffer = await generateInvoicePDF({
+    invoiceNumber: invoice.invoiceNumber,
+    invoiceDate,
+    dueDate: invoice.dueDate,
+    organization: {
+      name: invoice.organization.name,
+      logo: invoice.organization.logo,
+      invoiceAddress: invoice.organization.invoiceAddress,
+      invoicePhone: invoice.organization.invoicePhone,
+      invoiceEmail: invoice.organization.invoiceEmail,
+      invoiceOrgNumber: invoice.organization.invoiceOrgNumber,
+      invoiceBankAccount: invoice.organization.invoiceBankAccount,
+      invoiceNotes: invoice.organization.invoiceNotes,
+    },
+    billing: {
+      name: invoice.billingName,
+      email: invoice.billingEmail,
+      phone: invoice.billingPhone,
+      address: invoice.billingAddress,
+    },
+    items: invoice.bookings.map(b => ({
+      description: `${b.title} - ${resourceName} (${format(new Date(b.startTime), "d. MMM yyyy HH:mm", { locale: nb })} - ${format(new Date(b.endTime), "HH:mm", { locale: nb })})`,
+      quantity: 1,
+      unitPrice: Number(b.totalAmount || 0) / (1 + Number(invoice.taxRate)),
+      total: Number(b.totalAmount || 0) / (1 + Number(invoice.taxRate)),
+    })),
+    subtotal: Number(invoice.subtotal),
+    taxRate: Number(invoice.taxRate),
+    taxAmount: Number(invoice.taxAmount),
+    totalAmount: Number(invoice.totalAmount),
+    notes: invoice.notes,
+  })
 
   const date = format(new Date(booking.startTime), "EEEE d. MMMM yyyy", { locale: nb })
   const time = `${format(new Date(booking.startTime), "HH:mm")} - ${format(new Date(booking.endTime), "HH:mm")}`
@@ -207,7 +251,14 @@ export async function sendInvoiceEmail(
   const success = await sendEmail(organizationId, {
     to: invoice.billingEmail,
     subject: `Faktura ${invoice.invoiceNumber} - ${booking.title}`,
-    html
+    html,
+    attachments: [
+      {
+        filename: `Faktura_${invoice.invoiceNumber}.pdf`,
+        content: pdfBuffer,
+        contentType: "application/pdf",
+      },
+    ],
   })
 
   if (success) {

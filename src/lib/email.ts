@@ -15,6 +15,11 @@ interface EmailOptions {
   to: string
   subject: string
   html: string
+  attachments?: Array<{
+    filename: string
+    content: Buffer
+    contentType?: string
+  }>
 }
 
 interface SMTPConfig {
@@ -110,6 +115,11 @@ export async function sendEmail(
       to: options.to,
       subject: options.subject,
       html: options.html,
+      attachments: options.attachments?.map(att => ({
+        filename: att.filename,
+        content: att.content,
+        contentType: att.contentType || "application/pdf",
+      })),
     })
     
     console.log("Email sent successfully to:", options.to, "from organization:", organizationId)
