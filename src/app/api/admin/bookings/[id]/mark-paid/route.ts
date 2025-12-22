@@ -86,7 +86,7 @@ export async function POST(
         amount: booking.totalAmount,
         currency: "NOK",
         status: "COMPLETED",
-        paymentMethod: "MANUAL",
+        paymentMethod: "OTHER",
         description: `Manuell betalingsregistrering for booking: ${booking.title}`,
         completedAt: new Date()
       }
