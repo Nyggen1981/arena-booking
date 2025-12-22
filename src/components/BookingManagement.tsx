@@ -225,6 +225,9 @@ export function BookingManagement({ initialBookings, showTabs = true }: BookingM
         setPreviewBookingId(null)
         setPreviewError(null)
       }
+      
+      // Close booking details modal
+      setSelectedBooking(null)
     } catch (error) {
       console.error("Failed to process booking:", error)
       alert(error instanceof Error ? error.message : "Noe gikk galt")
@@ -288,6 +291,8 @@ export function BookingManagement({ initialBookings, showTabs = true }: BookingM
         }
         // Refresh bookings
         await fetchBookings()
+        // Close booking details modal
+        setSelectedBooking(null)
       } else {
         const error = await response.json()
         throw new Error(error.error || "Kunne ikke sende faktura")
@@ -327,6 +332,8 @@ export function BookingManagement({ initialBookings, showTabs = true }: BookingM
         setMarkingPaidBookingId(null)
         // Refresh bookings
         await fetchBookings()
+        // Close booking details modal
+        setSelectedBooking(null)
       } else {
         const error = await response.json()
         alert(error.error || "Kunne ikke markere booking som betalt")
@@ -357,6 +364,8 @@ export function BookingManagement({ initialBookings, showTabs = true }: BookingM
 
       if (response.ok) {
         await fetchBookings()
+        // Close booking details modal
+        setSelectedBooking(null)
       }
     } catch (error) {
       console.error("Failed to reject booking:", error)
@@ -1072,7 +1081,7 @@ export function BookingManagement({ initialBookings, showTabs = true }: BookingM
                               {booking.preferredPaymentMethod === "INVOICE" && "Faktura"}
                               {booking.preferredPaymentMethod === "VIPPS" && "Vipps"}
                               {booking.preferredPaymentMethod === "CARD" && "Kort"}
-                            </span>
+                    </span>
                             {booking.preferredPaymentMethod === "INVOICE" && booking.invoice && (
                               <span className={`inline-flex items-center px-2 py-1 text-xs font-medium rounded-full ${
                                 booking.invoice.status === "PAID" 
@@ -1087,9 +1096,9 @@ export function BookingManagement({ initialBookings, showTabs = true }: BookingM
                                 {booking.invoice.status === "SENT" && "Sendt"}
                                 {booking.invoice.status === "DRAFT" && "Kladd"}
                                 {booking.invoice.status === "OVERDUE" && "Forfalt"}
-                              </span>
+                    </span>
                             )}
-                          </div>
+                  </div>
                         ) : (
                           <p className="text-xs text-gray-400">—</p>
                         )}
@@ -1109,7 +1118,7 @@ export function BookingManagement({ initialBookings, showTabs = true }: BookingM
                                 <span className="text-xs text-gray-500">
                                   {Math.round(Number(payment.amount))} kr
                                 </span>
-                              </div>
+                </div>
                             ))}
                           </div>
                         ) : booking.invoice && booking.preferredPaymentMethod === "INVOICE" ? (
@@ -1480,32 +1489,6 @@ export function BookingManagement({ initialBookings, showTabs = true }: BookingM
                           </div>
                         </div>
                       )}
-                      {selectedBooking.invoiceId && (!selectedBooking.payments || selectedBooking.payments.length === 0) && (
-                        <div className="mt-3">
-                          <p className="text-sm text-gray-600 mb-2">Faktura opprettet</p>
-                          {selectedBooking.preferredPaymentMethod === "INVOICE" && selectedBooking.status === "approved" && (
-                            <div className="flex gap-2">
-                              <button
-                                onClick={() => handleViewInvoice(selectedBooking.invoiceId!)}
-                                disabled={isLoadingPreview}
-                                className="flex-1 px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors flex items-center justify-center gap-2 disabled:opacity-50"
-                              >
-                                {isLoadingPreview && sendingInvoiceId === selectedBooking.invoiceId ? (
-                                  <>
-                                    <Loader2 className="w-4 h-4 animate-spin" />
-                                    Laster...
-                                  </>
-                                ) : (
-                                  <>
-                                    <Eye className="w-4 h-4" />
-                                    Se faktura
-                                  </>
-                                )}
-                              </button>
-                            </div>
-                          )}
-                        </div>
-                      )}
                     </div>
                   ) : (
                     <p className="text-sm text-gray-600">Gratis booking</p>
@@ -1560,26 +1543,26 @@ export function BookingManagement({ initialBookings, showTabs = true }: BookingM
               {selectedBooking.status === "approved" && 
                selectedBooking.preferredPaymentMethod === "INVOICE" && 
                selectedBooking.invoice && (
-                <div className="border-t pt-4">
-                  {selectedBooking.invoice.status === "DRAFT" && (
-                    <button
-                      onClick={() => handleViewInvoice(selectedBooking.invoiceId!)}
-                      disabled={isLoadingPreview}
-                      className="w-full px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center justify-center gap-2 disabled:opacity-50"
-                    >
-                      {isLoadingPreview ? (
-                        <>
-                          <Loader2 className="w-4 h-4 animate-spin" />
-                          Laster...
-                        </>
-                      ) : (
-                        <>
-                          <Eye className="w-4 h-4" />
-                          Se faktura
-                        </>
-                      )}
-                    </button>
-                  )}
+                <div className="border-t pt-4 space-y-2">
+                  {/* Se faktura-knapp - vises alltid når det finnes en faktura */}
+                  <button
+                    onClick={() => handleViewInvoice(selectedBooking.invoiceId!)}
+                    disabled={isLoadingPreview}
+                    className="w-full px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors flex items-center justify-center gap-2 disabled:opacity-50"
+                  >
+                    {isLoadingPreview ? (
+                      <>
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                        Laster...
+                      </>
+                    ) : (
+                      <>
+                        <Eye className="w-4 h-4" />
+                        Se faktura
+                      </>
+                    )}
+                  </button>
+                  {/* Marker som betalt-knapp - kun når faktura er sendt */}
                   {selectedBooking.invoice.status === "SENT" && (
                     <button
                       onClick={() => handleMarkAsPaid(selectedBooking.id)}
