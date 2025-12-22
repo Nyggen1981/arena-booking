@@ -87,7 +87,42 @@ export async function hasPricingRules(
   resourcePartId: string
 ): Promise<boolean> {
   const config = await getPricingConfig(resourceId, resourcePartId)
-  return config !== null && config.rules.length > 0
+  if (!config || config.rules.length === 0) {
+    return false
+  }
+  
+  // Sjekk om det faktisk er noen pris satt (ikke bare FREE modell uten faktiske priser)
+  // En regel teller som "har prisregler" hvis:
+  // 1. Den har en pris satt (pricePerHour, pricePerDay, eller fixedPrice)
+  // 2. ELLER den har member/nonMember priser satt
+  // 3. ELLER den har freeForRoles satt (gratis for spesifikke roller)
+  const hasActualPricing = config.rules.some(rule => {
+    // Hvis modellen er FREE og det ikke er noen spesifikke roller, teller det ikke som "har prisregler"
+    if (rule.model === "FREE" && rule.forRoles.length === 0) {
+      return false
+    }
+    
+    // Sjekk om det er noen faktiske priser satt
+    const hasPrice = 
+      rule.pricePerHour !== null && rule.pricePerHour !== undefined ||
+      rule.pricePerDay !== null && rule.pricePerDay !== undefined ||
+      rule.fixedPrice !== null && rule.fixedPrice !== undefined ||
+      rule.memberPricePerHour !== null && rule.memberPricePerHour !== undefined ||
+      rule.memberPricePerDay !== null && rule.memberPricePerDay !== undefined ||
+      rule.memberFixedPrice !== null && rule.memberFixedPrice !== undefined ||
+      rule.nonMemberPricePerHour !== null && rule.nonMemberPricePerHour !== undefined ||
+      rule.nonMemberPricePerDay !== null && rule.nonMemberPricePerDay !== undefined ||
+      rule.nonMemberFixedPrice !== null && rule.nonMemberFixedPrice !== undefined
+    
+    // Hvis det er gratis for spesifikke roller, teller det som "har prisregler"
+    if (rule.model === "FREE" && rule.forRoles.length > 0) {
+      return true
+    }
+    
+    return hasPrice
+  })
+  
+  return hasActualPricing
 }
 
 /**
