@@ -705,7 +705,6 @@ export default async function ResourcePage({ params }: Props) {
                           <div key={partId} className={`p-2 rounded-lg border ${isChildPart ? 'ml-4 bg-gray-50 border-gray-200' : 'bg-white border-gray-300'}`}>
                             <div className="flex items-center justify-between">
                               <div className="flex items-center gap-1">
-                                {isChildPart && <span className="text-xs text-gray-400">↳</span>}
                                 <span className={`text-sm font-medium ${isChildPart ? 'text-gray-700' : 'text-gray-900'}`}>{partName}</span>
                               </div>
                               {/* Vis pris inline */}
