@@ -172,16 +172,8 @@ export async function generateInvoicePDF(data: InvoiceData): Promise<Buffer> {
     })
   }
 
-  yPos += 15
-
-  doc.setFontSize(14)
-  doc.setTextColor(...lightGray)
-  doc.setFont("helvetica", "normal")
-  doc.text(`Fakturanummer: ${data.invoiceNumber}`, pageWidth - margin, yPos, {
-    align: "right",
-  })
-
-  yPos += 15
+  // Calculate yPos based on logo height or default
+  yPos = Math.max(margin + (logoHeight > 0 ? logoHeight + 25 : 20), margin + 35)
 
   // Invoice date and due date
   doc.setFontSize(10)
@@ -259,8 +251,10 @@ export async function generateInvoicePDF(data: InvoiceData): Promise<Buffer> {
     head: [["Beskrivelse", "Antall", "Pris", "Total"]],
     body: data.items.map((item) => {
       // Clean description - aggressively remove all & characters
-      let cleanDescription = item.description
-        // First decode valid HTML entities (before removing &)
+      let cleanDescription = item.description;
+      
+      // First decode valid HTML entities
+      cleanDescription = cleanDescription
         .replace(/&#(\d+);/g, (match, dec) => String.fromCharCode(parseInt(dec, 10)))
         .replace(/&#x([0-9a-fA-F]+);/g, (match, hex) => String.fromCharCode(parseInt(hex, 16)))
         .replace(/&amp;/g, "&")
@@ -268,26 +262,28 @@ export async function generateInvoicePDF(data: InvoiceData): Promise<Buffer> {
         .replace(/&gt;/g, ">")
         .replace(/&quot;/g, '"')
         .replace(/&#39;/g, "'")
-        .replace(/&nbsp;/g, " ")
-        // Remove pattern &letter& repeatedly until no more matches
-        let previous = ""
-        while (cleanDescription !== previous) {
-          previous = cleanDescription
-          cleanDescription = cleanDescription.replace(/&([^&])&/g, "$1")
-        }
-        // Remove any remaining HTML entities
-        cleanDescription = cleanDescription.replace(/&[#\w]+;/g, "")
-        // Remove ALL remaining & characters (including standalone ones)
-        cleanDescription = cleanDescription.replace(/&/g, "")
-        // Clean up multiple spaces and trim
-        cleanDescription = cleanDescription.replace(/\s+/g, " ").trim()
+        .replace(/&nbsp;/g, " ");
+      
+      // Remove pattern &letter& repeatedly until no more matches
+      let previous = "";
+      while (cleanDescription !== previous) {
+        previous = cleanDescription;
+        cleanDescription = cleanDescription.replace(/&([^&])&/g, "$1");
+      }
+      
+      // Remove any remaining HTML entities
+      cleanDescription = cleanDescription.replace(/&[#\w]+;/g, "");
+      // Remove ALL remaining & characters (including standalone ones)
+      cleanDescription = cleanDescription.replace(/&/g, "");
+      // Clean up multiple spaces and trim
+      cleanDescription = cleanDescription.replace(/\s+/g, " ").trim();
       
       return [
         cleanDescription,
         item.quantity.toString(),
         `${item.unitPrice.toFixed(2)} kr`,
         `${item.total.toFixed(2)} kr`,
-      ]
+      ];
     }),
     theme: "striped",
     headStyles: {

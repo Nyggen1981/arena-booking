@@ -89,9 +89,10 @@ export async function GET(
       },
       items: invoice.bookings.map((b) => {
         // Clean up title - aggressively remove all & characters
-        // The title seems to have & wrapping each character like &j&j&g&h&
-        let cleanTitle = b.title
-          // First decode valid HTML entities (before removing &)
+        let cleanTitle = b.title;
+        
+        // First decode valid HTML entities
+        cleanTitle = cleanTitle
           .replace(/&#(\d+);/g, (match, dec) => String.fromCharCode(parseInt(dec, 10)))
           .replace(/&#x([0-9a-fA-F]+);/g, (match, hex) => String.fromCharCode(parseInt(hex, 16)))
           .replace(/&amp;/g, "&")
@@ -99,32 +100,33 @@ export async function GET(
           .replace(/&gt;/g, ">")
           .replace(/&quot;/g, '"')
           .replace(/&#39;/g, "'")
-          .replace(/&nbsp;/g, " ")
-          // Remove pattern &letter& repeatedly until no more matches
-          // Use a loop to handle cases like &j&j&g&h&j&g&h&
-          let previous = ""
-          while (cleanTitle !== previous) {
-            previous = cleanTitle
-            cleanTitle = cleanTitle.replace(/&([^&])&/g, "$1")
-          }
-          // Remove any remaining HTML entities
-          cleanTitle = cleanTitle.replace(/&[#\w]+;/g, "")
-          // Remove ALL remaining & characters (including standalone ones)
-          cleanTitle = cleanTitle.replace(/&/g, "")
-          // Clean up multiple spaces and trim
-          cleanTitle = cleanTitle.replace(/\s+/g, " ").trim()
+          .replace(/&nbsp;/g, " ");
+        
+        // Remove pattern &letter& repeatedly until no more matches
+        let previous = "";
+        while (cleanTitle !== previous) {
+          previous = cleanTitle;
+          cleanTitle = cleanTitle.replace(/&([^&])&/g, "$1");
+        }
+        
+        // Remove any remaining HTML entities
+        cleanTitle = cleanTitle.replace(/&[#\w]+;/g, "");
+        // Remove ALL remaining & characters (including standalone ones)
+        cleanTitle = cleanTitle.replace(/&/g, "");
+        // Clean up multiple spaces and trim
+        cleanTitle = cleanTitle.replace(/\s+/g, " ").trim();
         
         const resourceName = b.resourcePart 
           ? `${b.resource.name} → ${b.resourcePart.name}` 
-          : b.resource.name
-        const dateTime = `${format(new Date(b.startTime), "d. MMM yyyy HH:mm", { locale: nb })} - ${format(new Date(b.endTime), "HH:mm", { locale: nb })}`
+          : b.resource.name;
+        const dateTime = `${format(new Date(b.startTime), "d. MMM yyyy HH:mm", { locale: nb })} - ${format(new Date(b.endTime), "HH:mm", { locale: nb })}`;
         
         return {
           description: `${cleanTitle} - ${resourceName} (${dateTime})`,
           quantity: 1,
           unitPrice: Number(b.totalAmount || 0) / (1 + Number(invoice.taxRate)),
           total: Number(b.totalAmount || 0) / (1 + Number(invoice.taxRate)),
-        }
+        };
       }),
       subtotal: Number(invoice.subtotal),
       taxRate: Number(invoice.taxRate),
