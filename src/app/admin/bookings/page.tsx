@@ -470,7 +470,15 @@ export default function AdminBookingsPage() {
                             {format(parseISO(booking.startTime), "HH:mm")} - {format(parseISO(booking.endTime), "HH:mm")}
                           </p>
                           <p className="text-xs text-gray-400 mt-0.5">
-                            {Math.round((new Date(booking.endTime).getTime() - new Date(booking.startTime).getTime()) / (1000 * 60 * 60) * 10) / 10} timer
+                            {(() => {
+                              const start = parseISO(booking.startTime)
+                              const end = parseISO(booking.endTime)
+                              let durationMs = end.getTime() - start.getTime()
+                              if (durationMs < 0) {
+                                durationMs += 24 * 60 * 60 * 1000
+                              }
+                              return `${Math.round((durationMs / (1000 * 60 * 60)) * 10) / 10} timer`
+                            })()}
                           </p>
                         </div>
                       </td>

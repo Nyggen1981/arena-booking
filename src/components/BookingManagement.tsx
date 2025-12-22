@@ -1035,7 +1035,15 @@ export function BookingManagement({ initialBookings, showTabs = true }: BookingM
                         {format(new Date(booking.startTime), "HH:mm")} - {format(new Date(booking.endTime), "HH:mm")}
                       </p>
                       <p className="text-xs text-gray-400 mt-0.5">
-                        {Math.round((new Date(booking.endTime).getTime() - new Date(booking.startTime).getTime()) / (1000 * 60 * 60) * 10) / 10} timer
+                        {(() => {
+                          const start = new Date(booking.startTime)
+                          const end = new Date(booking.endTime)
+                          let durationMs = end.getTime() - start.getTime()
+                          if (durationMs < 0) {
+                            durationMs += 24 * 60 * 60 * 1000
+                          }
+                          return `${Math.round((durationMs / (1000 * 60 * 60)) * 10) / 10} timer`
+                        })()}
                       </p>
                     </div>
                   </td>
