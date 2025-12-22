@@ -19,7 +19,10 @@ import {
   ChevronDown,
   ChevronRight,
   Repeat,
-  AlertCircle
+  AlertCircle,
+  Eye,
+  FileText,
+  X
 } from "lucide-react"
 import { format, isToday, isTomorrow, isThisWeek, parseISO } from "date-fns"
 import { nb } from "date-fns/locale"
@@ -40,6 +43,7 @@ interface Booking {
   totalAmount: number | null
   preferredPaymentMethod: string | null
   invoiceId: string | null
+  invoice: { id: string; status: string; invoiceNumber: string } | null
   resource: { name: string }
   resourcePart: { name: string } | null
   user: { name: string | null; email: string }
@@ -63,6 +67,14 @@ export default function AdminBookingsPage() {
   const [rejectReason, setRejectReason] = useState("")
   const [rejectApplyToAll, setRejectApplyToAll] = useState(false)
   const [pricingEnabled, setPricingEnabled] = useState(false)
+  
+  // Booking details modal state
+  const [selectedBooking, setSelectedBooking] = useState<Booking | null>(null)
+  const [invoicePreviewModalOpen, setInvoicePreviewModalOpen] = useState(false)
+  const [invoicePreviewUrl, setInvoicePreviewUrl] = useState<string | null>(null)
+  const [sendingInvoiceId, setSendingInvoiceId] = useState<string | null>(null)
+  const [isSendingInvoice, setIsSendingInvoice] = useState(false)
+  const [isLoadingPreview, setIsLoadingPreview] = useState(false)
 
   useEffect(() => {
     if (status === "unauthenticated") {
@@ -246,6 +258,90 @@ export default function AdminBookingsPage() {
       setCancelReason("")
     }
   }, [cancelReason])
+
+  // Handle viewing invoice
+  const handleViewInvoice = useCallback(async (invoiceId: string) => {
+    try {
+      setIsLoadingPreview(true)
+      
+      // Fetch PDF preview
+      const pdfResponse = await fetch(`/api/invoices/${invoiceId}/pdf`)
+      if (!pdfResponse.ok) {
+        const errorData = await pdfResponse.json().catch(() => ({}))
+        throw new Error(errorData.error || "Kunne ikke generere PDF-forhåndsvisning")
+      }
+      
+      const blob = await pdfResponse.blob()
+      const url = URL.createObjectURL(blob)
+      setInvoicePreviewUrl(url)
+      setSendingInvoiceId(invoiceId)
+      setInvoicePreviewModalOpen(true)
+    } catch (error) {
+      console.error("Error loading invoice preview:", error)
+      alert(error instanceof Error ? error.message : "Kunne ikke laste forhåndsvisning")
+    } finally {
+      setIsLoadingPreview(false)
+    }
+  }, [])
+
+  // Handle sending invoice
+  const confirmSendInvoice = useCallback(async () => {
+    if (!sendingInvoiceId) return
+    
+    setIsSendingInvoice(true)
+    try {
+      const response = await fetch(`/api/invoices/${sendingInvoiceId}/send`, {
+        method: "POST",
+      })
+      
+      if (response.ok) {
+        setInvoicePreviewModalOpen(false)
+        setInvoicePreviewUrl(null)
+        setSendingInvoiceId(null)
+        if (invoicePreviewUrl) {
+          URL.revokeObjectURL(invoicePreviewUrl)
+        }
+        // Refresh bookings
+        await fetchBookings()
+      } else {
+        const error = await response.json()
+        throw new Error(error.error || "Kunne ikke sende faktura")
+      }
+    } catch (error) {
+      console.error("Error sending invoice:", error)
+      alert(error instanceof Error ? error.message : "Kunne ikke sende faktura")
+    } finally {
+      setIsSendingInvoice(false)
+    }
+  }, [sendingInvoiceId, invoicePreviewUrl, fetchBookings])
+
+  // Handle marking as paid
+  const handleMarkAsPaid = useCallback(async (bookingId: string) => {
+    setProcessingId(bookingId)
+    try {
+      const response = await fetch(`/api/admin/bookings/${bookingId}/mark-paid`, {
+        method: "POST",
+      })
+      if (response.ok) {
+        await fetchBookings()
+        if (selectedBooking?.id === bookingId) {
+          // Refresh selected booking
+          const updatedBooking = bookings.find(b => b.id === bookingId)
+          if (updatedBooking) {
+            setSelectedBooking(updatedBooking)
+          }
+        }
+      } else {
+        const error = await response.json()
+        alert(error.error || "Kunne ikke markere som betalt")
+      }
+    } catch (error) {
+      console.error("Failed to mark as paid:", error)
+      alert("Kunne ikke markere som betalt")
+    } finally {
+      setProcessingId(null)
+    }
+  }, [bookings, selectedBooking, fetchBookings])
 
   const toggleGroup = useCallback((groupId: string) => {
     setExpandedGroups(prev => {
@@ -502,7 +598,7 @@ export default function AdminBookingsPage() {
                           <td className="px-4 py-4">
                             {booking.totalAmount && booking.totalAmount > 0 ? (
                               <p className="text-sm font-semibold text-gray-900">
-                                {Number(booking.totalAmount).toFixed(2)} kr
+                                {Math.round(Number(booking.totalAmount))} kr
                               </p>
                             ) : (
                               <p className="text-xs text-gray-400">Gratis</p>
@@ -532,10 +628,25 @@ export default function AdminBookingsPage() {
                                       {payment.status === "COMPLETED" ? "Betalt" : "Venter"}
                                     </span>
                                     <span className="text-xs text-gray-500">
-                                      {Number(payment.amount).toFixed(2)} kr
+                                      {Math.round(Number(payment.amount))} kr
                                     </span>
                                   </div>
                                 ))}
+                              </div>
+                            ) : booking.invoice && booking.preferredPaymentMethod === "INVOICE" ? (
+                              <div className="space-y-1">
+                                <span className={`inline-flex items-center px-2 py-1 text-xs font-medium rounded-full ${
+                                  booking.invoice.status === "PAID" 
+                                    ? "bg-green-100 text-green-700"
+                                    : booking.invoice.status === "SENT"
+                                    ? "bg-blue-100 text-blue-700"
+                                    : "bg-gray-100 text-gray-600"
+                                }`}>
+                                  {booking.invoice.status === "PAID" && "Betalt"}
+                                  {booking.invoice.status === "SENT" && "Faktura sendt"}
+                                  {booking.invoice.status === "DRAFT" && "Faktura kladd"}
+                                  {booking.invoice.status === "OVERDUE" && "Forfalt"}
+                                </span>
                               </div>
                             ) : booking.totalAmount && booking.totalAmount > 0 ? (
                               <span className="inline-flex items-center px-2 py-1 text-xs font-medium rounded-full bg-gray-100 text-gray-600">
@@ -595,6 +706,30 @@ export default function AdminBookingsPage() {
                                     <XCircle className="w-4 h-4" />
                                   </button>
                                 </>
+                              )}
+                            </>
+                          )}
+                          {booking.status === "approved" && booking.invoice && booking.preferredPaymentMethod === "INVOICE" && (
+                            <>
+                              {booking.invoice.status === "DRAFT" && (
+                                <button
+                                  onClick={() => setSelectedBooking(booking)}
+                                  className="px-3 py-1.5 text-xs font-medium rounded-lg bg-blue-600 text-white hover:bg-blue-700 flex items-center gap-1"
+                                  title="Se faktura"
+                                >
+                                  <Eye className="w-3 h-3" />
+                                  Se faktura
+                                </button>
+                              )}
+                              {booking.invoice.status === "SENT" && (
+                                <button
+                                  onClick={() => setSelectedBooking(booking)}
+                                  className="px-3 py-1.5 text-xs font-medium rounded-lg bg-green-600 text-white hover:bg-green-700 flex items-center gap-1"
+                                  title="Marker som betalt"
+                                >
+                                  <CheckCircle2 className="w-3 h-3" />
+                                  Betalt
+                                </button>
                               )}
                             </>
                           )}
@@ -670,7 +805,7 @@ export default function AdminBookingsPage() {
                               <td className="px-4 py-3">
                                 {childBooking.totalAmount && childBooking.totalAmount > 0 ? (
                                   <p className="text-sm font-semibold text-gray-900">
-                                    {Number(childBooking.totalAmount).toFixed(2)} kr
+                                    {Math.round(Number(childBooking.totalAmount))} kr
                                   </p>
                                 ) : (
                                   <p className="text-xs text-gray-400">Gratis</p>
@@ -702,6 +837,25 @@ export default function AdminBookingsPage() {
                                       </div>
                                     ))}
                                   </div>
+                                ) : childBooking.invoice && childBooking.preferredPaymentMethod === "INVOICE" ? (
+                                  <div className="space-y-1">
+                                    <span className={`inline-flex items-center px-2 py-1 text-xs font-medium rounded-full ${
+                                      childBooking.invoice.status === "PAID" 
+                                        ? "bg-green-100 text-green-700"
+                                        : childBooking.invoice.status === "SENT"
+                                        ? "bg-blue-100 text-blue-700"
+                                        : "bg-gray-100 text-gray-600"
+                                    }`}>
+                                      {childBooking.invoice.status === "PAID" && "Betalt"}
+                                      {childBooking.invoice.status === "SENT" && "Faktura sendt"}
+                                      {childBooking.invoice.status === "DRAFT" && "Faktura kladd"}
+                                      {childBooking.invoice.status === "OVERDUE" && "Forfalt"}
+                                    </span>
+                                  </div>
+                                ) : childBooking.totalAmount && childBooking.totalAmount > 0 ? (
+                                  <span className="inline-flex items-center px-2 py-1 text-xs font-medium rounded-full bg-gray-100 text-gray-600">
+                                    Ikke betalt
+                                  </span>
                                 ) : (
                                   <p className="text-xs text-gray-400">—</p>
                                 )}
@@ -827,6 +981,241 @@ export default function AdminBookingsPage() {
               </button>
               <button onClick={() => handleCancel(cancellingId)} disabled={processingId === cancellingId} className="flex-1 px-4 py-2 bg-red-600 text-white rounded-lg font-medium hover:bg-red-700 disabled:opacity-50">
                 {processingId === cancellingId ? <Loader2 className="w-4 h-4 animate-spin mx-auto" /> : "Ja, kanseller"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Booking details modal */}
+      {selectedBooking && (
+        <div 
+          className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
+          onClick={() => setSelectedBooking(null)}
+        >
+          <div 
+            className="bg-white rounded-xl max-w-2xl w-full shadow-2xl max-h-[90vh] overflow-y-auto"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Header */}
+            <div className="p-6 border-b border-gray-200">
+              <div className="flex items-start justify-between">
+                <div className="flex-1">
+                  <h3 className="text-2xl font-bold text-gray-900">{selectedBooking.title}</h3>
+                  <p className="text-gray-500 mt-1">
+                    {selectedBooking.resource.name}
+                    {selectedBooking.resourcePart && ` • ${selectedBooking.resourcePart.name}`}
+                  </p>
+                </div>
+                <button
+                  onClick={() => setSelectedBooking(null)}
+                  className="p-1 rounded-full hover:bg-gray-100 transition-colors"
+                >
+                  <X className="w-6 h-6 text-gray-400" />
+                </button>
+              </div>
+            </div>
+
+            {/* Content */}
+            <div className="p-6 space-y-6">
+              {/* Status */}
+              <div className="flex items-center gap-2 flex-wrap">
+                {selectedBooking.status === "pending" && (
+                  <span className="px-3 py-1 text-sm font-medium rounded-full bg-amber-100 text-amber-700">
+                    Venter på godkjenning
+                  </span>
+                )}
+                {selectedBooking.status === "approved" && (
+                  <span className="px-3 py-1 text-sm font-medium rounded-full bg-green-100 text-green-700">
+                    Godkjent
+                  </span>
+                )}
+                {selectedBooking.invoice && selectedBooking.preferredPaymentMethod === "INVOICE" && (
+                  <span className={`px-3 py-1 text-sm font-medium rounded-full ${
+                    selectedBooking.invoice.status === "PAID" 
+                      ? "bg-green-100 text-green-700"
+                      : selectedBooking.invoice.status === "SENT"
+                      ? "bg-blue-100 text-blue-700"
+                      : "bg-gray-100 text-gray-600"
+                  }`}>
+                    {selectedBooking.invoice.status === "PAID" && "Betalt"}
+                    {selectedBooking.invoice.status === "SENT" && "Faktura sendt"}
+                    {selectedBooking.invoice.status === "DRAFT" && "Faktura kladd"}
+                    {selectedBooking.invoice.status === "OVERDUE" && "Forfalt"}
+                  </span>
+                )}
+              </div>
+
+              {/* Date and time */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <h4 className="text-sm font-semibold text-gray-700 mb-2">Dato</h4>
+                  <div className="flex items-center gap-2 text-gray-600">
+                    <Calendar className="w-4 h-4 text-gray-400" />
+                    <span>{format(parseISO(selectedBooking.startTime), "EEEE d. MMMM yyyy", { locale: nb })}</span>
+                  </div>
+                </div>
+                <div>
+                  <h4 className="text-sm font-semibold text-gray-700 mb-2">Tid</h4>
+                  <div className="flex items-center gap-2 text-gray-600">
+                    <Clock className="w-4 h-4 text-gray-400" />
+                    <span>
+                      {format(parseISO(selectedBooking.startTime), "HH:mm")} - {format(parseISO(selectedBooking.endTime), "HH:mm")}
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Price and payment info */}
+              {pricingEnabled && selectedBooking.totalAmount && selectedBooking.totalAmount > 0 && (
+                <div className="border-t pt-4">
+                  <h4 className="text-sm font-semibold text-gray-700 mb-3">Pris og betaling</h4>
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm text-gray-600">Totalpris:</span>
+                      <span className="text-lg font-bold text-gray-900">
+                        {Math.round(Number(selectedBooking.totalAmount))} kr
+                      </span>
+                    </div>
+                    {selectedBooking.preferredPaymentMethod && (
+                      <div>
+                        <span className="text-sm text-gray-600">Betalingsmetode: </span>
+                        <span className="text-sm font-medium text-gray-900">
+                          {selectedBooking.preferredPaymentMethod === "INVOICE" && "Faktura"}
+                          {selectedBooking.preferredPaymentMethod === "VIPPS" && "Vipps"}
+                          {selectedBooking.preferredPaymentMethod === "CARD" && "Kort"}
+                        </span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* Action buttons */}
+              {selectedBooking.status === "approved" && 
+               selectedBooking.invoice && 
+               selectedBooking.preferredPaymentMethod === "INVOICE" && (
+                <div className="border-t pt-4">
+                  {selectedBooking.invoice.status === "DRAFT" && (
+                    <button
+                      onClick={() => handleViewInvoice(selectedBooking.invoice!.id)}
+                      disabled={isLoadingPreview}
+                      className="w-full px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center justify-center gap-2 disabled:opacity-50"
+                    >
+                      {isLoadingPreview ? (
+                        <>
+                          <Loader2 className="w-4 h-4 animate-spin" />
+                          Laster...
+                        </>
+                      ) : (
+                        <>
+                          <Eye className="w-4 h-4" />
+                          Se faktura
+                        </>
+                      )}
+                    </button>
+                  )}
+                  {selectedBooking.invoice.status === "SENT" && (
+                    <button
+                      onClick={() => handleMarkAsPaid(selectedBooking.id)}
+                      disabled={processingId === selectedBooking.id}
+                      className="w-full px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors flex items-center justify-center gap-2 disabled:opacity-50"
+                    >
+                      {processingId === selectedBooking.id ? (
+                        <>
+                          <Loader2 className="w-4 h-4 animate-spin" />
+                          Behandler...
+                        </>
+                      ) : (
+                        <>
+                          <CheckCircle2 className="w-4 h-4" />
+                          Betalt
+                        </>
+                      )}
+                    </button>
+                  )}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Invoice PDF Preview Modal */}
+      {invoicePreviewModalOpen && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[60] p-4">
+          <div className="bg-white rounded-xl max-w-4xl w-full shadow-2xl max-h-[90vh] overflow-hidden flex flex-col">
+            {/* Header */}
+            <div className="p-6 border-b border-gray-200 flex items-center justify-between">
+              <div>
+                <h3 className="text-lg font-semibold text-gray-900">Forhåndsvisning av faktura</h3>
+                <p className="text-sm text-gray-500 mt-1">Se gjennom fakturaen før den sendes</p>
+              </div>
+              <button
+                onClick={() => {
+                  setInvoicePreviewModalOpen(false)
+                  if (invoicePreviewUrl) {
+                    URL.revokeObjectURL(invoicePreviewUrl)
+                    setInvoicePreviewUrl(null)
+                  }
+                  setSendingInvoiceId(null)
+                }}
+                className="p-1 rounded-full hover:bg-gray-100 transition-colors"
+              >
+                <X className="w-6 h-6 text-gray-400" />
+              </button>
+            </div>
+
+            {/* PDF Preview */}
+            <div className="flex-1 overflow-auto p-6 bg-gray-50">
+              {isLoadingPreview ? (
+                <div className="flex items-center justify-center h-64">
+                  <Loader2 className="w-8 h-8 animate-spin text-gray-400" />
+                </div>
+              ) : invoicePreviewUrl ? (
+                <iframe
+                  src={invoicePreviewUrl}
+                  className="w-full h-full min-h-[600px] border border-gray-200 rounded-lg"
+                  title="Faktura forhåndsvisning"
+                />
+              ) : (
+                <div className="flex items-center justify-center h-64">
+                  <p className="text-gray-500">Kunne ikke laste forhåndsvisning</p>
+                </div>
+              )}
+            </div>
+
+            {/* Footer */}
+            <div className="p-6 border-t border-gray-200 flex items-center justify-end gap-3">
+              <button
+                onClick={() => {
+                  setInvoicePreviewModalOpen(false)
+                  if (invoicePreviewUrl) {
+                    URL.revokeObjectURL(invoicePreviewUrl)
+                    setInvoicePreviewUrl(null)
+                  }
+                  setSendingInvoiceId(null)
+                }}
+                className="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 font-medium hover:bg-gray-50 transition-colors"
+              >
+                Avbryt
+              </button>
+              <button
+                onClick={confirmSendInvoice}
+                disabled={isSendingInvoice || !invoicePreviewUrl}
+                className="px-4 py-2 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 disabled:opacity-50 transition-colors flex items-center gap-2"
+              >
+                {isSendingInvoice ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    Sender...
+                  </>
+                ) : (
+                  <>
+                    <Mail className="w-4 h-4" />
+                    Send faktura
+                  </>
+                )}
               </button>
             </div>
           </div>
