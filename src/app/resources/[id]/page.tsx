@@ -753,7 +753,9 @@ export default async function ResourcePage({ params }: Props) {
                     </div>
                   )}
                   
-                  {partsPricing.length === 0 && resource.parts.length > 0 && (
+                  {/* This message should not appear if filtering is working correctly,
+                      as resource.parts should only contain parts with pricing rules when pricing is enabled */}
+                  {partsPricing.length === 0 && resource.parts.length > 0 && pricingEnabled && (
                     <div className="p-4 bg-gray-50 rounded-lg border border-gray-200">
                       <p className="text-sm text-gray-600">
                         Ingen prisregler funnet for delene. Kontakt administrator for mer informasjon.
