@@ -25,7 +25,8 @@ import {
   AlertCircle,
   FileText,
   Send,
-  Eye
+  Eye,
+  ClipboardList
 } from "lucide-react"
 import Link from "next/link"
 
@@ -68,7 +69,7 @@ interface BookingManagementProps {
 export function BookingManagement({ initialBookings, showTabs = true }: BookingManagementProps) {
   const [bookings, setBookings] = useState<Booking[]>(initialBookings || [])
   const [isLoading, setIsLoading] = useState(!initialBookings)
-  const [activeTab, setActiveTab] = useState<"pending" | "approved" | "rejected" | "history">("pending")
+  const [activeTab, setActiveTab] = useState<"all" | "pending" | "approved" | "rejected" | "history">("pending")
   const [processingId, setProcessingId] = useState<string | null>(null)
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
   const [isDeleting, setIsDeleting] = useState(false)
@@ -443,7 +444,7 @@ export function BookingManagement({ initialBookings, showTabs = true }: BookingM
     }
   }
 
-  const canDelete = activeTab === "rejected" || activeTab === "history"
+  const canDelete = activeTab === "rejected" || activeTab === "history" || activeTab === "all"
 
   const handleSort = (column: string) => {
     if (sortColumn === column) {
@@ -508,7 +509,9 @@ export function BookingManagement({ initialBookings, showTabs = true }: BookingM
     const isPast = new Date(b.endTime) < now
     
     // Tab filtering
-    if (activeTab === "pending") {
+    if (activeTab === "all") {
+      // Show all bookings
+    } else if (activeTab === "pending") {
       if (b.status !== "pending" || isPast) return false
     } else if (activeTab === "approved") {
       if (b.status !== "approved" || isPast) return false
@@ -612,6 +615,7 @@ export function BookingManagement({ initialBookings, showTabs = true }: BookingM
     return new Date(a.startTime).getTime() - new Date(b.startTime).getTime()
   })
 
+  const allCount = bookings.length
   const pendingCount = bookings.filter(b => b.status === "pending" && new Date(b.endTime) >= now).length
   const approvedCount = bookings.filter(b => b.status === "approved" && new Date(b.endTime) >= now).length
   const rejectedCount = bookings.filter(b => (b.status === "rejected" || b.status === "cancelled") && new Date(b.endTime) >= now).length
@@ -630,6 +634,22 @@ export function BookingManagement({ initialBookings, showTabs = true }: BookingM
       {/* Tabs */}
       {showTabs && (
         <div className="flex gap-2 mb-6 overflow-x-auto pb-1 scrollbar-hide">
+          <button
+            onClick={() => setActiveTab("all")}
+            className={`px-3 sm:px-4 py-2 rounded-lg font-medium transition-colors flex items-center gap-1.5 sm:gap-2 whitespace-nowrap text-sm sm:text-base flex-shrink-0 ${
+              activeTab === "all"
+                ? "bg-blue-100 text-blue-700"
+                : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+            }`}
+          >
+            <ClipboardList className="w-4 h-4 flex-shrink-0" />
+            Alle
+            {allCount > 0 && (
+              <span className="bg-blue-500 text-white text-xs px-2 py-0.5 rounded-full">
+                {allCount}
+              </span>
+            )}
+          </button>
           <button
             onClick={() => setActiveTab("pending")}
             className={`px-3 sm:px-4 py-2 rounded-lg font-medium transition-colors flex items-center gap-1.5 sm:gap-2 whitespace-nowrap text-sm sm:text-base flex-shrink-0 ${
@@ -888,12 +908,14 @@ export function BookingManagement({ initialBookings, showTabs = true }: BookingM
       {filteredBookings.length === 0 ? (
         <div className="card p-8 text-center">
           <div className="w-16 h-16 rounded-full bg-gray-100 flex items-center justify-center mx-auto mb-4">
+            {activeTab === "all" && <ClipboardList className="w-8 h-8 text-gray-400" />}
             {activeTab === "pending" && <Clock className="w-8 h-8 text-gray-400" />}
             {activeTab === "approved" && <CheckCircle2 className="w-8 h-8 text-gray-400" />}
             {activeTab === "rejected" && <XCircle className="w-8 h-8 text-gray-400" />}
             {activeTab === "history" && <History className="w-8 h-8 text-gray-400" />}
           </div>
           <p className="text-gray-500">
+            {activeTab === "all" && "Ingen bookinger"}
             {activeTab === "pending" && "Ingen ventende bookinger"}
             {activeTab === "approved" && "Ingen kommende godkjente bookinger"}
             {activeTab === "rejected" && "Ingen avslåtte bookinger"}
