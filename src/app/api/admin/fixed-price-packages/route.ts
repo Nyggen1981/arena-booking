@@ -56,7 +56,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Check if pricing module is enabled
-    const pricingEnabled = await isPricingEnabled(session.user.organizationId)
+    const pricingEnabled = await isPricingEnabled()
     if (!pricingEnabled) {
       return NextResponse.json(
         { error: "Pricing module is not enabled" },

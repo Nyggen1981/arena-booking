@@ -13,7 +13,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Check if pricing is enabled
-    const pricingEnabled = await isPricingEnabled(session.user.organizationId)
+    const pricingEnabled = await isPricingEnabled()
     if (!pricingEnabled) {
       return NextResponse.json([])
     }
