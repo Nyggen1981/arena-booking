@@ -48,7 +48,14 @@ export function InvoiceManagement() {
       const response = await fetch(`/api/invoices?status=${filter === "all" ? "" : filter}`)
       if (response.ok) {
         const data = await response.json()
-        setInvoices(data.invoices || [])
+        // Convert Decimal to number for totalAmount
+        const invoices = (data.invoices || []).map((inv: any) => ({
+          ...inv,
+          totalAmount: typeof inv.totalAmount === 'object' && inv.totalAmount !== null
+            ? Number(inv.totalAmount)
+            : Number(inv.totalAmount || 0)
+        }))
+        setInvoices(invoices)
       }
     } catch (error) {
       console.error("Error fetching invoices:", error)
