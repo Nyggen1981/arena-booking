@@ -58,8 +58,9 @@ export async function generateInvoicePDF(data: InvoiceData): Promise<Buffer> {
 
   // Header with logo
   let yPos = margin
+  let logoHeight = 0
 
-  // Logo (if available) - maintain aspect ratio
+  // Logo (if available) - maintain aspect ratio, place on right side
   if (data.organization.logo) {
     try {
       // For base64 images
@@ -108,7 +109,7 @@ export async function generateInvoicePDF(data: InvoiceData): Promise<Buffer> {
         const aspectRatio = width / height
         
         let logoWidth = maxWidth
-        let logoHeight = maxWidth / aspectRatio
+        logoHeight = maxWidth / aspectRatio
         
         // If height exceeds max, scale down
         if (logoHeight > maxHeight) {
@@ -116,7 +117,8 @@ export async function generateInvoicePDF(data: InvoiceData): Promise<Buffer> {
           logoWidth = maxHeight * aspectRatio
         }
         
-        doc.addImage(imgData, format, margin, yPos, logoWidth, logoHeight, undefined, "FAST")
+        // Place logo on the right side, aligned with top
+        doc.addImage(imgData, format, pageWidth - margin - logoWidth, yPos, logoWidth, logoHeight, undefined, "FAST")
       } else {
         // For URL images - would need to fetch and convert to base64
         // For now, skip if it's a URL
@@ -126,8 +128,8 @@ export async function generateInvoicePDF(data: InvoiceData): Promise<Buffer> {
     }
   }
 
-  // Organization name - adjust position based on whether logo is present
-  const orgNameY = data.organization.logo ? yPos + 8 : yPos + 10
+  // Organization name - on right side, below logo if present
+  const orgNameY = data.organization.logo ? yPos + logoHeight + 5 : yPos + 10
   doc.setFontSize(20)
   doc.setTextColor(...primaryColor)
   doc.setFont("helvetica", "bold")
@@ -135,10 +137,8 @@ export async function generateInvoicePDF(data: InvoiceData): Promise<Buffer> {
     align: "right",
   })
 
-  // Adjust yPos based on whether logo is present
-  yPos = data.organization.logo ? yPos + 20 : yPos + 25
-
-  // Invoice title and number
+  // Invoice title and number - on left side
+  yPos = margin + 5
   doc.setFontSize(24)
   doc.setTextColor(...darkGray)
   doc.setFont("helvetica", "bold")
@@ -228,16 +228,24 @@ export async function generateInvoicePDF(data: InvoiceData): Promise<Buffer> {
     startY: yPos,
     head: [["Beskrivelse", "Antall", "Pris", "Total"]],
     body: data.items.map((item) => {
-      // Clean description - remove any HTML entities and special characters that might cause issues
-      const cleanDescription = item.description
+      // Clean description - remove all & characters that are not part of valid HTML entities
+      // First decode valid HTML entities, then remove all & characters
+      let cleanDescription = item.description
+        // Decode numeric entities like &#106; (j), &#103; (g), etc.
+        .replace(/&#(\d+);/g, (match, dec) => String.fromCharCode(parseInt(dec, 10)))
+        // Decode hex entities like &#x6A; (j)
+        .replace(/&#x([0-9a-fA-F]+);/g, (match, hex) => String.fromCharCode(parseInt(hex, 16)))
+        // Then decode named entities
         .replace(/&amp;/g, "&")
         .replace(/&lt;/g, "<")
         .replace(/&gt;/g, ">")
         .replace(/&quot;/g, '"')
         .replace(/&#39;/g, "'")
         .replace(/&nbsp;/g, " ")
-        .replace(/&[#\w]+;/g, "") // Remove any remaining HTML entities
-        .replace(/&/g, "") // Remove any standalone & characters
+        // Remove any remaining HTML entities
+        .replace(/&[#\w]+;/g, "")
+        // Remove ALL standalone & characters (they seem to be encoding artifacts)
+        .replace(/&/g, "")
       
       return [
         cleanDescription,

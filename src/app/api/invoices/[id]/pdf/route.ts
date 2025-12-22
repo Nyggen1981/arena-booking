@@ -88,8 +88,8 @@ export async function GET(
         address: invoice.billingAddress,
       },
       items: invoice.bookings.map((b) => {
-        // Clean up title - decode HTML entities properly
-        // Decode numeric entities like &#106; (j), &#103; (g), etc. FIRST
+        // Clean up title - remove all & characters that are not part of valid HTML entities
+        // First, decode any valid HTML entities
         let cleanTitle = b.title
           // Decode numeric entities like &#106; (j), &#103; (g), etc.
           .replace(/&#(\d+);/g, (match, dec) => String.fromCharCode(parseInt(dec, 10)))
@@ -104,8 +104,8 @@ export async function GET(
           .replace(/&nbsp;/g, " ")
           // Remove any remaining HTML entities
           .replace(/&[#\w]+;/g, "")
-          // Remove standalone & characters that might be leftover
-          .replace(/&(?![#\w])/g, "")
+          // Remove ALL standalone & characters (they seem to be encoding artifacts)
+          .replace(/&/g, "")
         
         const resourceName = b.resourcePart 
           ? `${b.resource.name} → ${b.resourcePart.name}` 
