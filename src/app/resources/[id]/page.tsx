@@ -178,6 +178,15 @@ export default async function ResourcePage({ params }: Props) {
   const pricingEnabled = await isPricingEnabled()
   const pricingConfig = pricingEnabled ? await getPricingConfig(id, null) : null
   
+  // Debug logging for å se hva som skjer
+  console.log("[Resource Page] Pricing status:", {
+    pricingEnabled,
+    visPrislogikk: resource.visPrislogikk,
+    visPrisInfo: resource.visPrisInfo,
+    hasPricingConfig: !!pricingConfig,
+    rulesCount: pricingConfig?.rules?.length || 0
+  })
+  
   // Finn relevant prisregel for den innloggede brukeren (kun hvis allowWholeBooking er true)
   let relevantRule: { rule: any; reason?: string } | null = null
   let customRoles: Array<{ id: string; name: string }> = []
