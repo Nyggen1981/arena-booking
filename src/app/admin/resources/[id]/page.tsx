@@ -100,6 +100,7 @@ export default function EditResourcePage({ params }: Props) {
   const [minBookingMinutes, setMinBookingMinutes] = useState("60")
   const [maxBookingMinutes, setMaxBookingMinutes] = useState("240")
   const [minBookingHours, setMinBookingHours] = useState<string>("")
+  const [limitMinBookingHours, setLimitMinBookingHours] = useState(false)
   const [requiresApproval, setRequiresApproval] = useState(true)
   const [limitAdvanceBooking, setLimitAdvanceBooking] = useState(true)
   const [advanceBookingDays, setAdvanceBookingDays] = useState("30")
@@ -180,6 +181,7 @@ export default function EditResourcePage({ params }: Props) {
       setMinBookingMinutes(String(resource.minBookingMinutes || 60))
       setMaxBookingMinutes(String(resource.maxBookingMinutes || 240))
       setMinBookingHours(resource.minBookingHours ? String(resource.minBookingHours) : "")
+      setLimitMinBookingHours(!!resource.minBookingHours && Number(resource.minBookingHours) > 0)
       setRequiresApproval(resource.requiresApproval ?? true)
       setLimitAdvanceBooking(resource.advanceBookingDays !== null)
       setAdvanceBookingDays(String(resource.advanceBookingDays || 30))
@@ -732,26 +734,40 @@ export default function EditResourcePage({ params }: Props) {
                 <h2 className="text-lg font-semibold text-gray-900">Booking-innstillinger</h2>
               </div>
               
-              {/* Varighet */}
               {/* Minimum antall timer (uavhengig av lisens) */}
               <div className="space-y-3 p-4 bg-gray-50 rounded-lg">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                <div className="flex items-center gap-3">
+                  <input
+                    type="checkbox"
+                    id="limitMinBookingHours"
+                    checked={limitMinBookingHours}
+                    onChange={(e) => {
+                      setLimitMinBookingHours(e.target.checked)
+                      if (!e.target.checked) setMinBookingHours("")
+                    }}
+                    className="w-5 h-5 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                  />
+                  <label htmlFor="limitMinBookingHours" className="text-sm font-medium text-gray-700">
                     Minimum antall timer en fasilitet kan bookes
                   </label>
-                  <input
-                    type="number"
-                    value={minBookingHours}
-                    onChange={(e) => setMinBookingHours(e.target.value)}
-                    className="input"
-                    min="0"
-                    step="0.5"
-                    placeholder="F.eks. 2 (tom = ingen minimum)"
-                  />
-                  <p className="text-xs text-gray-500 mt-1">
-                    Hvis satt, må bookinger være minst dette antallet timer. La stå tomt for ingen minimum.
-                  </p>
                 </div>
+                
+                {limitMinBookingHours && (
+                  <div className="ml-8 mt-3">
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Antall timer
+                    </label>
+                    <input
+                      type="number"
+                      value={minBookingHours}
+                      onChange={(e) => setMinBookingHours(e.target.value)}
+                      className="input max-w-[200px]"
+                      min="0.5"
+                      step="0.5"
+                      placeholder="F.eks. 2"
+                    />
+                  </div>
+                )}
               </div>
 
               <div className="space-y-3 p-4 bg-gray-50 rounded-lg">
