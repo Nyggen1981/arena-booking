@@ -129,34 +129,50 @@ export async function generateInvoicePDF(data: InvoiceData): Promise<Buffer> {
     }
   }
 
-  // Invoice title and number - on left side, start from top
+  // Invoice title - on left side, start from top
   yPos = margin
   doc.setFontSize(24)
   doc.setTextColor(...darkGray)
   doc.setFont("helvetica", "bold")
   doc.text("FAKTURA", margin, yPos)
   
-  // Invoice number - on right side, aligned with FAKTURA title
-  doc.setFontSize(14)
-  doc.setTextColor(...lightGray)
-  doc.setFont("helvetica", "normal")
-  doc.text(`Fakturanummer: ${data.invoiceNumber}`, pageWidth - margin, yPos, {
-    align: "right",
-  })
-
-  yPos += 15
-
-  // Organization name - on right side, below invoice number (or at top if no logo)
-  if (data.organization.logo) {
-    // If logo exists, place org name below logo
-    const orgNameY = margin + logoHeight + 5
+  // Invoice number - on right side, but BELOW logo if logo exists
+  if (data.organization.logo && logoHeight > 0) {
+    // If logo exists, place invoice number below logo
+    const invoiceNumberY = margin + logoHeight + 5
+    doc.setFontSize(14)
+    doc.setTextColor(...lightGray)
+    doc.setFont("helvetica", "normal")
+    doc.text(`Fakturanummer: ${data.invoiceNumber}`, pageWidth - margin, invoiceNumberY, {
+      align: "right",
+    })
+    
+    // Organization name below invoice number
     doc.setFontSize(20)
     doc.setTextColor(...primaryColor)
     doc.setFont("helvetica", "bold")
-    doc.text(data.organization.name, pageWidth - margin, orgNameY, {
+    doc.text(data.organization.name, pageWidth - margin, invoiceNumberY + 10, {
       align: "right",
     })
   } else {
+    // If no logo, place invoice number at top right
+    doc.setFontSize(14)
+    doc.setTextColor(...lightGray)
+    doc.setFont("helvetica", "normal")
+    doc.text(`Fakturanummer: ${data.invoiceNumber}`, pageWidth - margin, yPos, {
+      align: "right",
+    })
+    
+    // Organization name below invoice number
+    doc.setFontSize(20)
+    doc.setTextColor(...primaryColor)
+    doc.setFont("helvetica", "bold")
+    doc.text(data.organization.name, pageWidth - margin, yPos + 10, {
+      align: "right",
+    })
+  }
+
+  yPos += 15 else {
     // If no logo, place org name at top right
     doc.setFontSize(20)
     doc.setTextColor(...primaryColor)
@@ -250,9 +266,9 @@ export async function generateInvoicePDF(data: InvoiceData): Promise<Buffer> {
     startY: yPos,
     head: [["Beskrivelse", "Antall", "Pris", "Total"]],
     body: data.items.map((item) => {
-      // Clean description - remove & characters that wrap individual letters
+      // Clean description - aggressively remove all & characters
       let cleanDescription = item.description
-        // First decode valid HTML entities
+        // First decode valid HTML entities (before removing &)
         .replace(/&#(\d+);/g, (match, dec) => String.fromCharCode(parseInt(dec, 10)))
         .replace(/&#x([0-9a-fA-F]+);/g, (match, hex) => String.fromCharCode(parseInt(hex, 16)))
         .replace(/&amp;/g, "&")
@@ -261,15 +277,18 @@ export async function generateInvoicePDF(data: InvoiceData): Promise<Buffer> {
         .replace(/&quot;/g, '"')
         .replace(/&#39;/g, "'")
         .replace(/&nbsp;/g, " ")
-        // Remove pattern &letter& (where letter is any single character)
-        .replace(/&([^&])&/g, "$1")
+        // Remove pattern &letter& repeatedly until no more matches
+        let previous = ""
+        while (cleanDescription !== previous) {
+          previous = cleanDescription
+          cleanDescription = cleanDescription.replace(/&([^&])&/g, "$1")
+        }
         // Remove any remaining HTML entities
-        .replace(/&[#\w]+;/g, "")
-        // Remove ALL remaining & characters
-        .replace(/&/g, "")
-        // Clean up multiple spaces
-        .replace(/\s+/g, " ")
-        .trim()
+        cleanDescription = cleanDescription.replace(/&[#\w]+;/g, "")
+        // Remove ALL remaining & characters (including standalone ones)
+        cleanDescription = cleanDescription.replace(/&/g, "")
+        // Clean up multiple spaces and trim
+        cleanDescription = cleanDescription.replace(/\s+/g, " ").trim()
       
       return [
         cleanDescription,

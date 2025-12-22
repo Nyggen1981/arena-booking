@@ -88,11 +88,10 @@ export async function GET(
         address: invoice.billingAddress,
       },
       items: invoice.bookings.map((b) => {
-        // Clean up title - remove & characters that wrap individual letters
-        // Pattern: &letter& should become just "letter"
-        // Also handle cases like &j&j&g&h&j&g&h&
+        // Clean up title - aggressively remove all & characters
+        // The title seems to have & wrapping each character like &j&j&g&h&
         let cleanTitle = b.title
-          // First decode valid HTML entities
+          // First decode valid HTML entities (before removing &)
           .replace(/&#(\d+);/g, (match, dec) => String.fromCharCode(parseInt(dec, 10)))
           .replace(/&#x([0-9a-fA-F]+);/g, (match, hex) => String.fromCharCode(parseInt(hex, 16)))
           .replace(/&amp;/g, "&")
@@ -101,15 +100,19 @@ export async function GET(
           .replace(/&quot;/g, '"')
           .replace(/&#39;/g, "'")
           .replace(/&nbsp;/g, " ")
-          // Remove pattern &letter& (where letter is any single character)
-          .replace(/&([^&])&/g, "$1")
+          // Remove pattern &letter& repeatedly until no more matches
+          // Use a loop to handle cases like &j&j&g&h&j&g&h&
+          let previous = ""
+          while (cleanTitle !== previous) {
+            previous = cleanTitle
+            cleanTitle = cleanTitle.replace(/&([^&])&/g, "$1")
+          }
           // Remove any remaining HTML entities
-          .replace(/&[#\w]+;/g, "")
-          // Remove ALL remaining & characters
-          .replace(/&/g, "")
-          // Clean up multiple spaces
-          .replace(/\s+/g, " ")
-          .trim()
+          cleanTitle = cleanTitle.replace(/&[#\w]+;/g, "")
+          // Remove ALL remaining & characters (including standalone ones)
+          cleanTitle = cleanTitle.replace(/&/g, "")
+          // Clean up multiple spaces and trim
+          cleanTitle = cleanTitle.replace(/\s+/g, " ").trim()
         
         const resourceName = b.resourcePart 
           ? `${b.resource.name} → ${b.resourcePart.name}` 
