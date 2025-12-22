@@ -1,5 +1,5 @@
 import jsPDF from "jspdf"
-import "jspdf-autotable"
+import autoTable from "jspdf-autotable"
 import { format } from "date-fns"
 import { nb } from "date-fns/locale"
 
@@ -171,7 +171,7 @@ export async function generateInvoicePDF(data: InvoiceData): Promise<Buffer> {
   // Items table
   yPos = Math.max(yPos, margin + 80) + 15
 
-  ;(doc as any).autoTable({
+  autoTable(doc, {
     startY: yPos,
     head: [["Beskrivelse", "Antall", "Pris", "Total"]],
     body: data.items.map((item) => [
@@ -200,6 +200,7 @@ export async function generateInvoicePDF(data: InvoiceData): Promise<Buffer> {
   })
 
   // Get final Y position after table
+  // autoTable stores the final Y position in doc.lastAutoTable
   const finalY = (doc as any).lastAutoTable?.finalY || yPos + 50
 
   // Totals
