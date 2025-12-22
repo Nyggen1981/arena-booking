@@ -37,6 +37,34 @@ interface InvoiceData {
 }
 
 /**
+ * Renser tekst for HTML-entities og uønskede tegn
+ */
+function cleanText(text: string): string {
+  if (!text) return "";
+  
+  let clean = text;
+  
+  // Decode HTML entities
+  clean = clean
+    .replace(/&#(\d+);/g, (_, dec) => String.fromCharCode(parseInt(dec, 10)))
+    .replace(/&#x([0-9a-fA-F]+);/g, (_, hex) => String.fromCharCode(parseInt(hex, 16)))
+    .replace(/&amp;/g, "&")
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">")
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'")
+    .replace(/&nbsp;/g, " ");
+  
+  // Remove ALL & characters - they seem to be corrupting the text
+  clean = clean.replace(/&/g, "");
+  
+  // Clean up whitespace
+  clean = clean.replace(/\s+/g, " ").trim();
+  
+  return clean;
+}
+
+/**
  * Genererer en PDF-faktura
  */
 export async function generateInvoicePDF(data: InvoiceData): Promise<Buffer> {
@@ -51,310 +79,245 @@ export async function generateInvoicePDF(data: InvoiceData): Promise<Buffer> {
   const margin = 20
   const contentWidth = pageWidth - 2 * margin
 
-  // Colors - defined as tuples for TypeScript spread operator
-  const primaryColor: [number, number, number] = [37, 99, 235] // #2563eb
+  // Colors
+  const primaryColor: [number, number, number] = [37, 99, 235]
   const darkGray: [number, number, number] = [31, 41, 55]
   const lightGray: [number, number, number] = [107, 114, 128]
+  const bgGray: [number, number, number] = [249, 250, 251]
 
-  // Header with logo
   let yPos = margin
-  let logoHeight = 0
 
-  // Logo (if available) - maintain aspect ratio, place on right side
-  if (data.organization.logo) {
+  // === HEADER SECTION ===
+  
+  // Title "FAKTURA" on left
+  doc.setFontSize(28)
+  doc.setTextColor(...primaryColor)
+  doc.setFont("helvetica", "bold")
+  doc.text("FAKTURA", margin, yPos + 8)
+
+  // Logo on right (if available)
+  let logoEndY = yPos
+  if (data.organization.logo && data.organization.logo.startsWith("data:image")) {
     try {
-      // For base64 images
-      if (data.organization.logo.startsWith("data:image")) {
-        const imgData = data.organization.logo
-        // Extract image format from data URL
-        const format = imgData.includes("image/png") ? "PNG" : 
-                      imgData.includes("image/jpeg") || imgData.includes("image/jpg") ? "JPEG" : "PNG"
-        
-        // Get image dimensions from base64 data
-        // Extract base64 string (remove data:image/...;base64, prefix)
-        const base64Data = imgData.split(",")[1]
-        const buffer = Buffer.from(base64Data, "base64")
-        
-        // For PNG: read dimensions from IHDR chunk
-        // For JPEG: read dimensions from SOF marker
-        let width = 0
-        let height = 0
-        
-        if (format === "PNG") {
-          // PNG: width and height are at bytes 16-23 in IHDR chunk
-          width = buffer.readUInt32BE(16)
-          height = buffer.readUInt32BE(20)
-        } else if (format === "JPEG") {
-          // JPEG: find SOF marker (0xFFC0, 0xFFC1, or 0xFFC2) and read dimensions
-          let i = 0
-          while (i < buffer.length - 1) {
-            if (buffer[i] === 0xFF && (buffer[i + 1] === 0xC0 || buffer[i + 1] === 0xC1 || buffer[i + 1] === 0xC2)) {
-              height = buffer.readUInt16BE(i + 5)
-              width = buffer.readUInt16BE(i + 7)
-              break
-            }
-            i++
-          }
-        }
-        
-        // If we couldn't read dimensions, use default aspect ratio
-        if (width === 0 || height === 0) {
-          width = 200
-          height = 100
-        }
-        
-        // Calculate dimensions maintaining aspect ratio
-        const maxWidth = 30 // mm
-        const maxHeight = 20 // mm
-        const aspectRatio = width / height
-        
-        let logoWidth = maxWidth
-        logoHeight = maxWidth / aspectRatio
-        
-        // If height exceeds max, scale down
-        if (logoHeight > maxHeight) {
-          logoHeight = maxHeight
-          logoWidth = maxHeight * aspectRatio
-        }
-        
-        // Place logo on the right side, at the top
-        const logoX = pageWidth - margin - logoWidth
-        doc.addImage(imgData, format, logoX, yPos, logoWidth, logoHeight, undefined, "FAST")
-      } else {
-        // For URL images - would need to fetch and convert to base64
-        // For now, skip if it's a URL
-      }
+      const imgData = data.organization.logo
+      const imgFormat = imgData.includes("image/png") ? "PNG" : "JPEG"
+      
+      // Fixed logo size
+      const logoWidth = 25
+      const logoHeight = 25
+      const logoX = pageWidth - margin - logoWidth
+      
+      doc.addImage(imgData, imgFormat, logoX, yPos, logoWidth, logoHeight, undefined, "FAST")
+      logoEndY = yPos + logoHeight
     } catch (error) {
-      console.error("Error adding logo to PDF:", error)
+      console.error("Error adding logo:", error)
     }
   }
 
-  // Invoice title - on left side, start from top
-  yPos = margin
-  doc.setFontSize(24)
+  // Organization name below logo
+  yPos = Math.max(yPos + 15, logoEndY + 5)
+  doc.setFontSize(12)
   doc.setTextColor(...darkGray)
   doc.setFont("helvetica", "bold")
-  doc.text("FAKTURA", margin, yPos)
+  doc.text(data.organization.name, pageWidth - margin, yPos, { align: "right" })
+
+  // === INVOICE INFO BAR ===
+  yPos += 15
   
-  // Invoice number - on right side, but BELOW logo if logo exists
-  if (data.organization.logo && logoHeight > 0) {
-    // If logo exists, place invoice number below logo
-    const invoiceNumberY = margin + logoHeight + 5
-    doc.setFontSize(14)
-    doc.setTextColor(...lightGray)
-    doc.setFont("helvetica", "normal")
-    doc.text(`Fakturanummer: ${data.invoiceNumber}`, pageWidth - margin, invoiceNumberY, {
-      align: "right",
-    })
-    
-    // Organization name below invoice number
-    doc.setFontSize(20)
-    doc.setTextColor(...primaryColor)
-    doc.setFont("helvetica", "bold")
-    doc.text(data.organization.name, pageWidth - margin, invoiceNumberY + 10, {
-      align: "right",
-    })
-  } else {
-    // If no logo, place invoice number at top right
-    doc.setFontSize(14)
-    doc.setTextColor(...lightGray)
-    doc.setFont("helvetica", "normal")
-    doc.text(`Fakturanummer: ${data.invoiceNumber}`, pageWidth - margin, yPos, {
-      align: "right",
-    })
-    
-    // Organization name below invoice number
-    doc.setFontSize(20)
-    doc.setTextColor(...primaryColor)
-    doc.setFont("helvetica", "bold")
-    doc.text(data.organization.name, pageWidth - margin, yPos + 10, {
-      align: "right",
-    })
-  }
-
-  // Calculate yPos based on logo height or default
-  yPos = Math.max(margin + (logoHeight > 0 ? logoHeight + 25 : 20), margin + 35)
-
-  // Invoice date and due date
+  // Light gray background bar
+  doc.setFillColor(...bgGray)
+  doc.rect(margin, yPos - 5, contentWidth, 20, "F")
+  
   doc.setFontSize(10)
-  doc.setTextColor(...lightGray)
-  const invoiceDateStr = format(data.invoiceDate, "d. MMMM yyyy", { locale: nb })
-  const dueDateStr = format(data.dueDate, "d. MMMM yyyy", { locale: nb })
-  doc.text(`Fakturadato: ${invoiceDateStr}`, margin, yPos)
-  doc.text(`Forfallsdato: ${dueDateStr}`, pageWidth - margin, yPos, {
-    align: "right",
-  })
+  doc.setTextColor(...darkGray)
+  doc.setFont("helvetica", "normal")
+  
+  const invoiceDateStr = format(data.invoiceDate, "d. MMM yyyy", { locale: nb })
+  const dueDateStr = format(data.dueDate, "d. MMM yyyy", { locale: nb })
+  
+  // Left: Invoice number
+  doc.setFont("helvetica", "bold")
+  doc.text("Fakturanr:", margin + 5, yPos + 3)
+  doc.setFont("helvetica", "normal")
+  doc.text(data.invoiceNumber, margin + 28, yPos + 3)
+  
+  // Center: Invoice date
+  doc.setFont("helvetica", "bold")
+  doc.text("Dato:", pageWidth / 2 - 20, yPos + 3)
+  doc.setFont("helvetica", "normal")
+  doc.text(invoiceDateStr, pageWidth / 2 + 2, yPos + 3)
+  
+  // Right: Due date
+  doc.setFont("helvetica", "bold")
+  doc.text("Forfall:", pageWidth - margin - 55, yPos + 3)
+  doc.setFont("helvetica", "normal")
+  doc.text(dueDateStr, pageWidth - margin - 32, yPos + 3)
 
-  yPos += 20
-
-  // Billing information (two columns)
+  // === BILLING INFO ===
+  yPos += 30
+  
   const col1X = margin
   const col2X = pageWidth / 2 + 10
 
   // Left column - Bill to
   doc.setFontSize(11)
-  doc.setTextColor(...darkGray)
+  doc.setTextColor(...primaryColor)
   doc.setFont("helvetica", "bold")
-  doc.text("Fakturert til:", col1X, yPos)
+  doc.text("Faktureres til", col1X, yPos)
+  
+  // Underline
+  doc.setDrawColor(...primaryColor)
+  doc.setLineWidth(0.5)
+  doc.line(col1X, yPos + 2, col1X + 35, yPos + 2)
 
-  yPos += 7
+  yPos += 10
   doc.setFontSize(10)
   doc.setTextColor(...darkGray)
   doc.setFont("helvetica", "normal")
+  
   doc.text(data.billing.name, col1X, yPos)
   yPos += 5
-  if (data.billing.address) {
-    doc.text(data.billing.address, col1X, yPos)
-    yPos += 5
-  }
   doc.text(data.billing.email, col1X, yPos)
-  yPos += 5
   if (data.billing.phone) {
-    doc.text(data.billing.phone, col1X, yPos)
     yPos += 5
+    doc.text(data.billing.phone, col1X, yPos)
+  }
+  if (data.billing.address) {
+    yPos += 5
+    doc.text(data.billing.address, col1X, yPos)
   }
 
-  // Right column - From
-  yPos = margin + 50
+  // Right column - From (reset yPos for parallel column)
+  let fromY = yPos - (data.billing.phone ? 15 : 10) - (data.billing.address ? 5 : 0)
+  
   doc.setFontSize(11)
-  doc.setTextColor(...darkGray)
+  doc.setTextColor(...primaryColor)
   doc.setFont("helvetica", "bold")
-  doc.text("Fra:", col2X, yPos)
+  doc.text("Fra", col2X, fromY - 10)
+  doc.line(col2X, fromY - 8, col2X + 15, fromY - 8)
 
-  yPos += 7
   doc.setFontSize(10)
   doc.setTextColor(...darkGray)
   doc.setFont("helvetica", "normal")
-  doc.text(data.organization.name, col2X, yPos)
-  yPos += 5
+  
+  doc.text(data.organization.name, col2X, fromY)
+  fromY += 5
   if (data.organization.invoiceAddress) {
-    doc.text(data.organization.invoiceAddress, col2X, yPos)
-    yPos += 5
-  }
-  if (data.organization.invoicePhone) {
-    doc.text(`Tlf: ${data.organization.invoicePhone}`, col2X, yPos)
-    yPos += 5
-  }
-  if (data.organization.invoiceEmail) {
-    doc.text(`E-post: ${data.organization.invoiceEmail}`, col2X, yPos)
-    yPos += 5
+    doc.text(data.organization.invoiceAddress, col2X, fromY)
+    fromY += 5
   }
   if (data.organization.invoiceOrgNumber) {
-    doc.text(`Org.nr: ${data.organization.invoiceOrgNumber}`, col2X, yPos)
+    doc.text(`Org.nr: ${data.organization.invoiceOrgNumber}`, col2X, fromY)
+    fromY += 5
+  }
+  if (data.organization.invoicePhone) {
+    doc.text(`Tlf: ${data.organization.invoicePhone}`, col2X, fromY)
+    fromY += 5
+  }
+  if (data.organization.invoiceEmail) {
+    doc.text(data.organization.invoiceEmail, col2X, fromY)
   }
 
-  // Items table
-  yPos = Math.max(yPos, margin + 80) + 15
+  // === ITEMS TABLE ===
+  yPos = Math.max(yPos, fromY) + 20
+
+  const tableData = data.items.map((item) => {
+    const cleanDescription = cleanText(item.description);
+    return [
+      cleanDescription,
+      item.quantity.toString(),
+      `${item.unitPrice.toFixed(2)} kr`,
+      `${item.total.toFixed(2)} kr`,
+    ];
+  });
 
   autoTable(doc, {
     startY: yPos,
-    head: [["Beskrivelse", "Antall", "Pris", "Total"]],
-    body: data.items.map((item) => {
-      // Clean description - aggressively remove all & characters
-      let cleanDescription = item.description;
-      
-      // First decode valid HTML entities
-      cleanDescription = cleanDescription
-        .replace(/&#(\d+);/g, (match, dec) => String.fromCharCode(parseInt(dec, 10)))
-        .replace(/&#x([0-9a-fA-F]+);/g, (match, hex) => String.fromCharCode(parseInt(hex, 16)))
-        .replace(/&amp;/g, "&")
-        .replace(/&lt;/g, "<")
-        .replace(/&gt;/g, ">")
-        .replace(/&quot;/g, '"')
-        .replace(/&#39;/g, "'")
-        .replace(/&nbsp;/g, " ");
-      
-      // Remove pattern &letter& repeatedly until no more matches
-      let previous = "";
-      while (cleanDescription !== previous) {
-        previous = cleanDescription;
-        cleanDescription = cleanDescription.replace(/&([^&])&/g, "$1");
-      }
-      
-      // Remove any remaining HTML entities
-      cleanDescription = cleanDescription.replace(/&[#\w]+;/g, "");
-      // Remove ALL remaining & characters (including standalone ones)
-      cleanDescription = cleanDescription.replace(/&/g, "");
-      // Clean up multiple spaces and trim
-      cleanDescription = cleanDescription.replace(/\s+/g, " ").trim();
-      
-      return [
-        cleanDescription,
-        item.quantity.toString(),
-        `${item.unitPrice.toFixed(2)} kr`,
-        `${item.total.toFixed(2)} kr`,
-      ];
-    }),
-    theme: "striped",
+    head: [["Beskrivelse", "Antall", "Pris", "Sum"]],
+    body: tableData,
+    theme: "plain",
     headStyles: {
       fillColor: primaryColor,
       textColor: [255, 255, 255],
       fontStyle: "bold",
-    },
-    styles: {
       fontSize: 10,
-      cellPadding: 5,
+      cellPadding: 4,
+    },
+    bodyStyles: {
+      fontSize: 9,
+      cellPadding: 4,
+    },
+    alternateRowStyles: {
+      fillColor: bgGray,
     },
     columnStyles: {
       0: { cellWidth: "auto" },
-      1: { halign: "center", cellWidth: 30 },
-      2: { halign: "right", cellWidth: 40 },
-      3: { halign: "right", cellWidth: 40 },
+      1: { halign: "center", cellWidth: 20 },
+      2: { halign: "right", cellWidth: 35 },
+      3: { halign: "right", cellWidth: 35 },
     },
     margin: { left: margin, right: margin },
   })
 
-  // Get final Y position after table
-  // autoTable stores the final Y position in doc.lastAutoTable
+  // === TOTALS ===
   const finalY = (doc as any).lastAutoTable?.finalY || yPos + 50
+  let totalsY = finalY + 15
+  const totalsLabelX = pageWidth - margin - 70
+  const totalsValueX = pageWidth - margin
 
-  // Totals
-  let totalsY = finalY + 10
-  const totalsX = pageWidth - margin - 80
-
+  // Subtotal
   doc.setFontSize(10)
   doc.setTextColor(...darkGray)
   doc.setFont("helvetica", "normal")
-  doc.text("Beløp eks. MVA:", totalsX, totalsY)
-  doc.text(`${data.subtotal.toFixed(2)} kr`, pageWidth - margin, totalsY, {
-    align: "right",
-  })
+  doc.text("Sum eks. mva:", totalsLabelX, totalsY)
+  doc.text(`${data.subtotal.toFixed(2)} kr`, totalsValueX, totalsY, { align: "right" })
 
-  totalsY += 7
-  doc.text(`MVA (${(data.taxRate * 100).toFixed(0)}%):`, totalsX, totalsY)
-  doc.text(`${data.taxAmount.toFixed(2)} kr`, pageWidth - margin, totalsY, {
-    align: "right",
-  })
+  // Tax
+  totalsY += 6
+  doc.text(`MVA (${(data.taxRate * 100).toFixed(0)}%):`, totalsLabelX, totalsY)
+  doc.text(`${data.taxAmount.toFixed(2)} kr`, totalsValueX, totalsY, { align: "right" })
 
-  totalsY += 10
+  // Total line
+  totalsY += 4
+  doc.setDrawColor(...lightGray)
+  doc.setLineWidth(0.3)
+  doc.line(totalsLabelX, totalsY, totalsValueX, totalsY)
+
+  // Total amount
+  totalsY += 8
   doc.setFontSize(12)
   doc.setFont("helvetica", "bold")
   doc.setTextColor(...primaryColor)
-  doc.text("Totalt inkl. MVA:", totalsX, totalsY)
-  doc.text(`${data.totalAmount.toFixed(2)} kr`, pageWidth - margin, totalsY, {
-    align: "right",
-  })
+  doc.text("Å betale:", totalsLabelX, totalsY)
+  doc.text(`${data.totalAmount.toFixed(2)} kr`, totalsValueX, totalsY, { align: "right" })
 
-  // Payment information
-  totalsY += 20
+  // === PAYMENT INFO ===
   if (data.organization.invoiceBankAccount) {
+    totalsY += 25
+    
+    // Box for payment info
+    doc.setFillColor(...bgGray)
+    doc.roundedRect(margin, totalsY - 5, contentWidth / 2 - 10, 35, 3, 3, "F")
+    
     doc.setFontSize(10)
     doc.setTextColor(...darkGray)
     doc.setFont("helvetica", "bold")
-    doc.text("Betalingsinformasjon:", margin, totalsY)
-    totalsY += 7
-    doc.setFont("helvetica", "normal")
-    doc.text(`Kontonummer: ${data.organization.invoiceBankAccount}`, margin, totalsY)
-    totalsY += 5
-    doc.text(`KID: ${data.invoiceNumber}`, margin, totalsY)
-    totalsY += 5
-    doc.text(`Beløp: ${data.totalAmount.toFixed(2)} kr`, margin, totalsY)
+    doc.text("Betalingsinformasjon", margin + 5, totalsY + 3)
+    
     totalsY += 10
+    doc.setFont("helvetica", "normal")
+    doc.setFontSize(9)
+    doc.text(`Kontonummer: ${data.organization.invoiceBankAccount}`, margin + 5, totalsY)
+    totalsY += 5
+    doc.text(`KID/Referanse: ${data.invoiceNumber}`, margin + 5, totalsY)
+    totalsY += 5
+    doc.text(`Beløp: ${data.totalAmount.toFixed(2)} kr`, margin + 5, totalsY)
   }
 
-  // Notes
+  // === NOTES ===
   if (data.notes || data.organization.invoiceNotes) {
-    doc.setFontSize(10)
+    totalsY += 20
+    doc.setFontSize(9)
     doc.setTextColor(...lightGray)
     doc.setFont("helvetica", "italic")
     const notes = data.notes || data.organization.invoiceNotes || ""
@@ -362,15 +325,13 @@ export async function generateInvoicePDF(data: InvoiceData): Promise<Buffer> {
     doc.text(splitNotes, margin, totalsY)
   }
 
-  // Footer
-  const footerY = pageHeight - 20
+  // === FOOTER ===
+  const footerY = pageHeight - 15
   doc.setFontSize(8)
   doc.setTextColor(...lightGray)
   doc.setFont("helvetica", "normal")
   doc.text(
-    `Faktura generert ${format(new Date(), "d. MMMM yyyy 'kl.' HH:mm", {
-      locale: nb,
-    })}`,
+    `Generert ${format(new Date(), "d. MMMM yyyy 'kl.' HH:mm", { locale: nb })}`,
     pageWidth / 2,
     footerY,
     { align: "center" }
@@ -380,4 +341,3 @@ export async function generateInvoicePDF(data: InvoiceData): Promise<Buffer> {
   const pdfOutput = doc.output("arraybuffer")
   return Buffer.from(pdfOutput)
 }
-

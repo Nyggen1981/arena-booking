@@ -88,36 +88,22 @@ export async function GET(
         address: invoice.billingAddress,
       },
       items: invoice.bookings.map((b) => {
-        // Clean up title - aggressively remove all & characters
-        let cleanTitle = b.title;
-        
-        // First decode valid HTML entities
-        cleanTitle = cleanTitle
-          .replace(/&#(\d+);/g, (match, dec) => String.fromCharCode(parseInt(dec, 10)))
-          .replace(/&#x([0-9a-fA-F]+);/g, (match, hex) => String.fromCharCode(parseInt(hex, 16)))
+        // Clean up title - remove ALL & characters
+        let cleanTitle = b.title
+          .replace(/&#(\d+);/g, (_, dec) => String.fromCharCode(parseInt(dec, 10)))
+          .replace(/&#x([0-9a-fA-F]+);/g, (_, hex) => String.fromCharCode(parseInt(hex, 16)))
           .replace(/&amp;/g, "&")
           .replace(/&lt;/g, "<")
           .replace(/&gt;/g, ">")
           .replace(/&quot;/g, '"')
           .replace(/&#39;/g, "'")
-          .replace(/&nbsp;/g, " ");
-        
-        // Remove pattern &letter& repeatedly until no more matches
-        let previous = "";
-        while (cleanTitle !== previous) {
-          previous = cleanTitle;
-          cleanTitle = cleanTitle.replace(/&([^&])&/g, "$1");
-        }
-        
-        // Remove any remaining HTML entities
-        cleanTitle = cleanTitle.replace(/&[#\w]+;/g, "");
-        // Remove ALL remaining & characters (including standalone ones)
-        cleanTitle = cleanTitle.replace(/&/g, "");
-        // Clean up multiple spaces and trim
-        cleanTitle = cleanTitle.replace(/\s+/g, " ").trim();
+          .replace(/&nbsp;/g, " ")
+          .replace(/&/g, "")
+          .replace(/\s+/g, " ")
+          .trim();
         
         const resourceName = b.resourcePart 
-          ? `${b.resource.name} → ${b.resourcePart.name}` 
+          ? `${b.resource.name} - ${b.resourcePart.name}` 
           : b.resource.name;
         const dateTime = `${format(new Date(b.startTime), "d. MMM yyyy HH:mm", { locale: nb })} - ${format(new Date(b.endTime), "HH:mm", { locale: nb })}`;
         

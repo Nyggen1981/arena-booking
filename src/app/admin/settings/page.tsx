@@ -1031,6 +1031,107 @@ export default function AdminSettingsPage() {
           </div>
         </div>
 
+        {/* Invoice Settings */}
+        <div className="card p-6 md:p-8 mt-6">
+          <div className="flex items-center gap-3 mb-6">
+            <div className="w-12 h-12 rounded-xl bg-emerald-100 flex items-center justify-center">
+              <FileText className="w-6 h-6 text-emerald-600" />
+            </div>
+            <div>
+              <h2 className="text-xl font-bold text-gray-900">Fakturainformasjon</h2>
+              <p className="text-gray-500 text-sm">Informasjon som vises på fakturaer</p>
+            </div>
+          </div>
+
+          <div className="space-y-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Organisasjonsnummer
+                </label>
+                <input
+                  type="text"
+                  value={invoiceOrgNumber}
+                  onChange={(e) => setInvoiceOrgNumber(e.target.value)}
+                  placeholder="F.eks. 123 456 789"
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Kontonummer
+                </label>
+                <input
+                  type="text"
+                  value={invoiceBankAccount}
+                  onChange={(e) => setInvoiceBankAccount(e.target.value)}
+                  placeholder="F.eks. 1234 56 78901"
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Fakturaadresse
+                </label>
+                <input
+                  type="text"
+                  value={invoiceAddress}
+                  onChange={(e) => setInvoiceAddress(e.target.value)}
+                  placeholder="Gateadresse 1, 0000 Sted"
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Telefon
+                </label>
+                <input
+                  type="text"
+                  value={invoicePhone}
+                  onChange={(e) => setInvoicePhone(e.target.value)}
+                  placeholder="F.eks. 12 34 56 78"
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                />
+              </div>
+
+              <div className="md:col-span-2">
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  E-post for fakturahenvendelser
+                </label>
+                <input
+                  type="email"
+                  value={invoiceEmail}
+                  onChange={(e) => setInvoiceEmail(e.target.value)}
+                  placeholder="faktura@organisasjon.no"
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                />
+              </div>
+
+              <div className="md:col-span-2">
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Standardtekst på faktura (valgfritt)
+                </label>
+                <textarea
+                  value={invoiceNotes}
+                  onChange={(e) => setInvoiceNotes(e.target.value)}
+                  placeholder="F.eks. betalingsbetingelser, takk for handelen, etc."
+                  rows={3}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                />
+              </div>
+            </div>
+
+            <div className="bg-emerald-50 border border-emerald-200 rounded-lg p-4">
+              <p className="text-sm text-emerald-800">
+                <strong>Tips:</strong> Denne informasjonen vises på alle fakturaer som genereres. Sørg for at organisasjonsnummer og kontonummer er korrekt.
+              </p>
+            </div>
+          </div>
+        </div>
+
         {/* Email Templates */}
         <div className="card p-6 md:p-8 mt-6">
           <div className="flex items-center gap-3 mb-6">
