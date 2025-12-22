@@ -76,6 +76,13 @@ export function BookingManagement({ initialBookings, showTabs = true }: BookingM
   const [sortDirection, setSortDirection] = useState<"asc" | "desc">("asc")
   const [selectedBooking, setSelectedBooking] = useState<Booking | null>(null)
   
+  // Mark as paid modal state
+  const [markPaidModalOpen, setMarkPaidModalOpen] = useState(false)
+  const [markingPaidBookingId, setMarkingPaidBookingId] = useState<string | null>(null)
+  const [useTemplate, setUseTemplate] = useState(true)
+  const [customMessage, setCustomMessage] = useState("")
+  const [isMarkingPaid, setIsMarkingPaid] = useState(false)
+  
   // Filter state
   const [filtersOpen, setFiltersOpen] = useState(false)
   const [paymentStatusFilter, setPaymentStatusFilter] = useState<string>("all") // all, paid, unpaid, pending_payment
@@ -147,6 +154,45 @@ export function BookingManagement({ initialBookings, showTabs = true }: BookingM
       console.error("Failed to process booking:", error)
     } finally {
       setProcessingId(null)
+    }
+  }
+
+  const handleMarkAsPaid = (bookingId: string) => {
+    setMarkingPaidBookingId(bookingId)
+    setUseTemplate(true)
+    setCustomMessage("")
+    setMarkPaidModalOpen(true)
+  }
+
+  const confirmMarkAsPaid = async () => {
+    if (!markingPaidBookingId) return
+
+    setIsMarkingPaid(true)
+    
+    try {
+      const response = await fetch(`/api/admin/bookings/${markingPaidBookingId}/mark-paid`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          useTemplate,
+          customMessage: useTemplate ? null : customMessage
+        })
+      })
+
+      if (response.ok) {
+        setMarkPaidModalOpen(false)
+        setMarkingPaidBookingId(null)
+        // Refresh bookings
+        await fetchBookings()
+      } else {
+        const error = await response.json()
+        alert(error.error || "Kunne ikke markere booking som betalt")
+      }
+    } catch (error) {
+      console.error("Failed to mark booking as paid:", error)
+      alert("Kunne ikke markere booking som betalt")
+    } finally {
+      setIsMarkingPaid(false)
     }
   }
 
@@ -1253,6 +1299,125 @@ export function BookingManagement({ initialBookings, showTabs = true }: BookingM
                   <p className="text-sm text-red-600 bg-red-50 p-3 rounded-lg">{selectedBooking.statusNote}</p>
                 </div>
               )}
+
+              {/* Mark as paid button */}
+              {pricingEnabled && selectedBooking.totalAmount && selectedBooking.totalAmount > 0 && (
+                <div className="border-t pt-4">
+                  {(() => {
+                    const paymentStatus = getPaymentStatus(selectedBooking)
+                    if (paymentStatus !== "paid") {
+                      return (
+                        <button
+                          onClick={() => handleMarkAsPaid(selectedBooking.id)}
+                          className="w-full px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors flex items-center justify-center gap-2"
+                        >
+                          <CheckCircle2 className="w-4 h-4" />
+                          Marker som betalt
+                        </button>
+                      )
+                    }
+                    return null
+                  })()}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Mark as paid modal */}
+      {markPaidModalOpen && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-xl shadow-xl max-w-md w-full mx-4">
+            <div className="p-6">
+              <h3 className="text-lg font-semibold text-gray-900 mb-4">Marker booking som betalt</h3>
+              
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    E-posttype
+                  </label>
+                  <div className="space-y-2">
+                    <label className="flex items-center gap-2 cursor-pointer">
+                      <input
+                        type="radio"
+                        checked={useTemplate}
+                        onChange={() => setUseTemplate(true)}
+                        className="w-4 h-4 text-blue-600"
+                      />
+                      <span className="text-sm text-gray-700">
+                        Bruk mal (inkluderer admin-notat fra delen)
+                      </span>
+                    </label>
+                    <label className="flex items-center gap-2 cursor-pointer">
+                      <input
+                        type="radio"
+                        checked={!useTemplate}
+                        onChange={() => setUseTemplate(false)}
+                        className="w-4 h-4 text-blue-600"
+                      />
+                      <span className="text-sm text-gray-700">
+                        Skriv egen melding
+                      </span>
+                    </label>
+                  </div>
+                </div>
+
+                {!useTemplate && (
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Egen melding
+                    </label>
+                    <textarea
+                      value={customMessage}
+                      onChange={(e) => setCustomMessage(e.target.value)}
+                      placeholder="Skriv din melding her..."
+                      rows={4}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    />
+                  </div>
+                )}
+
+                {useTemplate && (
+                  <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+                    <p className="text-xs text-blue-800">
+                      Systemet vil generere en e-post basert på malen og inkludere admin-notatet fra delen hvis det finnes.
+                    </p>
+                  </div>
+                )}
+              </div>
+
+              <div className="flex items-center justify-end gap-3 mt-6">
+                <button
+                  onClick={() => {
+                    setMarkPaidModalOpen(false)
+                    setMarkingPaidBookingId(null)
+                    setCustomMessage("")
+                    setUseTemplate(true)
+                  }}
+                  className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors"
+                  disabled={isMarkingPaid}
+                >
+                  Avbryt
+                </button>
+                <button
+                  onClick={confirmMarkAsPaid}
+                  disabled={isMarkingPaid || (!useTemplate && !customMessage.trim())}
+                  className="px-4 py-2 text-sm font-medium text-white bg-green-600 rounded-lg hover:bg-green-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                >
+                  {isMarkingPaid ? (
+                    <>
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                      Registrerer...
+                    </>
+                  ) : (
+                    <>
+                      <CheckCircle2 className="w-4 h-4" />
+                      Marker som betalt og send e-post
+                    </>
+                  )}
+                </button>
+              </div>
             </div>
           </div>
         </div>

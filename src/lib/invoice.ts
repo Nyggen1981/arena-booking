@@ -1,4 +1,7 @@
 import { prisma } from "./prisma"
+import { sendEmail } from "./email"
+import { format } from "date-fns"
+import { nb } from "date-fns/locale"
 
 /**
  * Oppretter en faktura for en booking
@@ -90,6 +93,132 @@ export async function createInvoiceForBooking(
     invoiceId: invoice.id,
     invoiceNumber: invoice.invoiceNumber
   }
+}
+
+/**
+ * Sender faktura til kunde via e-post
+ */
+export async function sendInvoiceEmail(
+  invoiceId: string,
+  organizationId: string
+): Promise<boolean> {
+  const invoice = await prisma.invoice.findUnique({
+    where: { id: invoiceId },
+    include: {
+      organization: {
+        select: {
+          name: true
+        }
+      },
+      bookings: {
+        include: {
+          resource: true,
+          resourcePart: true
+        }
+      }
+    }
+  })
+
+  if (!invoice) {
+    throw new Error("Invoice not found")
+  }
+
+  const booking = invoice.bookings[0]
+  if (!booking) {
+    throw new Error("Invoice has no bookings")
+  }
+
+  const resourceName = booking.resourcePart 
+    ? `${booking.resource.name} → ${booking.resourcePart.name}`
+    : booking.resource.name
+
+  const date = format(new Date(booking.startTime), "EEEE d. MMMM yyyy", { locale: nb })
+  const time = `${format(new Date(booking.startTime), "HH:mm")} - ${format(new Date(booking.endTime), "HH:mm")}`
+  const dueDateFormatted = format(new Date(invoice.dueDate), "d. MMMM yyyy", { locale: nb })
+
+  const html = `
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width, initial-scale=1.0">
+      <style>
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; line-height: 1.6; color: #333; }
+        .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+        .header { background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%); color: white; padding: 30px; border-radius: 12px 12px 0 0; }
+        .content { background: #f8fafc; padding: 30px; border-radius: 0 0 12px 12px; }
+        .info-box { background: white; padding: 20px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #3b82f6; }
+        .invoice-details { background: white; padding: 20px; border-radius: 8px; margin: 20px 0; }
+        .invoice-details table { width: 100%; border-collapse: collapse; }
+        .invoice-details td { padding: 8px 0; border-bottom: 1px solid #e5e7eb; }
+        .invoice-details td:last-child { text-align: right; font-weight: 600; }
+        .total-row { font-size: 18px; font-weight: 700; color: #1f2937; }
+        .footer { text-align: center; padding: 20px; color: #64748b; font-size: 14px; }
+      </style>
+    </head>
+    <body>
+      <div class="container">
+        <div class="header">
+          <h1 style="margin: 0;">Faktura ${invoice.invoiceNumber}</h1>
+        </div>
+        <div class="content">
+          <p>Hei ${invoice.billingName},</p>
+          
+          <p>Takk for din booking! Vedlagt finner du faktura for følgende booking:</p>
+          
+          <div class="info-box">
+            <p><strong>Arrangement:</strong> ${booking.title}</p>
+            <p><strong>Fasilitet:</strong> ${resourceName}</p>
+            <p><strong>Dato:</strong> ${date}</p>
+            <p><strong>Tid:</strong> ${time}</p>
+          </div>
+
+          <div class="invoice-details">
+            <h3 style="margin-top: 0;">Fakturaoversikt</h3>
+            <table>
+              <tr>
+                <td>Beløp eks. MVA:</td>
+                <td>${Number(invoice.subtotal).toFixed(2)} kr</td>
+              </tr>
+              <tr>
+                <td>MVA (${(Number(invoice.taxRate) * 100).toFixed(0)}%):</td>
+                <td>${Number(invoice.taxAmount).toFixed(2)} kr</td>
+              </tr>
+              <tr class="total-row">
+                <td>Totalt inkl. MVA:</td>
+                <td>${Number(invoice.totalAmount).toFixed(2)} kr</td>
+              </tr>
+            </table>
+            <p style="margin-top: 20px; color: #64748b; font-size: 14px;">
+              <strong>Forfallsdato:</strong> ${dueDateFormatted}
+            </p>
+          </div>
+
+          <p>Vennligst betal innen forfallsdatoen.</p>
+        </div>
+        <div class="footer">
+          <p>Med vennlig hilsen,<br/>${invoice.organization.name}</p>
+        </div>
+      </div>
+    </body>
+    </html>
+  `
+
+  const success = await sendEmail(organizationId, {
+    to: invoice.billingEmail,
+    subject: `Faktura ${invoice.invoiceNumber} - ${booking.title}`,
+    html
+  })
+
+  if (success) {
+    // Oppdater faktura status til SENT
+    await prisma.invoice.update({
+      where: { id: invoiceId },
+      data: { status: "SENT" }
+    })
+  }
+
+  return success
 }
 
 

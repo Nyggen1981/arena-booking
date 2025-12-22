@@ -6,8 +6,8 @@ import { sendEmail, getBookingApprovedEmail, getBookingRejectedEmail } from "@/l
 import { format } from "date-fns"
 import { nb } from "date-fns/locale"
 import { isPricingEnabled } from "@/lib/pricing"
-import { createInvoiceForBooking } from "@/lib/invoice"
-import { getVippsClient } from "@/lib/vipps"
+import { createInvoiceForBooking, sendInvoiceEmail } from "@/lib/invoice"
+import { getVippsClient, sendVippsPaymentEmail } from "@/lib/vipps"
 
 export async function PATCH(
   request: Request,
@@ -136,7 +136,7 @@ export async function PATCH(
         const pricingEnabled = await isPricingEnabled()
         if (action === "approve" && pricingEnabled && booking.totalAmount && Number(booking.totalAmount) > 0) {
     // Bruk brukerens foretrukne betalingsmetode fra booking, eller faktura som standard
-    const method = (booking as any).preferredPaymentMethod || "INVOICE"
+    const method = booking.preferredPaymentMethod || "INVOICE"
     
     try {
       if (method === "INVOICE") {
@@ -146,6 +146,11 @@ export async function PATCH(
           booking.organizationId
         )
         console.log(`[Booking Approval] Created invoice ${invoiceNumber} for booking ${booking.id}`)
+        
+        // Send faktura via e-post (non-blocking)
+        void sendInvoiceEmail(invoiceId, booking.organizationId).catch((error) => {
+          console.error(`[Booking Approval] Failed to send invoice email for booking ${booking.id}:`, error)
+        })
       } else if (method === "VIPPS") {
         // Opprett Vipps-betaling
         const organization = await prisma.organization.findUnique({
@@ -155,7 +160,13 @@ export async function PATCH(
         if (!organization?.vippsClientId || !organization?.vippsClientSecret || !organization?.vippsSubscriptionKey) {
           console.warn(`[Booking Approval] Vipps not configured for organization ${booking.organizationId}, falling back to invoice`)
           // Fallback til faktura hvis Vipps ikke er konfigurert
-          await createInvoiceForBooking(booking.id, booking.organizationId)
+          const { invoiceId, invoiceNumber } = await createInvoiceForBooking(booking.id, booking.organizationId)
+          console.log(`[Booking Approval] Created invoice ${invoiceNumber} for booking ${booking.id} (Vipps fallback)`)
+          
+          // Send faktura via e-post (non-blocking)
+          void sendInvoiceEmail(invoiceId, booking.organizationId).catch((error) => {
+            console.error(`[Booking Approval] Failed to send invoice email for booking ${booking.id}:`, error)
+          })
         } else {
           // Opprett payment record
           const payment = await prisma.payment.create({
@@ -199,12 +210,23 @@ export async function PATCH(
           })
           
           console.log(`[Booking Approval] Created Vipps payment ${vippsPayment.orderId} for booking ${booking.id}`)
+          
+          // Send Vipps betalingslink via e-post (non-blocking)
+          void sendVippsPaymentEmail(payment.id, vippsPayment.url, booking.organizationId).catch((error) => {
+            console.error(`[Booking Approval] Failed to send Vipps payment email for booking ${booking.id}:`, error)
+          })
         }
       } else if (method === "CARD") {
         // Opprett kortbetaling (TODO: Implementer kortbetaling når kortbetaling-API er klar)
         // For nå, fallback til faktura
         console.log(`[Booking Approval] Card payment not yet implemented, creating invoice instead`)
-        await createInvoiceForBooking(booking.id, booking.organizationId)
+        const { invoiceId, invoiceNumber } = await createInvoiceForBooking(booking.id, booking.organizationId)
+        console.log(`[Booking Approval] Created invoice ${invoiceNumber} for booking ${booking.id} (Card fallback)`)
+        
+        // Send faktura via e-post (non-blocking)
+        void sendInvoiceEmail(invoiceId, booking.organizationId).catch((error) => {
+          console.error(`[Booking Approval] Failed to send invoice email for booking ${booking.id}:`, error)
+        })
       }
     } catch (error) {
       console.error(`[Booking Approval] Error creating payment for booking ${booking.id}:`, error)

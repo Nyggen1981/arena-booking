@@ -270,3 +270,31 @@ export async function getBookingRejectedEmail(
     organizationName,
   })
 }
+
+export async function getBookingPaidEmail(
+  organizationId: string,
+  bookingTitle: string,
+  resourceName: string,
+  date: string,
+  time: string,
+  adminNote?: string | null,
+  customMessage?: string | null
+) {
+  const customTemplate = await getEmailTemplate(organizationId, "paid")
+  const defaultTemplates = getDefaultEmailTemplates()
+  const template = customTemplate || {
+    subject: defaultTemplates.paid.subject,
+    htmlBody: defaultTemplates.paid.htmlBody,
+  }
+  const organizationName = await getOrganizationName(organizationId)
+
+  return renderEmailTemplate(template, {
+    bookingTitle,
+    resourceName,
+    date,
+    time,
+    adminNote: adminNote || "",
+    customMessage: customMessage || "",
+    organizationName,
+  })
+}

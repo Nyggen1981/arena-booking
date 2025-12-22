@@ -1545,7 +1545,7 @@ export default function EditResourcePage({ params }: Props) {
               </div>
               
               <p className="text-sm text-gray-500">
-                Moderatorer kan godkjenne og avslå bookinger for denne fasiliteten. De kan ikke opprette bookinger selv.
+                Moderatorer kan godkjenne og avslå bookinger for denne fasiliteten. De kan også opprette bookinger selv.
               </p>
 
               <div className="space-y-2">

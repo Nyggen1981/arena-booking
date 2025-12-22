@@ -31,7 +31,7 @@ function isEmailTemplateAvailable(): boolean {
 // Get email template from database or return null
 export async function getEmailTemplate(
   organizationId: string,
-  templateType: "new_booking" | "approved" | "rejected" | "cancelled_by_admin" | "cancelled_by_user"
+  templateType: "new_booking" | "approved" | "rejected" | "cancelled_by_admin" | "cancelled_by_user" | "paid"
 ) {
   // First check if the model is available
   if (!isEmailTemplateAvailable()) {
@@ -283,6 +283,59 @@ export function getDefaultEmailTemplates() {
                 <p><strong>Tid:</strong> {{time}}</p>
                 <p><strong>Bruker:</strong> {{userName}} ({{userEmail}})</p>
               </div>
+            </div>
+            <div class="footer">
+              <p>Med vennlig hilsen,<br/>{{organizationName}}</p>
+            </div>
+          </div>
+        </body>
+        </html>
+      `,
+    },
+    paid: {
+      subject: "Betaling registrert: {{bookingTitle}}",
+      htmlBody: `
+        <!DOCTYPE html>
+        <html>
+        <head>
+          <style>
+            body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; line-height: 1.6; color: #333; }
+            .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+            .header { background: linear-gradient(135deg, #10b981 0%, #059669 100%); color: white; padding: 30px; border-radius: 12px 12px 0 0; }
+            .content { background: #f8fafc; padding: 30px; border-radius: 0 0 12px 12px; }
+            .info-box { background: white; padding: 20px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #10b981; }
+            .footer { text-align: center; padding: 20px; color: #64748b; font-size: 14px; }
+          </style>
+        </head>
+        <body>
+          <div class="container">
+            <div class="header">
+              <h1 style="margin: 0;">✓ Betaling registrert</h1>
+            </div>
+            <div class="content">
+              <p>Hei! Vi har registrert betalingen for din booking:</p>
+              
+              <div class="info-box">
+                <p><strong>Arrangement:</strong> {{bookingTitle}}</p>
+                <p><strong>Fasilitet:</strong> {{resourceName}}</p>
+                <p><strong>Dato:</strong> {{date}}</p>
+                <p><strong>Tid:</strong> {{time}}</p>
+              </div>
+              
+              {{#if adminNote}}
+              <div class="info-box" style="background: #fef3c7; border-left-color: #f59e0b;">
+                <p style="margin: 0; font-weight: 600; color: #92400e; margin-bottom: 8px;">📋 Viktig informasjon:</p>
+                <p style="margin: 0; color: #78350f;">{{adminNote}}</p>
+              </div>
+              {{/if}}
+              
+              {{#if customMessage}}
+              <div class="info-box" style="background: #eff6ff; border-left-color: #3b82f6;">
+                <p style="margin: 0; color: #1e40af;">{{customMessage}}</p>
+              </div>
+              {{/if}}
+              
+              <p>Takk for betalingen! Vi gleder oss til å se deg.</p>
             </div>
             <div class="footer">
               <p>Med vennlig hilsen,<br/>{{organizationName}}</p>
