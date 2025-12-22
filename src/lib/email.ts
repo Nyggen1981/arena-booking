@@ -168,7 +168,8 @@ export async function getBookingCancelledByUserEmail(
   date: string,
   time: string,
   userName: string,
-  userEmail: string
+  userEmail: string,
+  reason?: string
 ) {
   const customTemplate = await getEmailTemplate(organizationId, "cancelled_by_user")
   const defaultTemplates = getDefaultEmailTemplates()
@@ -185,6 +186,7 @@ export async function getBookingCancelledByUserEmail(
     time,
     userName,
     userEmail,
+    reason: reason || "",
     organizationName,
   })
 }

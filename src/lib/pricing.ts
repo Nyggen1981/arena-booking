@@ -79,6 +79,18 @@ export async function isPricingEnabled(): Promise<boolean> {
 }
 
 /**
+ * Sjekker om en ressursdel har prisregler konfigurert
+ * Returnerer true hvis del har prisregler, false ellers
+ */
+export async function hasPricingRules(
+  resourceId: string,
+  resourcePartId: string
+): Promise<boolean> {
+  const config = await getPricingConfig(resourceId, resourcePartId)
+  return config !== null && config.rules.length > 0
+}
+
+/**
  * Henter pris-konfigurasjon for en ressurs eller ressursdel
  * Støtter flere pris-regler per ressurs (én per rolle)
  */

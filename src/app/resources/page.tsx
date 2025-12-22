@@ -2,6 +2,7 @@ import { PageLayout } from "@/components/PageLayout"
 import { ResourceFilter } from "@/components/ResourceFilter"
 import { prisma } from "@/lib/prisma"
 import { Building2 } from "lucide-react"
+import { isPricingEnabled, hasPricingRules } from "@/lib/pricing"
 
 // Revalidate every 60 seconds
 export const revalidate = 60
@@ -9,7 +10,8 @@ export const revalidate = 60
 // Fetch resources directly (cache removed temporarily to debug)
 async function getResources() {
   try {
-    return await prisma.resource.findMany({
+    const pricingEnabled = await isPricingEnabled()
+    const resources = await prisma.resource.findMany({
       where: { isActive: true },
       select: {
         id: true,
@@ -42,6 +44,22 @@ async function getResources() {
         { name: "asc" }
       ]
     })
+
+    // Hvis pricing er aktivert, filtrer ut deler uten prisregler
+    if (pricingEnabled) {
+      for (const resource of resources) {
+        const partsWithPricing = []
+        for (const part of resource.parts) {
+          const hasRules = await hasPricingRules(resource.id, part.id)
+          if (hasRules) {
+            partsWithPricing.push(part)
+          }
+        }
+        resource.parts = partsWithPricing
+      }
+    }
+
+    return resources
   } catch (error: any) {
     console.error("Error fetching resources:", error)
     console.error("Error details:", {

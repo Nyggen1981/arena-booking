@@ -62,6 +62,7 @@ export default function MyBookingsPage() {
   const [isLoading, setIsLoading] = useState(true)
   const [activeTab, setActiveTab] = useState<Tab>("upcoming")
   const [cancellingId, setCancellingId] = useState<string | null>(null)
+  const [cancelReason, setCancelReason] = useState("")
   const [deletingId, setDeletingId] = useState<string | null>(null)
   const [editingBooking, setEditingBooking] = useState<Booking | null>(null)
   const [isProcessing, setIsProcessing] = useState(false)
@@ -184,10 +185,11 @@ export default function MyBookingsPage() {
       const response = await fetch(`/api/bookings/${bookingId}/cancel`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({})
+        body: JSON.stringify({ reason: cancelReason || undefined })
       })
       if (response.ok) {
         setBookings(prev => prev.map(b => b.id === bookingId ? { ...b, status: "cancelled" } : b))
+        setCancelReason("")
       }
     } catch (error) {
       console.error("Failed to cancel booking:", error)
@@ -195,7 +197,7 @@ export default function MyBookingsPage() {
       setIsProcessing(false)
       setCancellingId(null)
     }
-  }, [])
+  }, [cancelReason])
 
   const handleDelete = useCallback(async (bookingId: string) => {
     setIsProcessing(true)
@@ -770,12 +772,27 @@ export default function MyBookingsPage() {
               <AlertCircle className="w-6 h-6 text-red-600" />
             </div>
             <h3 className="text-lg font-bold text-gray-900 text-center mb-2">Kanseller booking?</h3>
-            <p className="text-gray-600 text-center mb-6">
+            <p className="text-gray-600 text-center mb-4">
               Er du sikker på at du vil kansellere denne bookingen? Administrator vil bli varslet.
             </p>
+            <div className="mb-4">
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Grunn for kansellering (valgfritt)
+              </label>
+              <textarea
+                value={cancelReason}
+                onChange={(e) => setCancelReason(e.target.value)}
+                placeholder="Forklar hvorfor du kansellerer bookingen..."
+                rows={3}
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent resize-none"
+              />
+            </div>
             <div className="flex gap-3">
               <button
-                onClick={() => setCancellingId(null)}
+                onClick={() => {
+                  setCancellingId(null)
+                  setCancelReason("")
+                }}
                 className="flex-1 px-4 py-2.5 border border-gray-300 rounded-lg text-gray-700 font-medium hover:bg-gray-50 transition-colors"
               >
                 Avbryt

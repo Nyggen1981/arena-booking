@@ -265,6 +265,7 @@ export function getDefaultEmailTemplates() {
             .header { background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%); color: white; padding: 30px; border-radius: 12px 12px 0 0; }
             .content { background: #f8fafc; padding: 30px; border-radius: 0 0 12px 12px; }
             .info-box { background: white; padding: 20px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #f59e0b; }
+            .reason-box { background: #fef3c7; padding: 20px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #f59e0b; }
             .footer { text-align: center; padding: 20px; color: #64748b; font-size: 14px; }
           </style>
         </head>
@@ -283,6 +284,13 @@ export function getDefaultEmailTemplates() {
                 <p><strong>Tid:</strong> {{time}}</p>
                 <p><strong>Bruker:</strong> {{userName}} ({{userEmail}})</p>
               </div>
+              
+              {{#if reason}}
+              <div class="reason-box">
+                <p style="margin: 0; font-weight: 600; color: #92400e; margin-bottom: 8px;">Grunn for kansellering:</p>
+                <p style="margin: 0; color: #78350f; white-space: pre-wrap;">{{reason}}</p>
+              </div>
+              {{/if}}
             </div>
             <div class="footer">
               <p>Med vennlig hilsen,<br/>{{organizationName}}</p>

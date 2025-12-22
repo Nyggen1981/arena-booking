@@ -17,7 +17,7 @@ import {
 import { ResourceCalendar } from "@/components/ResourceCalendar"
 import { MapViewer } from "@/components/MapViewer"
 import { PartsList } from "@/components/PartsList"
-import { getPricingConfig, isPricingEnabled, PricingModel, findPricingRuleForUser } from "@/lib/pricing"
+import { getPricingConfig, isPricingEnabled, PricingModel, findPricingRuleForUser, hasPricingRules } from "@/lib/pricing"
 import { getServerSession } from "next-auth"
 import { authOptions } from "@/lib/auth"
 import { getUserRoleInfo } from "@/lib/roles"
@@ -32,11 +32,12 @@ interface Props {
 // Fetch resource data directly without unstable_cache to avoid caching issues
 async function getResource(id: string) {
   try {
+    const pricingEnabled = await isPricingEnabled()
     const now = new Date()
     const twoWeeksAgo = new Date(now.getTime() - 14 * 24 * 60 * 60 * 1000)
     const twoMonthsAhead = new Date(now.getTime() + 60 * 24 * 60 * 60 * 1000)
 
-    return await prisma.resource.findUnique({
+    const resource = await prisma.resource.findUnique({
       where: { id },
       include: {
         organization: {
@@ -95,6 +96,22 @@ async function getResource(id: string) {
         }
       }
     })
+
+    if (!resource) return null
+
+    // Hvis pricing er aktivert, filtrer ut deler uten prisregler
+    if (pricingEnabled && resource.parts.length > 0) {
+      const partsWithPricing = []
+      for (const part of resource.parts) {
+        const hasRules = await hasPricingRules(id, part.id)
+        if (hasRules) {
+          partsWithPricing.push(part)
+        }
+      }
+      resource.parts = partsWithPricing
+    }
+
+    return resource
   } catch (error) {
     console.error("Error fetching resource:", error)
     return null
