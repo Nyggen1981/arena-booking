@@ -721,7 +721,7 @@ export default function BookResourcePage({ params }: Props) {
                   Fra kl. *
                 </label>
                 <select
-                  value={startTime}
+                value={startTime}
                   onChange={(e) => setStartTime(e.target.value)}
                   onMouseDown={(e) => {
                     // Scroll to bottom when clicking to open dropdown
@@ -740,7 +740,7 @@ export default function BookResourcePage({ params }: Props) {
                     }, 0)
                   }}
                   className="input cursor-pointer w-full"
-                  required
+                required
                 >
                   <option value="">Velg tid</option>
                   {timeOptions.map(({ value, label }) => (
@@ -763,7 +763,7 @@ export default function BookResourcePage({ params }: Props) {
                   </div>
                 ) : (
                   <select
-                    value={endTime}
+                value={endTime}
                     onChange={(e) => setEndTime(e.target.value)}
                     onMouseDown={(e) => {
                       // Scroll to bottom when clicking to open dropdown
@@ -782,7 +782,7 @@ export default function BookResourcePage({ params }: Props) {
                       }, 0)
                     }}
                     className="input cursor-pointer w-full"
-                    required
+                required
                   >
                     <option value="">Velg tid</option>
                     {timeOptions.map(({ value, label }) => (

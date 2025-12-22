@@ -512,7 +512,7 @@ export default function EditResourcePage({ params }: Props) {
           console.error("Error saving fixed price packages:", e)
         }
       }
-      
+
       // Show success message
       setSuccessMessage("Endringene ble lagret!")
       setTimeout(() => setSuccessMessage(""), 3000)

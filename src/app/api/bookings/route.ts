@@ -74,7 +74,8 @@ export async function POST(request: Request) {
     const durationHours = durationMinutes / 60
 
     // Validate minimum hours (uavhengig av lisens)
-    if (resource.minBookingHours !== null && resource.minBookingHours !== undefined) {
+    // Hopp over validering hvis fastpris-pakke er valgt (pakken har sin egen varighet)
+    if (!fixedPricePackageId && resource.minBookingHours !== null && resource.minBookingHours !== undefined) {
       if (durationHours < Number(resource.minBookingHours)) {
         return NextResponse.json(
           { error: `Minimum antall timer er ${Number(resource.minBookingHours)} timer` },
