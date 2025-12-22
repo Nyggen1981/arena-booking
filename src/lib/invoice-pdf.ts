@@ -361,10 +361,3 @@ export async function generateInvoicePDF(data: InvoiceData): Promise<Buffer> {
   const pdfOutput = doc.output("arraybuffer")
   return Buffer.from(pdfOutput)
 }
-
-  )
-
-  // Convert to buffer
-  const pdfOutput = doc.output("arraybuffer")
-  return Buffer.from(pdfOutput)
-}
