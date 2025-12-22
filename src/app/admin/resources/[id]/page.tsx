@@ -105,6 +105,7 @@ export default function EditResourcePage({ params }: Props) {
   const [limitAdvanceBooking, setLimitAdvanceBooking] = useState(true)
   const [advanceBookingDays, setAdvanceBookingDays] = useState("30")
   const [showOnPublicCalendar, setShowOnPublicCalendar] = useState(true)
+  const [visDelinfoKort, setVisDelinfoKort] = useState(true)
   const [allowWholeBooking, setAllowWholeBooking] = useState(true)
   const [mapImage, setMapImage] = useState<string | null>(null)
   const [parts, setParts] = useState<Part[]>([])
@@ -186,6 +187,7 @@ export default function EditResourcePage({ params }: Props) {
       setLimitAdvanceBooking(resource.advanceBookingDays !== null)
       setAdvanceBookingDays(String(resource.advanceBookingDays || 30))
       setShowOnPublicCalendar(resource.showOnPublicCalendar ?? true)
+      setVisDelinfoKort(resource.visDelinfoKort ?? true)
       setAllowWholeBooking(resource.allowWholeBooking ?? true)
       setMapImage(resource.mapImage || null)
       setPrisInfo(resource.prisInfo || "")
@@ -386,6 +388,7 @@ export default function EditResourcePage({ params }: Props) {
           requiresApproval,
           advanceBookingDays: limitAdvanceBooking ? parseInt(advanceBookingDays) : null,
           showOnPublicCalendar,
+          visDelinfoKort,
           allowWholeBooking,
           prisInfo: visPrisInfo ? prisInfo : null,
           visPrisInfo,
@@ -870,10 +873,23 @@ export default function EditResourcePage({ params }: Props) {
                   onChange={(e) => setShowOnPublicCalendar(e.target.checked)}
                   className="w-5 h-5 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
                 />
-                  <label htmlFor="showOnPublicCalendar" className="text-sm font-medium text-gray-700">
+                <label htmlFor="showOnPublicCalendar" className="text-sm font-medium text-gray-700">
                   Vis fasiliteten på offentlig kalender (forsiden)
                 </label>
-                </div>
+              </div>
+
+              <div className="flex items-center gap-3">
+                <input
+                  type="checkbox"
+                  id="visDelinfoKort"
+                  checked={visDelinfoKort}
+                  onChange={(e) => setVisDelinfoKort(e.target.checked)}
+                  className="w-5 h-5 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                />
+                <label htmlFor="visDelinfoKort" className="text-sm font-medium text-gray-700">
+                  Vis &quot;Mer informasjon&quot;-kort på fasilitetssiden
+                </label>
+              </div>
               </div>
             </div>
 
