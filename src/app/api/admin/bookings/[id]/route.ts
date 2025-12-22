@@ -158,15 +158,11 @@ export async function PATCH(
         })
         
         if (!organization?.vippsClientId || !organization?.vippsClientSecret || !organization?.vippsSubscriptionKey) {
-          console.warn(`[Booking Approval] Vipps not configured for organization ${booking.organizationId}, falling back to invoice`)
-          // Fallback til faktura hvis Vipps ikke er konfigurert
-          const { invoiceId, invoiceNumber } = await createInvoiceForBooking(booking.id, booking.organizationId)
-          console.log(`[Booking Approval] Created invoice ${invoiceNumber} for booking ${booking.id} (Vipps fallback)`)
-          
-          // Send faktura via e-post (non-blocking)
-          void sendInvoiceEmail(invoiceId, booking.organizationId).catch((error) => {
-            console.error(`[Booking Approval] Failed to send invoice email for booking ${booking.id}:`, error)
-          })
+          // Returner feil hvis Vipps er valgt men ikke konfigurert
+          return NextResponse.json({ 
+            error: "Vipps er ikke konfigurert. Gå til Innstillinger for å legge inn Vipps-opplysninger, eller velg en annen betalingsmetode.",
+            requiresPaymentMethodSelection: true
+          }, { status: 400 })
         } else {
           // Opprett payment record
           const payment = await prisma.payment.create({

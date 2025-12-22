@@ -35,6 +35,10 @@ export async function GET() {
           smtpPass: true,
           smtpFrom: true,
           licenseKey: true,
+          vippsClientId: true,
+          vippsClientSecret: true,
+          vippsSubscriptionKey: true,
+          vippsTestMode: true,
           createdAt: true,
           updatedAt: true,
           isActive: true,
@@ -103,7 +107,11 @@ export async function PUT(request: Request) {
       smtpUser,
       smtpPass,
       smtpFrom,
-      licenseKey
+      licenseKey,
+      vippsClientId,
+      vippsClientSecret,
+      vippsSubscriptionKey,
+      vippsTestMode
     } = await request.json()
 
     // Check if slug is already taken by another org
@@ -135,6 +143,10 @@ export async function PUT(request: Request) {
         smtpPass: smtpPass || null,
         smtpFrom: smtpFrom || null,
         licenseKey: licenseKey || null,
+        vippsClientId: vippsClientId || null,
+        vippsClientSecret: vippsClientSecret || null,
+        vippsSubscriptionKey: vippsSubscriptionKey || null,
+        vippsTestMode: vippsTestMode !== undefined ? vippsTestMode : true,
       }
     })
 

@@ -21,8 +21,10 @@ import {
   ChevronDown,
   Filter,
   X,
-  Search
+  Search,
+  AlertCircle
 } from "lucide-react"
+import Link from "next/link"
 
 interface Booking {
   id: string
@@ -83,6 +85,13 @@ export function BookingManagement({ initialBookings, showTabs = true }: BookingM
   const [customMessage, setCustomMessage] = useState("")
   const [isMarkingPaid, setIsMarkingPaid] = useState(false)
   
+  // Email preview modal state
+  const [emailPreviewModalOpen, setEmailPreviewModalOpen] = useState(false)
+  const [emailPreview, setEmailPreview] = useState<{ subject: string; html: string; type: string } | null>(null)
+  const [previewBookingId, setPreviewBookingId] = useState<string | null>(null)
+  const [isLoadingPreview, setIsLoadingPreview] = useState(false)
+  const [previewError, setPreviewError] = useState<string | null>(null)
+  
   // Filter state
   const [filtersOpen, setFiltersOpen] = useState(false)
   const [paymentStatusFilter, setPaymentStatusFilter] = useState<string>("all") // all, paid, unpaid, pending_payment
@@ -135,6 +144,51 @@ export function BookingManagement({ initialBookings, showTabs = true }: BookingM
       return
     }
 
+    // For approve, check if booking has cost and show preview
+    if (action === "approve" && pricingEnabled) {
+      const booking = bookings.find(b => b.id === bookingId)
+      if (booking && booking.totalAmount && booking.totalAmount > 0) {
+        // Booking har kostnad - hent preview først
+        setIsLoadingPreview(true)
+        setPreviewError(null)
+        setPreviewBookingId(bookingId)
+        
+        try {
+          const response = await fetch(`/api/admin/bookings/${bookingId}/preview-email`)
+          
+          if (!response.ok) {
+            const errorData = await response.json()
+            
+            // Hvis Vipps ikke er konfigurert, vis feilmelding
+            if (errorData.requiresConfiguration) {
+              setPreviewError("Vipps er ikke konfigurert. Gå til Innstillinger for å legge inn Vipps-opplysninger, eller velg en annen betalingsmetode.")
+              setEmailPreviewModalOpen(true)
+              setIsLoadingPreview(false)
+              return
+            }
+            
+            throw new Error(errorData.error || "Kunne ikke hente e-post preview")
+          }
+          
+          const previewData = await response.json()
+          setEmailPreview(previewData)
+          setEmailPreviewModalOpen(true)
+        } catch (error) {
+          console.error("Failed to fetch email preview:", error)
+          setPreviewError(error instanceof Error ? error.message : "Kunne ikke hente e-post preview")
+          setEmailPreviewModalOpen(true)
+        } finally {
+          setIsLoadingPreview(false)
+        }
+        return
+      }
+    }
+
+    // Ingen kostnad eller ikke approve - fortsett direkte
+    await executeAction(bookingId, action)
+  }
+
+  const executeAction = async (bookingId: string, action: "approve" | "reject" | "cancel") => {
     setProcessingId(bookingId)
     try {
       const response = await fetch(`/api/admin/bookings/${bookingId}`, {
@@ -146,15 +200,33 @@ export function BookingManagement({ initialBookings, showTabs = true }: BookingM
         })
       })
 
-      if (response.ok) {
-        // Refresh bookings
-        await fetchBookings()
+      if (!response.ok) {
+        const errorData = await response.json()
+        throw new Error(errorData.error || "Kunne ikke utføre handling")
+      }
+
+      // Refresh bookings
+      await fetchBookings()
+      
+      // Close preview modal if open
+      if (emailPreviewModalOpen) {
+        setEmailPreviewModalOpen(false)
+        setEmailPreview(null)
+        setPreviewBookingId(null)
+        setPreviewError(null)
       }
     } catch (error) {
       console.error("Failed to process booking:", error)
+      alert(error instanceof Error ? error.message : "Noe gikk galt")
     } finally {
       setProcessingId(null)
     }
+  }
+
+  const confirmEmailAndApprove = async () => {
+    if (!previewBookingId) return
+    setEmailPreviewModalOpen(false)
+    await executeAction(previewBookingId, "approve")
   }
 
   const handleMarkAsPaid = (bookingId: string) => {
@@ -1419,6 +1491,114 @@ export function BookingManagement({ initialBookings, showTabs = true }: BookingM
                 </button>
               </div>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Email Preview Modal */}
+      {emailPreviewModalOpen && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl shadow-xl max-w-4xl w-full max-h-[90vh] flex flex-col">
+            <div className="p-6 border-b border-gray-200">
+              <div className="flex items-center justify-between">
+                <h3 className="text-lg font-semibold text-gray-900">
+                  Forhåndsvisning av e-post
+                </h3>
+                <button
+                  onClick={() => {
+                    setEmailPreviewModalOpen(false)
+                    setEmailPreview(null)
+                    setPreviewBookingId(null)
+                    setPreviewError(null)
+                  }}
+                  className="text-gray-400 hover:text-gray-600"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+            </div>
+
+            <div className="flex-1 overflow-y-auto p-6">
+              {isLoadingPreview ? (
+                <div className="flex items-center justify-center py-12">
+                  <Loader2 className="w-8 h-8 animate-spin text-blue-600" />
+                </div>
+              ) : previewError ? (
+                <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+                  <div className="flex items-start gap-3">
+                    <AlertCircle className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" />
+                    <div>
+                      <h4 className="font-medium text-red-900 mb-1">Feil</h4>
+                      <p className="text-sm text-red-700">{previewError}</p>
+                      {previewError.includes("Vipps er ikke konfigurert") && (
+                        <Link
+                          href="/admin/settings"
+                          className="mt-3 inline-block text-sm text-red-700 underline hover:text-red-900"
+                        >
+                          Gå til Innstillinger
+                        </Link>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              ) : emailPreview ? (
+                <div className="space-y-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Emne
+                    </label>
+                    <div className="px-4 py-2 bg-gray-50 border border-gray-200 rounded-lg text-sm">
+                      {emailPreview.subject}
+                    </div>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Innhold
+                    </label>
+                    <div className="border border-gray-200 rounded-lg overflow-hidden">
+                      <iframe
+                        srcDoc={emailPreview.html}
+                        className="w-full h-96 border-0"
+                        title="Email preview"
+                      />
+                    </div>
+                  </div>
+                </div>
+              ) : null}
+            </div>
+
+            {!isLoadingPreview && !previewError && emailPreview && (
+              <div className="p-6 border-t border-gray-200 flex items-center justify-end gap-3">
+                <button
+                  onClick={() => {
+                    setEmailPreviewModalOpen(false)
+                    setEmailPreview(null)
+                    setPreviewBookingId(null)
+                    setPreviewError(null)
+                  }}
+                  className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors"
+                >
+                  Avbryt
+                </button>
+                <button
+                  onClick={confirmEmailAndApprove}
+                  disabled={processingId === previewBookingId}
+                  className="px-4 py-2 text-sm font-medium text-white bg-green-600 rounded-lg hover:bg-green-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                >
+                  {processingId === previewBookingId ? (
+                    <>
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                      Godkjenner...
+                    </>
+                  ) : (
+                    <>
+                      <CheckCircle2 className="w-4 h-4" />
+                      Godkjenn og send e-post
+                    </>
+                  )}
+                </button>
+              </div>
+            )}
           </div>
         </div>
       )}

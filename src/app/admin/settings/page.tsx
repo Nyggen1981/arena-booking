@@ -44,6 +44,10 @@ interface Organization {
   smtpPass?: string | null
   smtpFrom?: string | null
   licenseKey?: string | null
+  vippsClientId?: string | null
+  vippsClientSecret?: string | null
+  vippsSubscriptionKey?: string | null
+  vippsTestMode?: boolean
 }
 
 export default function AdminSettingsPage() {
@@ -93,6 +97,13 @@ export default function AdminSettingsPage() {
   const [licenseKey, setLicenseKey] = useState("")
   const [isTestingLicense, setIsTestingLicense] = useState(false)
   const [licenseTestResult, setLicenseTestResult] = useState<{ success: boolean; message: string; status?: string } | null>(null)
+  
+  // Vipps settings state
+  const [vippsClientId, setVippsClientId] = useState("")
+  const [vippsClientSecret, setVippsClientSecret] = useState("")
+  const [vippsSubscriptionKey, setVippsSubscriptionKey] = useState("")
+  const [vippsTestMode, setVippsTestMode] = useState(true)
+  const [showVippsSecret, setShowVippsSecret] = useState(false)
   const [licenseInfo, setLicenseInfo] = useState<{
     valid: boolean
     status: string
@@ -143,6 +154,12 @@ export default function AdminSettingsPage() {
           
           // Load license settings
           setLicenseKey(orgData.licenseKey || "")
+          
+          // Load Vipps settings
+          setVippsClientId(orgData.vippsClientId || "")
+          setVippsClientSecret(orgData.vippsClientSecret || "")
+          setVippsSubscriptionKey(orgData.vippsSubscriptionKey || "")
+          setVippsTestMode(orgData.vippsTestMode !== false) // Default to true
           
           setIsLoading(false)
           
@@ -400,6 +417,10 @@ export default function AdminSettingsPage() {
           smtpPass: smtpPass || null,
           smtpFrom: smtpFrom || null,
           licenseKey: licenseKey || null,
+          vippsClientId: vippsClientId || null,
+          vippsClientSecret: vippsClientSecret || null,
+          vippsSubscriptionKey: vippsSubscriptionKey || null,
+          vippsTestMode: vippsTestMode,
         }),
       })
 
@@ -884,6 +905,99 @@ export default function AdminSettingsPage() {
                   </button>
                 </div>
               )}
+            </div>
+          </div>
+        </div>
+
+        {/* Vipps Settings */}
+        <div className="card p-6 md:p-8 mt-6">
+          <div className="flex items-center gap-3 mb-6">
+            <div className="w-12 h-12 rounded-xl bg-yellow-100 flex items-center justify-center">
+              <Key className="w-6 h-6 text-yellow-600" />
+            </div>
+            <div>
+              <h2 className="text-xl font-bold text-gray-900">Vipps-innstillinger</h2>
+              <p className="text-gray-500 text-sm">Konfigurer Vipps for betalingshåndtering. Disse opplysningene får du fra Vipps.</p>
+            </div>
+          </div>
+
+          <div className="space-y-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Vipps Client ID
+                </label>
+                <input
+                  type="text"
+                  value={vippsClientId}
+                  onChange={(e) => setVippsClientId(e.target.value)}
+                  placeholder="F.eks. 12345678"
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                />
+                <p className="text-xs text-gray-500 mt-1">Merchant Serial Number fra Vipps</p>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Vipps Subscription Key
+                </label>
+                <input
+                  type="text"
+                  value={vippsSubscriptionKey}
+                  onChange={(e) => setVippsSubscriptionKey(e.target.value)}
+                  placeholder="F.eks. abc123..."
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                />
+                <p className="text-xs text-gray-500 mt-1">Subscription Key fra Vipps Portal</p>
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Vipps Client Secret
+              </label>
+              <div className="relative">
+                <input
+                  type={showVippsSecret ? "text" : "password"}
+                  value={vippsClientSecret}
+                  onChange={(e) => setVippsClientSecret(e.target.value)}
+                  placeholder="F.eks. secret123..."
+                  className="w-full px-4 py-2 pr-10 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowVippsSecret(!showVippsSecret)}
+                  className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                >
+                  {showVippsSecret ? "Skjul" : "Vis"}
+                </button>
+              </div>
+              <p className="text-xs text-gray-500 mt-1">Client Secret fra Vipps Portal</p>
+            </div>
+
+            <div className="flex items-center justify-between p-4 bg-gray-50 rounded-xl">
+              <div>
+                <h3 className="font-medium text-gray-900">Testmodus</h3>
+                <p className="text-sm text-gray-500 mt-1">
+                  {vippsTestMode 
+                    ? "Bruker Vipps testmiljø (anbefalt for testing)"
+                    : "Bruker Vipps produksjonsmiljø"
+                  }
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setVippsTestMode(!vippsTestMode)}
+                className={`relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 ${
+                  vippsTestMode ? 'bg-blue-600' : 'bg-gray-200'
+                }`}
+              >
+                <span
+                  className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
+                    vippsTestMode ? 'translate-x-5' : 'translate-x-0'
+                  }`}
+                />
+              </button>
             </div>
           </div>
         </div>
