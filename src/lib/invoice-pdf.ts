@@ -51,10 +51,10 @@ export async function generateInvoicePDF(data: InvoiceData): Promise<Buffer> {
   const margin = 20
   const contentWidth = pageWidth - 2 * margin
 
-  // Colors
-  const primaryColor = [37, 99, 235] // #2563eb
-  const darkGray = [31, 41, 55]
-  const lightGray = [107, 114, 128]
+  // Colors - defined as tuples for TypeScript spread operator
+  const primaryColor: [number, number, number] = [37, 99, 235] // #2563eb
+  const darkGray: [number, number, number] = [31, 41, 55]
+  const lightGray: [number, number, number] = [107, 114, 128]
 
   // Header with logo
   let yPos = margin
