@@ -59,7 +59,7 @@ export async function generateInvoicePDF(data: InvoiceData): Promise<Buffer> {
   // Header with logo
   let yPos = margin
 
-  // Logo (if available) - max width 30mm, maintain aspect ratio
+  // Logo (if available) - maintain aspect ratio
   if (data.organization.logo) {
     try {
       // For base64 images
@@ -69,10 +69,54 @@ export async function generateInvoicePDF(data: InvoiceData): Promise<Buffer> {
         const format = imgData.includes("image/png") ? "PNG" : 
                       imgData.includes("image/jpeg") || imgData.includes("image/jpg") ? "JPEG" : "PNG"
         
-        // Set max width to 30mm, calculate height to maintain aspect ratio
-        const maxWidth = 30
-        const maxHeight = 15
-        doc.addImage(imgData, format, margin, yPos, maxWidth, maxHeight, undefined, "FAST")
+        // Get image dimensions from base64 data
+        // Extract base64 string (remove data:image/...;base64, prefix)
+        const base64Data = imgData.split(",")[1]
+        const buffer = Buffer.from(base64Data, "base64")
+        
+        // For PNG: read dimensions from IHDR chunk
+        // For JPEG: read dimensions from SOF marker
+        let width = 0
+        let height = 0
+        
+        if (format === "PNG") {
+          // PNG: width and height are at bytes 16-23 in IHDR chunk
+          width = buffer.readUInt32BE(16)
+          height = buffer.readUInt32BE(20)
+        } else if (format === "JPEG") {
+          // JPEG: find SOF marker (0xFFC0, 0xFFC1, or 0xFFC2) and read dimensions
+          let i = 0
+          while (i < buffer.length - 1) {
+            if (buffer[i] === 0xFF && (buffer[i + 1] === 0xC0 || buffer[i + 1] === 0xC1 || buffer[i + 1] === 0xC2)) {
+              height = buffer.readUInt16BE(i + 5)
+              width = buffer.readUInt16BE(i + 7)
+              break
+            }
+            i++
+          }
+        }
+        
+        // If we couldn't read dimensions, use default aspect ratio
+        if (width === 0 || height === 0) {
+          width = 200
+          height = 100
+        }
+        
+        // Calculate dimensions maintaining aspect ratio
+        const maxWidth = 30 // mm
+        const maxHeight = 20 // mm
+        const aspectRatio = width / height
+        
+        let logoWidth = maxWidth
+        let logoHeight = maxWidth / aspectRatio
+        
+        // If height exceeds max, scale down
+        if (logoHeight > maxHeight) {
+          logoHeight = maxHeight
+          logoWidth = maxHeight * aspectRatio
+        }
+        
+        doc.addImage(imgData, format, margin, yPos, logoWidth, logoHeight, undefined, "FAST")
       } else {
         // For URL images - would need to fetch and convert to base64
         // For now, skip if it's a URL

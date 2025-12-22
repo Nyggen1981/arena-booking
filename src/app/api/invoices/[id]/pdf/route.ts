@@ -88,15 +88,24 @@ export async function GET(
         address: invoice.billingAddress,
       },
       items: invoice.bookings.map((b) => {
-        // Clean up title - remove HTML entities and decode if needed
-        const cleanTitle = b.title
+        // Clean up title - decode HTML entities properly
+        // Decode numeric entities like &#106; (j), &#103; (g), etc. FIRST
+        let cleanTitle = b.title
+          // Decode numeric entities like &#106; (j), &#103; (g), etc.
+          .replace(/&#(\d+);/g, (match, dec) => String.fromCharCode(parseInt(dec, 10)))
+          // Decode hex entities like &#x6A; (j)
+          .replace(/&#x([0-9a-fA-F]+);/g, (match, hex) => String.fromCharCode(parseInt(hex, 16)))
+          // Then decode named entities
           .replace(/&amp;/g, "&")
           .replace(/&lt;/g, "<")
           .replace(/&gt;/g, ">")
           .replace(/&quot;/g, '"')
           .replace(/&#39;/g, "'")
           .replace(/&nbsp;/g, " ")
-          .replace(/&[#\w]+;/g, "") // Remove any remaining HTML entities
+          // Remove any remaining HTML entities
+          .replace(/&[#\w]+;/g, "")
+          // Remove standalone & characters that might be leftover
+          .replace(/&(?![#\w])/g, "")
         
         const resourceName = b.resourcePart 
           ? `${b.resource.name} → ${b.resourcePart.name}` 

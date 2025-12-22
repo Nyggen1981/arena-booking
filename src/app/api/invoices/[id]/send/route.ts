@@ -54,6 +54,14 @@ export async function POST(
       )
     }
 
+    // Update invoice status to SENT if it was DRAFT
+    if (invoice.status === "DRAFT") {
+      await prisma.invoice.update({
+        where: { id: invoice.id },
+        data: { status: "SENT" }
+      })
+    }
+
     return NextResponse.json({ success: true })
   } catch (error: any) {
     console.error("Error sending invoice:", error)

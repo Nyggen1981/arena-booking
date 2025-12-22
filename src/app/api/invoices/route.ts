@@ -15,7 +15,17 @@ export async function GET(request: NextRequest) {
     }
 
     const { searchParams } = new URL(request.url)
-    const status = searchParams.get("status")
+    const statusParam = searchParams.get("status")
+
+    // Map lowercase filter values to uppercase enum values
+    const statusMap: Record<string, string> = {
+      "draft": "DRAFT",
+      "sent": "SENT",
+      "paid": "PAID",
+      "overdue": "OVERDUE",
+      "cancelled": "CANCELLED",
+    }
+    const status = statusParam ? (statusMap[statusParam.toLowerCase()] || statusParam.toUpperCase()) : null
 
     const invoices = await prisma.invoice.findMany({
       where: {
