@@ -1153,9 +1153,7 @@ export default function AdminBookingsPage() {
               )}
 
               {/* Action buttons */}
-              {selectedBooking.status === "pending" && 
-               selectedBooking.preferredPaymentMethod === "INVOICE" && 
-               (!selectedBooking.payments || selectedBooking.payments.length === 0) && (
+              {selectedBooking.status === "pending" && (
                 <div className="border-t pt-4">
                   <div className="flex gap-2">
                     <button
