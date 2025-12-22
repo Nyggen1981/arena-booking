@@ -14,8 +14,8 @@ import {
 } from "lucide-react"
 import { BookingManagement } from "@/components/BookingManagement"
 import { LicenseStatusCard } from "@/components/LicenseStatusCard"
-import { InvoiceManagement } from "@/components/InvoiceManagement"
 import { isPricingEnabled } from "@/lib/pricing"
+import { FileText } from "lucide-react"
 
 async function getModeratorResources(userId: string) {
   const moderatorResources = await prisma.resourceModerator.findMany({
@@ -190,6 +190,22 @@ export default async function AdminPage() {
                     </div>
                   </div>
                 </Link>
+              {pricingEnabled && (
+                <Link 
+                  href="/admin/invoices" 
+                  className="card p-4 hover:shadow-md transition-shadow group"
+                >
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-lg bg-indigo-100 flex items-center justify-center group-hover:bg-indigo-200 transition-colors">
+                      <FileText className="w-5 h-5 text-indigo-600" />
+                    </div>
+                    <div>
+                      <p className="font-medium text-gray-900">Fakturaer</p>
+                      <p className="text-sm text-gray-500">Fakturaoversikt</p>
+                    </div>
+                  </div>
+                </Link>
+              )}
               </div>
             )}
 
@@ -198,14 +214,6 @@ export default async function AdminPage() {
               <h2 className="text-lg font-semibold text-gray-900 mb-4">Bookinger</h2>
               <BookingManagement />
             </div>
-
-            {/* Invoice Management (only if pricing is enabled) */}
-            {isAdmin && pricingEnabled && (
-              <div className="card p-6 mt-6">
-                <h2 className="text-lg font-semibold text-gray-900 mb-4">Fakturaer</h2>
-                <InvoiceManagement />
-              </div>
-            )}
         </div>
       </main>
       <Footer />

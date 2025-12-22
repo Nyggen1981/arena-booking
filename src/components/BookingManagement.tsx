@@ -22,7 +22,10 @@ import {
   Filter,
   X,
   Search,
-  AlertCircle
+  AlertCircle,
+  FileText,
+  Send,
+  Eye
 } from "lucide-react"
 import Link from "next/link"
 
@@ -91,6 +94,12 @@ export function BookingManagement({ initialBookings, showTabs = true }: BookingM
   const [previewBookingId, setPreviewBookingId] = useState<string | null>(null)
   const [isLoadingPreview, setIsLoadingPreview] = useState(false)
   const [previewError, setPreviewError] = useState<string | null>(null)
+  
+  // Invoice PDF preview state
+  const [invoicePreviewModalOpen, setInvoicePreviewModalOpen] = useState(false)
+  const [invoicePreviewUrl, setInvoicePreviewUrl] = useState<string | null>(null)
+  const [sendingInvoiceId, setSendingInvoiceId] = useState<string | null>(null)
+  const [isSendingInvoice, setIsSendingInvoice] = useState(false)
   
   // Filter state
   const [filtersOpen, setFiltersOpen] = useState(false)
@@ -227,6 +236,66 @@ export function BookingManagement({ initialBookings, showTabs = true }: BookingM
     if (!previewBookingId) return
     setEmailPreviewModalOpen(false)
     await executeAction(previewBookingId, "approve")
+  }
+
+  const handleSendInvoice = async (invoiceId: string) => {
+    try {
+      setIsLoadingPreview(true)
+      setPreviewError(null)
+      
+      // Fetch PDF preview
+      const pdfResponse = await fetch(`/api/invoices/${invoiceId}/pdf`)
+      if (!pdfResponse.ok) {
+        throw new Error("Kunne ikke generere PDF-forhåndsvisning")
+      }
+      
+      const blob = await pdfResponse.blob()
+      const url = URL.createObjectURL(blob)
+      setInvoicePreviewUrl(url)
+      setSendingInvoiceId(invoiceId)
+      setInvoicePreviewModalOpen(true)
+    } catch (error) {
+      console.error("Error loading invoice preview:", error)
+      setPreviewError(error instanceof Error ? error.message : "Kunne ikke laste forhåndsvisning")
+    } finally {
+      setIsLoadingPreview(false)
+    }
+  }
+
+  const confirmSendInvoice = async () => {
+    if (!sendingInvoiceId) return
+    
+    setIsSendingInvoice(true)
+    try {
+      // Find booking with this invoice
+      const booking = bookings.find(b => b.invoiceId === sendingInvoiceId)
+      if (!booking) {
+        throw new Error("Booking ikke funnet")
+      }
+      
+      const response = await fetch(`/api/invoices/${sendingInvoiceId}/send`, {
+        method: "POST",
+      })
+      
+      if (response.ok) {
+        setInvoicePreviewModalOpen(false)
+        setInvoicePreviewUrl(null)
+        setSendingInvoiceId(null)
+        if (invoicePreviewUrl) {
+          URL.revokeObjectURL(invoicePreviewUrl)
+        }
+        // Refresh bookings
+        await fetchBookings()
+      } else {
+        const error = await response.json()
+        throw new Error(error.error || "Kunne ikke sende faktura")
+      }
+    } catch (error) {
+      console.error("Error sending invoice:", error)
+      alert(error instanceof Error ? error.message : "Kunne ikke sende faktura")
+    } finally {
+      setIsSendingInvoice(false)
+    }
   }
 
   const handleMarkAsPaid = (bookingId: string) => {
@@ -1355,7 +1424,28 @@ export function BookingManagement({ initialBookings, showTabs = true }: BookingM
                         </div>
                       )}
                       {selectedBooking.invoiceId && (!selectedBooking.payments || selectedBooking.payments.length === 0) && (
-                        <p className="text-sm text-gray-600">Faktura opprettet</p>
+                        <div className="mt-3">
+                          <p className="text-sm text-gray-600 mb-2">Faktura opprettet</p>
+                          {selectedBooking.preferredPaymentMethod === "INVOICE" && selectedBooking.status === "approved" && (
+                            <button
+                              onClick={() => handleSendInvoice(selectedBooking.invoiceId!)}
+                              disabled={isSendingInvoice}
+                              className="w-full px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center justify-center gap-2 disabled:opacity-50"
+                            >
+                              {isSendingInvoice && sendingInvoiceId === selectedBooking.invoiceId ? (
+                                <>
+                                  <Loader2 className="w-4 h-4 animate-spin" />
+                                  Sender...
+                                </>
+                              ) : (
+                                <>
+                                  <Send className="w-4 h-4" />
+                                  Send faktura
+                                </>
+                              )}
+                            </button>
+                          )}
+                        </div>
                       )}
                     </div>
                   ) : (
@@ -1599,6 +1689,90 @@ export function BookingManagement({ initialBookings, showTabs = true }: BookingM
                 </button>
               </div>
             )}
+          </div>
+        </div>
+      )}
+
+      {/* Invoice PDF Preview Modal */}
+      {invoicePreviewModalOpen && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl max-w-4xl w-full shadow-2xl max-h-[90vh] flex flex-col">
+            {/* Header */}
+            <div className="p-6 border-b border-gray-200">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h3 className="text-lg font-semibold text-gray-900">Forhåndsvisning av faktura</h3>
+                  <p className="text-sm text-gray-500 mt-1">Se gjennom fakturaen før den sendes</p>
+                </div>
+                <button
+                  onClick={() => {
+                    setInvoicePreviewModalOpen(false)
+                    if (invoicePreviewUrl) {
+                      URL.revokeObjectURL(invoicePreviewUrl)
+                      setInvoicePreviewUrl(null)
+                    }
+                    setSendingInvoiceId(null)
+                  }}
+                  className="p-1 rounded-full hover:bg-gray-100 transition-colors"
+                >
+                  <X className="w-5 h-5 text-gray-500" />
+                </button>
+              </div>
+            </div>
+
+            {/* PDF Preview */}
+            <div className="flex-1 overflow-auto p-6 bg-gray-50">
+              {isLoadingPreview ? (
+                <div className="flex items-center justify-center h-64">
+                  <Loader2 className="w-8 h-8 animate-spin text-gray-400" />
+                </div>
+              ) : previewError ? (
+                <div className="text-center py-8">
+                  <AlertCircle className="w-12 h-12 text-red-400 mx-auto mb-2" />
+                  <p className="text-red-600">{previewError}</p>
+                </div>
+              ) : invoicePreviewUrl ? (
+                <iframe
+                  src={invoicePreviewUrl}
+                  className="w-full h-full min-h-[600px] border border-gray-200 rounded-lg"
+                  title="Faktura forhåndsvisning"
+                />
+              ) : null}
+            </div>
+
+            {/* Footer */}
+            <div className="p-6 border-t border-gray-200 flex items-center justify-end gap-3">
+              <button
+                onClick={() => {
+                  setInvoicePreviewModalOpen(false)
+                  if (invoicePreviewUrl) {
+                    URL.revokeObjectURL(invoicePreviewUrl)
+                    setInvoicePreviewUrl(null)
+                  }
+                  setSendingInvoiceId(null)
+                }}
+                className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+              >
+                Avbryt
+              </button>
+              <button
+                onClick={confirmSendInvoice}
+                disabled={isSendingInvoice || !invoicePreviewUrl}
+                className="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-2 disabled:opacity-50"
+              >
+                {isSendingInvoice ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    Sender...
+                  </>
+                ) : (
+                  <>
+                    <Send className="w-4 h-4" />
+                    Send faktura
+                  </>
+                )}
+              </button>
+            </div>
           </div>
         </div>
       )}

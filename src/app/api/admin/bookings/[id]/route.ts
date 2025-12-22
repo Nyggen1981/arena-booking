@@ -140,29 +140,29 @@ export async function PATCH(
     
     try {
       if (method === "INVOICE") {
-        // Opprett faktura for booking
+        // Opprett faktura for booking (ikke send automatisk - admin kan sende den senere)
         const { invoiceId, invoiceNumber } = await createInvoiceForBooking(
           booking.id,
           booking.organizationId
         )
         console.log(`[Booking Approval] Created invoice ${invoiceNumber} for booking ${booking.id}`)
-        
-        // Send faktura via e-post (non-blocking)
-        void sendInvoiceEmail(invoiceId, booking.organizationId).catch((error) => {
-          console.error(`[Booking Approval] Failed to send invoice email for booking ${booking.id}:`, error)
-        })
+        // Faktura sendes ikke automatisk - admin kan sende den manuelt fra booking-detaljer
       } else if (method === "VIPPS") {
         // Opprett Vipps-betaling
         const organization = await prisma.organization.findUnique({
           where: { id: booking.organizationId }
         })
         
+        // La admin godkjenne selv om Vipps ikke er konfigurert (kan sendes senere)
         if (!organization?.vippsClientId || !organization?.vippsClientSecret || !organization?.vippsSubscriptionKey) {
-          // Returner feil hvis Vipps er valgt men ikke konfigurert
-          return NextResponse.json({ 
-            error: "Vipps er ikke konfigurert. Gå til Innstillinger for å legge inn Vipps-opplysninger, eller velg en annen betalingsmetode.",
-            requiresPaymentMethodSelection: true
-          }, { status: 400 })
+          // Opprett faktura i stedet hvis Vipps ikke er konfigurert
+          console.log(`[Booking Approval] Vipps ikke konfigurert, oppretter faktura i stedet for booking ${booking.id}`)
+          const { invoiceId, invoiceNumber } = await createInvoiceForBooking(
+            booking.id,
+            booking.organizationId
+          )
+          console.log(`[Booking Approval] Created invoice ${invoiceNumber} for booking ${booking.id} (Vipps fallback)`)
+          // Ikke send faktura automatisk - admin kan sende den senere
         } else {
           // Opprett payment record
           const payment = await prisma.payment.create({
@@ -218,11 +218,7 @@ export async function PATCH(
         console.log(`[Booking Approval] Card payment not yet implemented, creating invoice instead`)
         const { invoiceId, invoiceNumber } = await createInvoiceForBooking(booking.id, booking.organizationId)
         console.log(`[Booking Approval] Created invoice ${invoiceNumber} for booking ${booking.id} (Card fallback)`)
-        
-        // Send faktura via e-post (non-blocking)
-        void sendInvoiceEmail(invoiceId, booking.organizationId).catch((error) => {
-          console.error(`[Booking Approval] Failed to send invoice email for booking ${booking.id}:`, error)
-        })
+        // Faktura sendes ikke automatisk - admin kan sende den manuelt fra booking-detaljer
       }
     } catch (error) {
       console.error(`[Booking Approval] Error creating payment for booking ${booking.id}:`, error)
