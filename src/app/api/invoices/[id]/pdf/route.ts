@@ -100,8 +100,8 @@ export async function GET(
       notes: invoice.notes,
     })
 
-    // Return PDF
-    return new NextResponse(pdfBuffer, {
+    // Return PDF - convert Buffer to ArrayBuffer for NextResponse
+    return new NextResponse(pdfBuffer.buffer, {
       headers: {
         "Content-Type": "application/pdf",
         "Content-Disposition": `attachment; filename="Faktura_${invoice.invoiceNumber}.pdf"`,
