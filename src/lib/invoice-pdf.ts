@@ -117,8 +117,9 @@ export async function generateInvoicePDF(data: InvoiceData): Promise<Buffer> {
           logoWidth = maxHeight * aspectRatio
         }
         
-        // Place logo on the right side, aligned with top
-        doc.addImage(imgData, format, pageWidth - margin - logoWidth, yPos, logoWidth, logoHeight, undefined, "FAST")
+        // Place logo on the right side, at the top
+        const logoX = pageWidth - margin - logoWidth
+        doc.addImage(imgData, format, logoX, yPos, logoWidth, logoHeight, undefined, "FAST")
       } else {
         // For URL images - would need to fetch and convert to base64
         // For now, skip if it's a URL
@@ -128,21 +129,42 @@ export async function generateInvoicePDF(data: InvoiceData): Promise<Buffer> {
     }
   }
 
-  // Organization name - on right side, below logo if present
-  const orgNameY = data.organization.logo ? yPos + logoHeight + 5 : yPos + 10
-  doc.setFontSize(20)
-  doc.setTextColor(...primaryColor)
-  doc.setFont("helvetica", "bold")
-  doc.text(data.organization.name, pageWidth - margin, orgNameY, {
-    align: "right",
-  })
-
-  // Invoice title and number - on left side
-  yPos = margin + 5
+  // Invoice title and number - on left side, start from top
+  yPos = margin
   doc.setFontSize(24)
   doc.setTextColor(...darkGray)
   doc.setFont("helvetica", "bold")
   doc.text("FAKTURA", margin, yPos)
+  
+  // Invoice number - on right side, aligned with FAKTURA title
+  doc.setFontSize(14)
+  doc.setTextColor(...lightGray)
+  doc.setFont("helvetica", "normal")
+  doc.text(`Fakturanummer: ${data.invoiceNumber}`, pageWidth - margin, yPos, {
+    align: "right",
+  })
+
+  yPos += 15
+
+  // Organization name - on right side, below invoice number (or at top if no logo)
+  if (data.organization.logo) {
+    // If logo exists, place org name below logo
+    const orgNameY = margin + logoHeight + 5
+    doc.setFontSize(20)
+    doc.setTextColor(...primaryColor)
+    doc.setFont("helvetica", "bold")
+    doc.text(data.organization.name, pageWidth - margin, orgNameY, {
+      align: "right",
+    })
+  } else {
+    // If no logo, place org name at top right
+    doc.setFontSize(20)
+    doc.setTextColor(...primaryColor)
+    doc.setFont("helvetica", "bold")
+    doc.text(data.organization.name, pageWidth - margin, margin + 10, {
+      align: "right",
+    })
+  }
 
   doc.setFontSize(14)
   doc.setTextColor(...lightGray)
@@ -228,24 +250,26 @@ export async function generateInvoicePDF(data: InvoiceData): Promise<Buffer> {
     startY: yPos,
     head: [["Beskrivelse", "Antall", "Pris", "Total"]],
     body: data.items.map((item) => {
-      // Clean description - remove all & characters that are not part of valid HTML entities
-      // First decode valid HTML entities, then remove all & characters
+      // Clean description - remove & characters that wrap individual letters
       let cleanDescription = item.description
-        // Decode numeric entities like &#106; (j), &#103; (g), etc.
+        // First decode valid HTML entities
         .replace(/&#(\d+);/g, (match, dec) => String.fromCharCode(parseInt(dec, 10)))
-        // Decode hex entities like &#x6A; (j)
         .replace(/&#x([0-9a-fA-F]+);/g, (match, hex) => String.fromCharCode(parseInt(hex, 16)))
-        // Then decode named entities
         .replace(/&amp;/g, "&")
         .replace(/&lt;/g, "<")
         .replace(/&gt;/g, ">")
         .replace(/&quot;/g, '"')
         .replace(/&#39;/g, "'")
         .replace(/&nbsp;/g, " ")
+        // Remove pattern &letter& (where letter is any single character)
+        .replace(/&([^&])&/g, "$1")
         // Remove any remaining HTML entities
         .replace(/&[#\w]+;/g, "")
-        // Remove ALL standalone & characters (they seem to be encoding artifacts)
+        // Remove ALL remaining & characters
         .replace(/&/g, "")
+        // Clean up multiple spaces
+        .replace(/\s+/g, " ")
+        .trim()
       
       return [
         cleanDescription,

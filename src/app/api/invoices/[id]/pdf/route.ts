@@ -88,24 +88,28 @@ export async function GET(
         address: invoice.billingAddress,
       },
       items: invoice.bookings.map((b) => {
-        // Clean up title - remove all & characters that are not part of valid HTML entities
-        // First, decode any valid HTML entities
+        // Clean up title - remove & characters that wrap individual letters
+        // Pattern: &letter& should become just "letter"
+        // Also handle cases like &j&j&g&h&j&g&h&
         let cleanTitle = b.title
-          // Decode numeric entities like &#106; (j), &#103; (g), etc.
+          // First decode valid HTML entities
           .replace(/&#(\d+);/g, (match, dec) => String.fromCharCode(parseInt(dec, 10)))
-          // Decode hex entities like &#x6A; (j)
           .replace(/&#x([0-9a-fA-F]+);/g, (match, hex) => String.fromCharCode(parseInt(hex, 16)))
-          // Then decode named entities
           .replace(/&amp;/g, "&")
           .replace(/&lt;/g, "<")
           .replace(/&gt;/g, ">")
           .replace(/&quot;/g, '"')
           .replace(/&#39;/g, "'")
           .replace(/&nbsp;/g, " ")
+          // Remove pattern &letter& (where letter is any single character)
+          .replace(/&([^&])&/g, "$1")
           // Remove any remaining HTML entities
           .replace(/&[#\w]+;/g, "")
-          // Remove ALL standalone & characters (they seem to be encoding artifacts)
+          // Remove ALL remaining & characters
           .replace(/&/g, "")
+          // Clean up multiple spaces
+          .replace(/\s+/g, " ")
+          .trim()
         
         const resourceName = b.resourcePart 
           ? `${b.resource.name} → ${b.resourcePart.name}` 
