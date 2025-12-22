@@ -408,37 +408,42 @@ export default async function ResourcePage({ params }: Props) {
               Book nå
             </Link>
 
-            {/* Quick info */}
-            <div className="card p-6">
-              <h3 className="font-semibold text-gray-900 mb-4">Booking-info</h3>
-              <div className="space-y-4">
-                <div className="flex items-start gap-3">
-                  <Clock className="w-5 h-5 text-gray-400 mt-0.5" />
-                  <div>
-                    <p className="text-sm font-medium text-gray-900">Varighet</p>
-                    <p className="text-sm text-gray-500">
-                      {resource.minBookingMinutes !== 0 && resource.maxBookingMinutes !== 9999
-                        ? `${resource.minBookingMinutes} - ${resource.maxBookingMinutes} minutter`
-                        : "Ubegrenset varighet"
-                      }
-                    </p>
-                  </div>
-                </div>
-                <div className="flex items-start gap-3">
-                  <Calendar className="w-5 h-5 text-gray-400 mt-0.5" />
-                  <div>
-                    <p className="text-sm font-medium text-gray-900">Forhåndsbestilling</p>
-                    <p className="text-sm text-gray-500">
-                      {resource.advanceBookingDays 
-                        ? `Inntil ${resource.advanceBookingDays} dager frem`
-                        : "Ubegrenset antall dager"
-                      }
-                    </p>
-                  </div>
-                </div>
-                <div className="flex items-start gap-3">
-                  {resource.requiresApproval ? (
-                    <>
+            {/* Quick info - Vises kun hvis minst én innstilling er aktiv */}
+            {((resource.minBookingMinutes !== 0 && resource.minBookingMinutes !== null) || 
+              (resource.maxBookingMinutes !== 9999 && resource.maxBookingMinutes !== null) ||
+              resource.advanceBookingDays ||
+              resource.requiresApproval) && (
+              <div className="card p-6">
+                <h3 className="font-semibold text-gray-900 mb-4">Booking-info</h3>
+                <div className="space-y-4">
+                  {/* Varighet - vises kun hvis begrenset */}
+                  {((resource.minBookingMinutes !== 0 && resource.minBookingMinutes !== null) || 
+                    (resource.maxBookingMinutes !== 9999 && resource.maxBookingMinutes !== null)) && (
+                    <div className="flex items-start gap-3">
+                      <Clock className="w-5 h-5 text-gray-400 mt-0.5" />
+                      <div>
+                        <p className="text-sm font-medium text-gray-900">Varighet</p>
+                        <p className="text-sm text-gray-500">
+                          {`${resource.minBookingMinutes || 0} - ${resource.maxBookingMinutes || 9999} minutter`}
+                        </p>
+                      </div>
+                    </div>
+                  )}
+                  {/* Forhåndsbestilling - vises kun hvis begrenset */}
+                  {resource.advanceBookingDays && (
+                    <div className="flex items-start gap-3">
+                      <Calendar className="w-5 h-5 text-gray-400 mt-0.5" />
+                      <div>
+                        <p className="text-sm font-medium text-gray-900">Forhåndsbestilling</p>
+                        <p className="text-sm text-gray-500">
+                          Inntil {resource.advanceBookingDays} dager frem
+                        </p>
+                      </div>
+                    </div>
+                  )}
+                  {/* Godkjenning - vises kun hvis kreves */}
+                  {resource.requiresApproval && (
+                    <div className="flex items-start gap-3">
                       <AlertCircle className="w-5 h-5 text-amber-500 mt-0.5" />
                       <div>
                         <p className="text-sm font-medium text-gray-900">Godkjenning</p>
@@ -446,21 +451,11 @@ export default async function ResourcePage({ params }: Props) {
                           Krever godkjenning fra admin
                         </p>
                       </div>
-                    </>
-                  ) : (
-                    <>
-                      <CheckCircle2 className="w-5 h-5 text-green-500 mt-0.5" />
-                      <div>
-                        <p className="text-sm font-medium text-gray-900">Godkjenning</p>
-                        <p className="text-sm text-gray-500">
-                          Automatisk godkjent
-                        </p>
-                      </div>
-                    </>
+                    </div>
                   )}
                 </div>
               </div>
-            </div>
+            )}
 
             {/* Price info - Kun for standardlisens (ikke "pris & betaling" modul) */}
             {!pricingEnabled && resource.visPrisInfo && resource.prisInfo && (
