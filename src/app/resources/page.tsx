@@ -4,8 +4,8 @@ import { prisma } from "@/lib/prisma"
 import { Building2 } from "lucide-react"
 import { isPricingEnabled, hasPricingRules } from "@/lib/pricing"
 
-// Revalidate every 60 seconds
-export const revalidate = 60
+// Revalidate every hour (3600 seconds) to reduce ISR writes
+export const revalidate = 3600
 
 // Fetch resources directly (cache removed temporarily to debug)
 async function getResources() {
