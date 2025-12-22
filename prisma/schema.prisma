@@ -233,11 +233,45 @@ model Resource {
   parts    ResourcePart[]
   bookings Booking[]
   moderators ResourceModerator[]
+  fixedPricePackages FixedPricePackage[]
 
   // Indexes for faster queries
   @@index([organizationId, isActive])
   @@index([categoryId])
   @@index([showOnPublicCalendar])
+}
+
+// Fixed price package for resources/parts (e.g., "Barneselskap 2t", "E-sport med trener")
+// Admin defines name, duration, and price. User selects package + start time, end time is calculated automatically.
+model FixedPricePackage {
+  id              String   @id @default(cuid())
+  name            String   // e.g., "Barneselskap", "E-sport med trener"
+  description     String?  // Optional description
+  durationMinutes Int      // Duration in minutes (e.g., 120 = 2 hours)
+  price           Decimal  // Fixed price in NOK
+  
+  // Can be linked to resource (whole facility) or resource part
+  resourceId      String?
+  resource        Resource? @relation(fields: [resourceId], references: [id], onDelete: Cascade)
+  resourcePartId  String?
+  resourcePart    ResourcePart? @relation(fields: [resourcePartId], references: [id], onDelete: Cascade)
+  
+  // Organization
+  organizationId  String
+  
+  isActive        Boolean  @default(true)
+  sortOrder       Int      @default(0)  // For ordering in UI
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  
+  // Bookings using this package
+  bookings        Booking[]
+  
+  @@index([resourceId])
+  @@index([resourcePartId])
+  @@index([organizationId])
+  @@index([isActive])
 }
 
 // Part of a resource (e.g., "Bane 1", "Bane 2", "Halv hall")
@@ -274,6 +308,7 @@ model ResourcePart {
   freeForRoles String?
 
   bookings Booking[]
+  fixedPricePackages FixedPricePackage[]
   
   @@index([parentId])
   @@index([resourceId])
@@ -333,6 +368,10 @@ model Booking {
   payments  Payment[]
   totalAmount Decimal?  // Total price for this booking in NOK
   preferredPaymentMethod String? // Brukerens foretrukne betalingsmetode: "INVOICE", "VIPPS", "CARD" (kun hvis pricing er aktivert)
+  
+  // Fixed price package (if booking was made with a package)
+  fixedPricePackageId String?
+  fixedPricePackage   FixedPricePackage? @relation(fields: [fixedPricePackageId], references: [id])
 
   // Indexes for faster queries
   @@index([resourceId, status, startTime])
@@ -341,6 +380,7 @@ model Booking {
   @@index([startTime])
   @@index([status])
   @@index([parentBookingId]) // For recurring bookings
+  @@index([fixedPricePackageId]) // For fixed price package bookings
   
   // Composite indexes for conflict checking (double booking detection)
   @@index([resourceId, status, startTime, endTime]) // For whole facility bookings

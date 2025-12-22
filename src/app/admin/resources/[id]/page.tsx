@@ -28,6 +28,17 @@ import {
 } from "lucide-react"
 import { MapEditor } from "@/components/MapEditor"
 import { PartsHierarchyEditor, HierarchicalPart } from "@/components/PartsHierarchyEditor"
+import FixedPricePackagesEditor from "@/components/FixedPricePackagesEditor"
+
+interface FixedPricePackage {
+  id?: string
+  name: string
+  description: string
+  durationMinutes: number
+  price: number
+  isActive: boolean
+  sortOrder: number
+}
 
 interface Category {
   id: string
@@ -130,6 +141,10 @@ export default function EditResourcePage({ params }: Props) {
   }>>([])
   const [showAddModerator, setShowAddModerator] = useState(false)
   const [selectedModeratorId, setSelectedModeratorId] = useState("")
+  
+  // Fixed price packages state
+  const [fixedPricePackages, setFixedPricePackages] = useState<FixedPricePackage[]>([])
+  const [partFixedPricePackages, setPartFixedPricePackages] = useState<Record<string, FixedPricePackage[]>>({})
 
   useEffect(() => {
     if (status === "unauthenticated") {
@@ -280,6 +295,35 @@ export default function EditResourcePage({ params }: Props) {
         u.role === "moderator" && u.isApproved && !moderatorUserIds.includes(u.id)
       )
       setAvailableModerators(available)
+      
+      // Load fixed price packages for resource (if pricing is enabled)
+      if (pricingStatus.enabled) {
+        try {
+          // Load packages for the resource itself
+          const resourcePackages = await fetch(`/api/admin/fixed-price-packages?resourceId=${id}`).then(res => res.json())
+          setFixedPricePackages(Array.isArray(resourcePackages) ? resourcePackages.map((p: any) => ({
+            ...p,
+            price: Number(p.price)
+          })) : [])
+          
+          // Load packages for each part
+          const partPackagesMap: Record<string, FixedPricePackage[]> = {}
+          for (const part of resource.parts || []) {
+            if (part.id) {
+              const partPackages = await fetch(`/api/admin/fixed-price-packages?resourcePartId=${part.id}`).then(res => res.json())
+              if (Array.isArray(partPackages) && partPackages.length > 0) {
+                partPackagesMap[part.id] = partPackages.map((p: any) => ({
+                  ...p,
+                  price: Number(p.price)
+                }))
+              }
+            }
+          }
+          setPartFixedPricePackages(partPackagesMap)
+        } catch (e) {
+          console.error("Error loading fixed price packages:", e)
+        }
+      }
       
       setIsLoading(false)
     }).catch(() => {
@@ -440,6 +484,35 @@ export default function EditResourcePage({ params }: Props) {
         }
       }) || [])
 
+      // Save fixed price packages (if pricing is enabled)
+      if (pricingEnabled) {
+        try {
+          // Save resource-level packages
+          await fetch("/api/admin/fixed-price-packages", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              resourceId: id,
+              packages: fixedPricePackages
+            })
+          })
+          
+          // Save part-level packages
+          for (const partId of Object.keys(partFixedPricePackages)) {
+            await fetch("/api/admin/fixed-price-packages", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                resourcePartId: partId,
+                packages: partFixedPricePackages[partId]
+              })
+            })
+          }
+        } catch (e) {
+          console.error("Error saving fixed price packages:", e)
+        }
+      }
+      
       // Show success message
       setSuccessMessage("Endringene ble lagret!")
       setTimeout(() => setSuccessMessage(""), 3000)
@@ -1160,6 +1233,24 @@ export default function EditResourcePage({ params }: Props) {
                   </div>
                 )}
 
+                {/* Fastprispakker for hele fasiliteten */}
+                {allowWholeBooking && (
+                  <div className="space-y-4 pt-6 border-t-2 border-gray-200">
+                    <div className="flex items-center justify-between border-b border-gray-200 pb-2">
+                      <h3 className="font-semibold text-gray-900">Fastprispakker (hele fasiliteten)</h3>
+                    </div>
+                    <p className="text-sm text-gray-600 mb-4">
+                      Fastprispakker gir brukere mulighet til å velge en forhåndsdefinert pakke med fast varighet og pris.
+                      Når en bruker velger en pakke, angir de kun starttidspunkt - sluttid beregnes automatisk.
+                    </p>
+                    <FixedPricePackagesEditor
+                      resourceId={id}
+                      packages={fixedPricePackages}
+                      onChange={setFixedPricePackages}
+                    />
+                  </div>
+                )}
+
                 {/* Deler prislogikk */}
                 {parts.length > 0 && (
                   <div className="space-y-4 pt-6 border-t-2 border-gray-200">
@@ -1202,6 +1293,27 @@ export default function EditResourcePage({ params }: Props) {
                           </button>
                         </div>
                         
+                        {/* Fastprispakker for denne delen */}
+                        {part.id && (
+                          <div className="mt-4 pt-4 border-t border-gray-200">
+                            <FixedPricePackagesEditor
+                              resourcePartId={part.id}
+                              packages={partFixedPricePackages[part.id] || []}
+                              onChange={(newPackages) => {
+                                setPartFixedPricePackages(prev => ({
+                                  ...prev,
+                                  [part.id!]: newPackages
+                                }))
+                              }}
+                            />
+                          </div>
+                        )}
+                        {!part.id && (
+                          <p className="text-xs text-gray-500 italic mt-2">
+                            Lagre fasiliteten først for å kunne legge til fastprispakker på denne delen.
+                          </p>
+                        )}
+
                         {partPricingRules.length === 0 ? (
                           <p className="text-xs text-gray-500 italic">
                             Ingen prislogikk satt. Bruker fasilitetens prislogikk.

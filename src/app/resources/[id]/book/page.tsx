@@ -19,6 +19,15 @@ import {
 } from "lucide-react"
 import { MapViewer } from "@/components/MapViewer"
 
+interface FixedPricePackage {
+  id: string
+  name: string
+  description?: string | null
+  durationMinutes: number
+  price: number
+  isActive: boolean
+}
+
 interface ResourcePart {
   id: string
   name: string
@@ -42,6 +51,15 @@ interface Resource {
 
 interface Props {
   params: Promise<{ id: string }>
+}
+
+// Format duration in minutes to human readable
+function formatDuration(minutes: number): string {
+  const hours = Math.floor(minutes / 60)
+  const mins = minutes % 60
+  if (hours === 0) return `${mins} min`
+  if (mins === 0) return `${hours} ${hours === 1 ? "time" : "timer"}`
+  return `${hours} ${hours === 1 ? "time" : "timer"} ${mins} min`
 }
 
 // Sort parts hierarchically (parents first, then children, sorted by name at each level)
@@ -205,6 +223,11 @@ export default function BookResourcePage({ params }: Props) {
   const [pricingEnabled, setPricingEnabled] = useState(false)
   const [calculatedPrice, setCalculatedPrice] = useState<{ price: number; isFree: boolean; reason?: string } | null>(null)
   const [preferredPaymentMethod, setPreferredPaymentMethod] = useState<"INVOICE" | "VIPPS" | "CARD" | null>("INVOICE")
+  
+  // Fixed price packages state
+  const [availablePackages, setAvailablePackages] = useState<FixedPricePackage[]>([])
+  const [selectedPackageId, setSelectedPackageId] = useState<string | null>(null)
+  const [usePackage, setUsePackage] = useState(false)
 
   const fetchResource = useCallback(async () => {
     try {
@@ -226,6 +249,74 @@ export default function BookResourcePage({ params }: Props) {
       .then(data => setPricingEnabled(data.enabled || false))
       .catch(() => setPricingEnabled(false))
   }, [fetchResource])
+
+  // Load fixed price packages when resource/parts change
+  useEffect(() => {
+    if (!pricingEnabled || !resource) {
+      setAvailablePackages([])
+      return
+    }
+
+    const loadPackages = async () => {
+      try {
+        // Determine what to load packages for
+        // Priority: selected part > whole resource
+        const partId = selectedParts.length > 0 ? selectedParts[0] : null
+        
+        // Fetch packages for the selected part or whole resource
+        const url = partId 
+          ? `/api/fixed-price-packages?resourcePartId=${partId}`
+          : `/api/fixed-price-packages?resourceId=${id}`
+        
+        const res = await fetch(url)
+        if (res.ok) {
+          const data = await res.json()
+          // Only show active packages
+          const activePackages = (Array.isArray(data) ? data : [])
+            .filter((p: FixedPricePackage) => p.isActive)
+            .map((p: any) => ({ ...p, price: Number(p.price) }))
+          setAvailablePackages(activePackages)
+          
+          // If no packages available, reset package selection
+          if (activePackages.length === 0) {
+            setSelectedPackageId(null)
+            setUsePackage(false)
+          }
+        } else {
+          setAvailablePackages([])
+        }
+      } catch (e) {
+        console.error("Error loading fixed price packages:", e)
+        setAvailablePackages([])
+      }
+    }
+
+    loadPackages()
+  }, [pricingEnabled, resource, selectedParts, id])
+
+  // When a package is selected, auto-calculate end time
+  useEffect(() => {
+    if (!usePackage || !selectedPackageId || !date || !startTime) return
+
+    const selectedPackage = availablePackages.find(p => p.id === selectedPackageId)
+    if (!selectedPackage) return
+
+    // Calculate end time based on package duration
+    const startDateTime = new Date(`${date}T${startTime}`)
+    const endDateTime = new Date(startDateTime.getTime() + selectedPackage.durationMinutes * 60 * 1000)
+    
+    // Format end time as HH:MM
+    const hours = endDateTime.getHours().toString().padStart(2, '0')
+    const minutes = endDateTime.getMinutes().toString().padStart(2, '0')
+    setEndTime(`${hours}:${minutes}`)
+    
+    // Set price directly from package
+    setCalculatedPrice({
+      price: selectedPackage.price,
+      isFree: selectedPackage.price === 0,
+      reason: `${selectedPackage.name} (${formatDuration(selectedPackage.durationMinutes)})`
+    })
+  }, [usePackage, selectedPackageId, date, startTime, availablePackages])
 
   useEffect(() => {
     if (session?.user) {
@@ -322,6 +413,10 @@ export default function BookResourcePage({ params }: Props) {
           // Legg til betalingsmetode hvis pricing er aktivert og det er valgt
           ...(pricingEnabled && preferredPaymentMethod ? {
             preferredPaymentMethod
+          } : {}),
+          // Legg til fastprispakke hvis valgt
+          ...(usePackage && selectedPackageId ? {
+            fixedPricePackageId: selectedPackageId
           } : {})
         })
       })
@@ -340,7 +435,7 @@ export default function BookResourcePage({ params }: Props) {
     } finally {
       setIsSubmitting(false)
     }
-  }, [resource, selectedParts, id, date, startTime, endTime, title, description, contactName, contactEmail, contactPhone, isRecurring, recurringType, recurringEndDate, pricingEnabled, calculatedPrice, preferredPaymentMethod])
+  }, [resource, selectedParts, id, date, startTime, endTime, title, description, contactName, contactEmail, contactPhone, isRecurring, recurringType, recurringEndDate, pricingEnabled, calculatedPrice, preferredPaymentMethod, usePackage, selectedPackageId])
 
   if (status === "loading" || isLoading) {
     return (
@@ -540,6 +635,69 @@ export default function BookResourcePage({ params }: Props) {
               </div>
             )}
 
+            {/* Fixed Price Packages selection (if available) */}
+            {pricingEnabled && availablePackages.length > 0 && (
+              <div className="p-4 bg-gradient-to-r from-purple-50 to-blue-50 border-2 border-purple-200 rounded-xl space-y-4">
+                <div className="flex items-center justify-between">
+                  <h3 className="font-medium text-gray-900">Velg type booking</h3>
+                </div>
+                
+                <div className="space-y-2">
+                  {/* Option: Manual time selection */}
+                  <label className={`flex items-start gap-3 p-4 border-2 rounded-lg cursor-pointer transition-colors ${
+                    !usePackage ? 'border-blue-500 bg-white' : 'border-gray-200 bg-white hover:bg-gray-50'
+                  }`}>
+                    <input
+                      type="radio"
+                      name="bookingType"
+                      checked={!usePackage}
+                      onChange={() => {
+                        setUsePackage(false)
+                        setSelectedPackageId(null)
+                        setEndTime("")
+                        setCalculatedPrice(null)
+                      }}
+                      className="mt-1 w-4 h-4 text-blue-600"
+                    />
+                    <div className="flex-1">
+                      <div className="font-medium text-gray-900">Velg start- og sluttid selv</div>
+                      <div className="text-sm text-gray-500">
+                        Du angir nøyaktig når bookingen starter og slutter
+                      </div>
+                    </div>
+                  </label>
+                  
+                  {/* Package options */}
+                  {availablePackages.map(pkg => (
+                    <label key={pkg.id} className={`flex items-start gap-3 p-4 border-2 rounded-lg cursor-pointer transition-colors ${
+                      usePackage && selectedPackageId === pkg.id ? 'border-purple-500 bg-purple-50' : 'border-gray-200 bg-white hover:bg-gray-50'
+                    }`}>
+                      <input
+                        type="radio"
+                        name="bookingType"
+                        checked={usePackage && selectedPackageId === pkg.id}
+                        onChange={() => {
+                          setUsePackage(true)
+                          setSelectedPackageId(pkg.id)
+                        }}
+                        className="mt-1 w-4 h-4 text-purple-600"
+                      />
+                      <div className="flex-1">
+                        <div className="flex items-center justify-between">
+                          <span className="font-medium text-gray-900">{pkg.name}</span>
+                          <span className="font-bold text-purple-700">{pkg.price.toFixed(0)} kr</span>
+                        </div>
+                        <div className="text-sm text-gray-500">
+                          Varighet: {formatDuration(pkg.durationMinutes)}
+                          {pkg.description && ` - ${pkg.description}`}
+                        </div>
+                      </div>
+                    </label>
+                  ))}
+                </div>
+              </div>
+            )}
+
             {/* Date and time */}
             <div className="grid md:grid-cols-3 gap-4">
               <div>
@@ -595,33 +753,43 @@ export default function BookResourcePage({ params }: Props) {
                   <Clock className="w-4 h-4 inline mr-1" />
                   Til kl. *
                 </label>
-                <select
-                  value={endTime}
-                  onChange={(e) => setEndTime(e.target.value)}
-                  onMouseDown={(e) => {
-                    // Scroll to bottom when clicking to open dropdown
-                    const select = e.target as HTMLSelectElement
-                    setTimeout(() => {
-                      if (select.options.length > 0) {
-                        select.selectedIndex = select.options.length - 1
-                        // Reset to actual value after a brief moment
-                        setTimeout(() => {
-                          const selectedIndex = Array.from(select.options).findIndex(opt => opt.value === endTime)
-                          if (selectedIndex > 0) {
-                            select.selectedIndex = selectedIndex
-                          }
-                        }, 50)
-                      }
-                    }, 0)
-                  }}
-                  className="input cursor-pointer w-full"
-                  required
-                >
-                  <option value="">Velg tid</option>
-                  {timeOptions.map(({ value, label }) => (
-                    <option key={value} value={value}>{label}</option>
-                  ))}
-                </select>
+                {usePackage && selectedPackageId ? (
+                  // When using a package, end time is calculated automatically
+                  <div className="input bg-gray-100 flex items-center justify-between">
+                    <span className={endTime ? "text-gray-900" : "text-gray-400"}>
+                      {endTime || "Velg starttid"}
+                    </span>
+                    <span className="text-xs text-gray-500">(automatisk)</span>
+                  </div>
+                ) : (
+                  <select
+                    value={endTime}
+                    onChange={(e) => setEndTime(e.target.value)}
+                    onMouseDown={(e) => {
+                      // Scroll to bottom when clicking to open dropdown
+                      const select = e.target as HTMLSelectElement
+                      setTimeout(() => {
+                        if (select.options.length > 0) {
+                          select.selectedIndex = select.options.length - 1
+                          // Reset to actual value after a brief moment
+                          setTimeout(() => {
+                            const selectedIndex = Array.from(select.options).findIndex(opt => opt.value === endTime)
+                            if (selectedIndex > 0) {
+                              select.selectedIndex = selectedIndex
+                            }
+                          }, 50)
+                        }
+                      }, 0)
+                    }}
+                    className="input cursor-pointer w-full"
+                    required
+                  >
+                    <option value="">Velg tid</option>
+                    {timeOptions.map(({ value, label }) => (
+                      <option key={value} value={value}>{label}</option>
+                    ))}
+                  </select>
+                )}
               </div>
             </div>
 

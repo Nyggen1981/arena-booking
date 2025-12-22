@@ -40,7 +40,8 @@ export async function POST(request: Request) {
       isRecurring,
       recurringType,
       recurringEndDate,
-      preferredPaymentMethod // Brukerens foretrukne betalingsmetode (kun hvis pricing er aktivert)
+      preferredPaymentMethod, // Brukerens foretrukne betalingsmetode (kun hvis pricing er aktivert)
+      fixedPricePackageId // ID til fastprispakke hvis bruker har valgt en
     } = body
 
     // Normalize to array: use resourcePartIds if provided, otherwise use resourcePartId as single-item array
@@ -256,15 +257,32 @@ export async function POST(request: Request) {
     
     const allCreatedBookings = []
     
+    // If a fixed price package is selected, fetch it for price
+    let fixedPricePackage = null
+    if (fixedPricePackageId) {
+      fixedPricePackage = await prisma.fixedPricePackage.findUnique({
+        where: { id: fixedPricePackageId }
+      })
+    }
+
     for (const partId of partsToBook) {
       // Beregn pris for booking (kun hvis prising er aktivert)
-      const priceCalculation = await calculateBookingPrice(
-        session.user.id,
-        resourceId,
-        partId,
-        bookingDates[0].start,
-        bookingDates[0].end
-      )
+      // If using a fixed price package, use its price instead
+      let priceCalculation
+      if (fixedPricePackage) {
+        priceCalculation = {
+          price: Number(fixedPricePackage.price),
+          isFree: Number(fixedPricePackage.price) === 0
+        }
+      } else {
+        priceCalculation = await calculateBookingPrice(
+          session.user.id,
+          resourceId,
+          partId,
+          bookingDates[0].start,
+          bookingDates[0].end
+        )
+      }
       
       // Create parent booking for this part
       // Bygg booking data objekt - kun inkluder preferredPaymentMethod hvis det er definert
@@ -291,6 +309,11 @@ export async function POST(request: Request) {
       // Legg til preferredPaymentMethod hvis det er definert (uavhengig av pris)
       if (preferredPaymentMethod) {
         bookingData.preferredPaymentMethod = preferredPaymentMethod
+      }
+      
+      // Legg til fixedPricePackageId hvis det er definert
+      if (fixedPricePackageId) {
+        bookingData.fixedPricePackageId = fixedPricePackageId
       }
       
       const parentBooking = await prisma.booking.create({
@@ -347,6 +370,11 @@ export async function POST(request: Request) {
             // Legg til preferredPaymentMethod hvis det er definert (uavhengig av pris)
             if (preferredPaymentMethod) {
               childBookingData.preferredPaymentMethod = preferredPaymentMethod
+            }
+            
+            // Legg til fixedPricePackageId hvis det er definert
+            if (fixedPricePackageId) {
+              childBookingData.fixedPricePackageId = fixedPricePackageId
             }
             
             return prisma.booking.create({
@@ -493,6 +521,14 @@ export async function GET() {
           status: true,
           paymentMethod: true,
           amount: true
+        }
+      },
+      fixedPricePackage: {
+        select: {
+          id: true,
+          name: true,
+          durationMinutes: true,
+          price: true
         }
       }
     },
