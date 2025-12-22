@@ -117,7 +117,13 @@ export async function PUT(request: Request) {
       vippsClientId,
       vippsClientSecret,
       vippsSubscriptionKey,
-      vippsTestMode
+      vippsTestMode,
+      invoiceAddress,
+      invoicePhone,
+      invoiceEmail,
+      invoiceOrgNumber,
+      invoiceBankAccount,
+      invoiceNotes
     } = await request.json()
 
     // Check if slug is already taken by another org
