@@ -214,8 +214,8 @@ export function BookingManagement({ initialBookings, showTabs = true }: BookingM
         throw new Error(errorData.error || "Kunne ikke utføre handling")
       }
 
-      // Refresh bookings
-      await fetchBookings()
+        // Refresh bookings
+        await fetchBookings()
       
       // Close preview modal if open
       if (emailPreviewModalOpen) {
@@ -961,9 +961,9 @@ export function BookingManagement({ initialBookings, showTabs = true }: BookingM
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100">
-              {filteredBookings.map((booking) => (
+          {filteredBookings.map((booking) => (
                 <tr 
-                  key={booking.id} 
+              key={booking.id} 
                   className={`hover:bg-gray-50 transition-colors cursor-pointer ${
                     selectedIds.has(booking.id) ? "bg-blue-50/50" : ""
                   }`}
@@ -976,26 +976,26 @@ export function BookingManagement({ initialBookings, showTabs = true }: BookingM
                     setSelectedBooking(booking)
                   }}
                 >
-                  {canDelete && (
+                {canDelete && (
                     <td className="px-4 py-4">
-                      <button
-                        onClick={() => toggleSelection(booking.id)}
+                  <button
+                    onClick={() => toggleSelection(booking.id)}
                         className="p-1"
-                      >
-                        {selectedIds.has(booking.id) ? (
+                  >
+                    {selectedIds.has(booking.id) ? (
                           <CheckSquare className="w-4 h-4 text-blue-600" />
-                        ) : (
+                    ) : (
                           <Square className="w-4 h-4 text-gray-400 hover:text-gray-600" />
-                        )}
-                      </button>
+                    )}
+                  </button>
                     </td>
-                  )}
+                )}
                   <td className="px-4 py-4">
                     <div className="flex items-center gap-2">
-                      <div 
-                        className="w-3 h-3 rounded-full flex-shrink-0"
-                        style={{ backgroundColor: booking.resource.color || "#3b82f6" }}
-                      />
+                    <div 
+                      className="w-3 h-3 rounded-full flex-shrink-0"
+                      style={{ backgroundColor: booking.resource.color || "#3b82f6" }}
+                    />
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2 flex-wrap">
                           <span className="font-medium text-gray-900">{booking.title}</span>
@@ -1011,7 +1011,7 @@ export function BookingManagement({ initialBookings, showTabs = true }: BookingM
                           {booking.status === "cancelled" && (
                             <span className="px-2 py-0.5 text-xs font-medium rounded-full bg-gray-100 text-gray-600">Kansellert</span>
                           )}
-                        </div>
+                  </div>
                         {booking.description && (
                           <p className="text-xs text-gray-500 mt-1 line-clamp-2">{booking.description}</p>
                         )}
@@ -1029,10 +1029,10 @@ export function BookingManagement({ initialBookings, showTabs = true }: BookingM
                   <td className="px-4 py-4">
                     <div>
                       <p className="text-sm font-medium text-gray-900">
-                        {format(new Date(booking.startTime), "d. MMM yyyy", { locale: nb })}
+                      {format(new Date(booking.startTime), "d. MMM yyyy", { locale: nb })}
                       </p>
                       <p className="text-xs text-gray-500">
-                        {format(new Date(booking.startTime), "HH:mm")} - {format(new Date(booking.endTime), "HH:mm")}
+                      {format(new Date(booking.startTime), "HH:mm")} - {format(new Date(booking.endTime), "HH:mm")}
                       </p>
                       <p className="text-xs text-gray-400 mt-0.5">
                         {(() => {
@@ -1058,7 +1058,7 @@ export function BookingManagement({ initialBookings, showTabs = true }: BookingM
                       <td className="px-4 py-4">
                         {booking.totalAmount && booking.totalAmount > 0 ? (
                           <p className="text-sm font-semibold text-gray-900">
-                            {Number(booking.totalAmount).toFixed(2)} kr
+                            {Math.round(Number(booking.totalAmount))} kr
                           </p>
                         ) : (
                           <p className="text-xs text-gray-400">Gratis</p>
@@ -1070,7 +1070,7 @@ export function BookingManagement({ initialBookings, showTabs = true }: BookingM
                             {booking.preferredPaymentMethod === "INVOICE" && "Faktura"}
                             {booking.preferredPaymentMethod === "VIPPS" && "Vipps"}
                             {booking.preferredPaymentMethod === "CARD" && "Kort"}
-                          </span>
+                    </span>
                         ) : (
                           <p className="text-xs text-gray-400">—</p>
                         )}
@@ -1088,11 +1088,11 @@ export function BookingManagement({ initialBookings, showTabs = true }: BookingM
                                   {payment.status === "COMPLETED" ? "Betalt" : "Venter"}
                                 </span>
                                 <span className="text-xs text-gray-500">
-                                  {Number(payment.amount).toFixed(2)} kr
-                                </span>
-                              </div>
+                                  {Math.round(Number(payment.amount))} kr
+                    </span>
+                  </div>
                             ))}
-                          </div>
+                </div>
                         ) : booking.totalAmount && booking.totalAmount > 0 ? (
                           <span className="inline-flex items-center px-2 py-1 text-xs font-medium rounded-full bg-gray-100 text-gray-600">
                             Ikke betalt
@@ -1105,97 +1105,97 @@ export function BookingManagement({ initialBookings, showTabs = true }: BookingM
                   )}
                   <td className="px-4 py-4">
                     <div className="flex items-center justify-end gap-2">
-                      {activeTab === "history" ? (
+                  {activeTab === "history" ? (
+                    <>
+                      <span className={`px-3 py-1 rounded-full text-sm ${
+                        booking.status === "approved" 
+                          ? "bg-green-100 text-green-600" 
+                          : booking.status === "cancelled"
+                          ? "bg-gray-100 text-gray-600"
+                          : "bg-red-100 text-red-600"
+                      }`}>
+                        {booking.status === "approved" && "Gjennomført"}
+                        {booking.status === "cancelled" && "Kansellert"}
+                        {booking.status === "rejected" && "Avslått"}
+                        {booking.status === "pending" && "Utløpt"}
+                      </span>
+                      <button
+                        onClick={() => handleDelete(booking.id)}
+                        disabled={processingId === booking.id}
+                        className="p-2 rounded-lg bg-gray-100 text-gray-500 hover:bg-red-100 hover:text-red-600 transition-colors disabled:opacity-50"
+                        title="Slett permanent"
+                      >
+                        {processingId === booking.id ? (
+                              <Loader2 className="w-4 h-4 animate-spin" />
+                        ) : (
+                              <Trash2 className="w-4 h-4" />
+                        )}
+                      </button>
+                    </>
+                  ) : activeTab === "rejected" ? (
+                    <>
+                      <span className="px-3 py-1 rounded-full bg-red-100 text-red-600 text-sm">
+                        {booking.status === "cancelled" ? "Kansellert" : "Avslått"}
+                      </span>
+                      <button
+                        onClick={() => handleDelete(booking.id)}
+                        disabled={processingId === booking.id}
+                        className="p-2 rounded-lg bg-gray-100 text-gray-500 hover:bg-red-100 hover:text-red-600 transition-colors disabled:opacity-50"
+                        title="Slett permanent"
+                      >
+                        {processingId === booking.id ? (
+                              <Loader2 className="w-4 h-4 animate-spin" />
+                        ) : (
+                              <Trash2 className="w-4 h-4" />
+                        )}
+                      </button>
+                    </>
+                  ) : (
+                    <>
+                      {booking.status === "pending" && (
                         <>
-                          <span className={`px-3 py-1 rounded-full text-sm ${
-                            booking.status === "approved" 
-                              ? "bg-green-100 text-green-600" 
-                              : booking.status === "cancelled"
-                              ? "bg-gray-100 text-gray-600"
-                              : "bg-red-100 text-red-600"
-                          }`}>
-                            {booking.status === "approved" && "Gjennomført"}
-                            {booking.status === "cancelled" && "Kansellert"}
-                            {booking.status === "rejected" && "Avslått"}
-                            {booking.status === "pending" && "Utløpt"}
-                          </span>
                           <button
-                            onClick={() => handleDelete(booking.id)}
+                            onClick={() => handleAction(booking.id, "approve")}
                             disabled={processingId === booking.id}
-                            className="p-2 rounded-lg bg-gray-100 text-gray-500 hover:bg-red-100 hover:text-red-600 transition-colors disabled:opacity-50"
-                            title="Slett permanent"
+                            className="p-2 rounded-lg bg-green-100 text-green-600 hover:bg-green-200 transition-colors disabled:opacity-50"
+                            title="Godkjenn"
                           >
                             {processingId === booking.id ? (
-                              <Loader2 className="w-4 h-4 animate-spin" />
-                            ) : (
-                              <Trash2 className="w-4 h-4" />
-                            )}
-                          </button>
-                        </>
-                      ) : activeTab === "rejected" ? (
-                        <>
-                          <span className="px-3 py-1 rounded-full bg-red-100 text-red-600 text-sm">
-                            {booking.status === "cancelled" ? "Kansellert" : "Avslått"}
-                          </span>
-                          <button
-                            onClick={() => handleDelete(booking.id)}
-                            disabled={processingId === booking.id}
-                            className="p-2 rounded-lg bg-gray-100 text-gray-500 hover:bg-red-100 hover:text-red-600 transition-colors disabled:opacity-50"
-                            title="Slett permanent"
-                          >
-                            {processingId === booking.id ? (
-                              <Loader2 className="w-4 h-4 animate-spin" />
-                            ) : (
-                              <Trash2 className="w-4 h-4" />
-                            )}
-                          </button>
-                        </>
-                      ) : (
-                        <>
-                          {booking.status === "pending" && (
-                            <>
-                              <button
-                                onClick={() => handleAction(booking.id, "approve")}
-                                disabled={processingId === booking.id}
-                                className="p-2 rounded-lg bg-green-100 text-green-600 hover:bg-green-200 transition-colors disabled:opacity-50"
-                                title="Godkjenn"
-                              >
-                                {processingId === booking.id ? (
                                   <Loader2 className="w-4 h-4 animate-spin" />
-                                ) : (
+                            ) : (
                                   <CheckCircle2 className="w-4 h-4" />
-                                )}
-                              </button>
-                              <button
-                                onClick={() => handleAction(booking.id, "reject")}
-                                disabled={processingId === booking.id}
-                                className="p-2 rounded-lg bg-red-100 text-red-600 hover:bg-red-200 transition-colors disabled:opacity-50"
-                                title="Avslå"
-                              >
+                            )}
+                          </button>
+                          <button
+                            onClick={() => handleAction(booking.id, "reject")}
+                            disabled={processingId === booking.id}
+                            className="p-2 rounded-lg bg-red-100 text-red-600 hover:bg-red-200 transition-colors disabled:opacity-50"
+                            title="Avslå"
+                          >
                                 <XCircle className="w-4 h-4" />
-                              </button>
-                            </>
-                          )}
-                          {booking.status === "approved" && (
-                            <button
-                              onClick={() => handleAction(booking.id, "cancel")}
-                              disabled={processingId === booking.id}
-                              className="p-2 rounded-lg bg-gray-100 text-gray-600 hover:bg-red-100 hover:text-red-600 transition-colors disabled:opacity-50"
-                              title="Kanseller"
-                            >
-                              {processingId === booking.id ? (
-                                <Loader2 className="w-4 h-4 animate-spin" />
-                              ) : (
-                                <Trash2 className="w-4 h-4" />
-                              )}
-                            </button>
-                          )}
+                          </button>
                         </>
                       )}
-                    </div>
+                      {booking.status === "approved" && (
+                        <button
+                          onClick={() => handleAction(booking.id, "cancel")}
+                          disabled={processingId === booking.id}
+                          className="p-2 rounded-lg bg-gray-100 text-gray-600 hover:bg-red-100 hover:text-red-600 transition-colors disabled:opacity-50"
+                          title="Kanseller"
+                        >
+                          {processingId === booking.id ? (
+                                <Loader2 className="w-4 h-4 animate-spin" />
+                          ) : (
+                                <Trash2 className="w-4 h-4" />
+                          )}
+                        </button>
+                      )}
+                    </>
+                  )}
+                </div>
                   </td>
                 </tr>
-              ))}
+          ))}
             </tbody>
           </table>
         </div>
@@ -1282,7 +1282,7 @@ export function BookingManagement({ initialBookings, showTabs = true }: BookingM
                   <h3 className="text-2xl font-bold text-white mt-1">
                     {selectedBooking.title}
                   </h3>
-                </div>
+    </div>
                 <button
                   onClick={() => setSelectedBooking(null)}
                   className="p-1 rounded-full hover:bg-white/20 transition-colors"
@@ -1402,7 +1402,7 @@ export function BookingManagement({ initialBookings, showTabs = true }: BookingM
                       <div className="flex items-center justify-between p-3 bg-blue-50 border border-blue-200 rounded-lg">
                         <span className="text-sm font-medium text-gray-900">Totalpris:</span>
                         <span className="text-lg font-bold text-gray-900">
-                          {Number(selectedBooking.totalAmount).toFixed(2)} kr
+                          {Math.round(Number(selectedBooking.totalAmount))} kr
                         </span>
                       </div>
                       {selectedBooking.preferredPaymentMethod && (
@@ -1428,7 +1428,7 @@ export function BookingManagement({ initialBookings, showTabs = true }: BookingM
                                     {payment.paymentMethod === "BANK_TRANSFER" && "Bankoverføring"}
                                     {payment.paymentMethod === "INVOICE" && "Faktura"}
                                   </p>
-                                  <p className="text-xs text-gray-500">{Number(payment.amount).toFixed(2)} kr</p>
+                                  <p className="text-xs text-gray-500">{Math.round(Number(payment.amount))} kr</p>
                                 </div>
                                 <span className={`text-xs font-medium px-2 py-1 rounded-full ${
                                   payment.status === "COMPLETED" ? "bg-green-100 text-green-700" :

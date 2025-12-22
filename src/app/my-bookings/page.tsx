@@ -722,7 +722,7 @@ export default function MyBookingsPage() {
                                 <td className="px-4 py-4">
                                   {booking.totalAmount && booking.totalAmount > 0 ? (
                                     <p className="text-sm font-semibold text-gray-900">
-                                      {Number(booking.totalAmount).toFixed(2)} kr
+                                      {Math.round(Number(booking.totalAmount))} kr
                                     </p>
                                   ) : (
                                     <p className="text-xs text-gray-400">Gratis</p>
@@ -1048,7 +1048,7 @@ export default function MyBookingsPage() {
                       <div className="flex items-center justify-between p-3 bg-blue-50 border border-blue-200 rounded-lg">
                         <span className="text-sm font-medium text-gray-900">Totalpris:</span>
                         <span className="text-lg font-bold text-gray-900">
-                          {Number(selectedBooking.totalAmount).toFixed(2)} kr
+                          {Math.round(Number(selectedBooking.totalAmount))} kr
                         </span>
                       </div>
                       {selectedBooking.preferredPaymentMethod && (
@@ -1074,7 +1074,7 @@ export default function MyBookingsPage() {
                                     {payment.paymentMethod === "BANK_TRANSFER" && "Bankoverføring"}
                                     {payment.paymentMethod === "INVOICE" && "Faktura"}
                                   </p>
-                                  <p className="text-xs text-gray-500">{Number(payment.amount).toFixed(2)} kr</p>
+                                  <p className="text-xs text-gray-500">{Math.round(Number(payment.amount))} kr</p>
                                 </div>
                                 <span className={`text-xs font-medium px-2 py-1 rounded-full ${
                                   payment.status === "COMPLETED" ? "bg-green-100 text-green-700" :
