@@ -411,11 +411,24 @@ export default async function ResourcePage({ params }: Props) {
             {/* Quick info - Vises kun hvis minst én innstilling er aktiv */}
             {((resource.minBookingMinutes !== 0 && resource.minBookingMinutes !== null) || 
               (resource.maxBookingMinutes !== 9999 && resource.maxBookingMinutes !== null) ||
+              (resource.minBookingHours && Number(resource.minBookingHours) > 0) ||
               resource.advanceBookingDays ||
               resource.requiresApproval) && (
               <div className="card p-6">
                 <h3 className="font-semibold text-gray-900 mb-4">Booking-info</h3>
                 <div className="space-y-4">
+                  {/* Minimum antall timer - vises kun hvis satt */}
+                  {resource.minBookingHours && Number(resource.minBookingHours) > 0 && (
+                    <div className="flex items-start gap-3">
+                      <Clock className="w-5 h-5 text-gray-400 mt-0.5" />
+                      <div>
+                        <p className="text-sm font-medium text-gray-900">Minimum varighet</p>
+                        <p className="text-sm text-gray-500">
+                          {Number(resource.minBookingHours)} timer
+                        </p>
+                      </div>
+                    </div>
+                  )}
                   {/* Varighet - vises kun hvis begrenset */}
                   {((resource.minBookingMinutes !== 0 && resource.minBookingMinutes !== null) || 
                     (resource.maxBookingMinutes !== 9999 && resource.maxBookingMinutes !== null)) && (
