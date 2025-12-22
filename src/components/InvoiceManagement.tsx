@@ -199,7 +199,9 @@ export function InvoiceManagement() {
                     <div className="flex items-center justify-end gap-2">
                       <a
                         href={`/api/invoices/${invoice.id}/pdf`}
-                        download
+                        download={`Faktura_${invoice.invoiceNumber}.pdf`}
+                        target="_blank"
+                        rel="noopener noreferrer"
                         className="p-2 text-gray-600 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
                         title="Last ned PDF"
                       >

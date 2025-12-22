@@ -238,7 +238,7 @@ export function BookingManagement({ initialBookings, showTabs = true }: BookingM
     await executeAction(previewBookingId, "approve")
   }
 
-  const handleSendInvoice = async (invoiceId: string) => {
+  const handleViewInvoice = async (invoiceId: string) => {
     try {
       setIsLoadingPreview(true)
       setPreviewError(null)
@@ -246,7 +246,8 @@ export function BookingManagement({ initialBookings, showTabs = true }: BookingM
       // Fetch PDF preview
       const pdfResponse = await fetch(`/api/invoices/${invoiceId}/pdf`)
       if (!pdfResponse.ok) {
-        throw new Error("Kunne ikke generere PDF-forhåndsvisning")
+        const errorData = await pdfResponse.json().catch(() => ({}))
+        throw new Error(errorData.error || "Kunne ikke generere PDF-forhåndsvisning")
       }
       
       const blob = await pdfResponse.blob()
@@ -1427,23 +1428,25 @@ export function BookingManagement({ initialBookings, showTabs = true }: BookingM
                         <div className="mt-3">
                           <p className="text-sm text-gray-600 mb-2">Faktura opprettet</p>
                           {selectedBooking.preferredPaymentMethod === "INVOICE" && selectedBooking.status === "approved" && (
-                            <button
-                              onClick={() => handleSendInvoice(selectedBooking.invoiceId!)}
-                              disabled={isSendingInvoice}
-                              className="w-full px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center justify-center gap-2 disabled:opacity-50"
-                            >
-                              {isSendingInvoice && sendingInvoiceId === selectedBooking.invoiceId ? (
-                                <>
-                                  <Loader2 className="w-4 h-4 animate-spin" />
-                                  Sender...
-                                </>
-                              ) : (
-                                <>
-                                  <Send className="w-4 h-4" />
-                                  Send faktura
-                                </>
-                              )}
-                            </button>
+                            <div className="flex gap-2">
+                              <button
+                                onClick={() => handleViewInvoice(selectedBooking.invoiceId!)}
+                                disabled={isLoadingPreview}
+                                className="flex-1 px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors flex items-center justify-center gap-2 disabled:opacity-50"
+                              >
+                                {isLoadingPreview && sendingInvoiceId === selectedBooking.invoiceId ? (
+                                  <>
+                                    <Loader2 className="w-4 h-4 animate-spin" />
+                                    Laster...
+                                  </>
+                                ) : (
+                                  <>
+                                    <Eye className="w-4 h-4" />
+                                    Se faktura
+                                  </>
+                                )}
+                              </button>
+                            </div>
                           )}
                         </div>
                       )}

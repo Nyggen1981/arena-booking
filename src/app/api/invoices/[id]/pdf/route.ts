@@ -101,10 +101,12 @@ export async function GET(
     })
 
     // Return PDF - convert Buffer to Uint8Array for NextResponse
-    return new NextResponse(new Uint8Array(pdfBuffer), {
+    const uint8Array = new Uint8Array(pdfBuffer)
+    return new NextResponse(uint8Array, {
       headers: {
         "Content-Type": "application/pdf",
         "Content-Disposition": `attachment; filename="Faktura_${invoice.invoiceNumber}.pdf"`,
+        "Content-Length": uint8Array.length.toString(),
       },
     })
   } catch (error: any) {
