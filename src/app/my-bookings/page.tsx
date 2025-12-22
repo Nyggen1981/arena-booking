@@ -37,6 +37,7 @@ interface Booking {
   statusNote: string | null
   totalAmount: number | null
   invoiceId: string | null
+  invoice?: { id: string; status: string; invoiceNumber: string } | null
   preferredPaymentMethod: string | null
   resource: {
     id: string
@@ -1092,8 +1093,40 @@ export default function MyBookingsPage() {
                           </div>
                         </div>
                       )}
-                      {selectedBooking.invoiceId && (!selectedBooking.payments || selectedBooking.payments.length === 0) && (
-                        <p className="text-sm text-gray-600">Faktura opprettet</p>
+                      {selectedBooking.invoiceId && selectedBooking.invoice && (
+                        <div className="mt-3 space-y-2">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <span className="text-sm text-gray-600">Faktura:</span>
+                            <span className={`inline-flex items-center px-2 py-1 text-xs font-medium rounded-full ${
+                              selectedBooking.invoice.status === "PAID" 
+                                ? "bg-green-100 text-green-700"
+                                : selectedBooking.invoice.status === "SENT"
+                                ? "bg-blue-100 text-blue-700"
+                                : selectedBooking.invoice.status === "DRAFT"
+                                ? "bg-gray-100 text-gray-600"
+                                : "bg-orange-100 text-orange-700"
+                            }`}>
+                              {selectedBooking.invoice.status === "PAID" && "Betalt"}
+                              {selectedBooking.invoice.status === "SENT" && "Sendt"}
+                              {selectedBooking.invoice.status === "DRAFT" && "Kladd"}
+                              {selectedBooking.invoice.status === "OVERDUE" && "Forfalt"}
+                            </span>
+                          </div>
+                          {selectedBooking.invoice.status !== "DRAFT" && (
+                            <a
+                              href={`/api/invoices/${selectedBooking.invoiceId}/pdf`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="inline-flex items-center gap-2 px-3 py-2 text-sm font-medium text-blue-700 bg-blue-50 rounded-lg hover:bg-blue-100 transition-colors"
+                            >
+                              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                              </svg>
+                              Se faktura
+                            </a>
+                          )}
+                        </div>
                       )}
                     </div>
                   ) : (

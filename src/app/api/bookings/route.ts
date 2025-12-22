@@ -494,6 +494,13 @@ export async function GET() {
       statusNote: true,
       totalAmount: true,
       invoiceId: true,
+      invoice: {
+        select: {
+          id: true,
+          status: true,
+          invoiceNumber: true
+        }
+      },
       preferredPaymentMethod: true,
       resource: {
         select: {
