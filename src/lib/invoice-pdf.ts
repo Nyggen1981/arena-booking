@@ -174,27 +174,30 @@ export async function generateInvoicePDF(data: InvoiceData): Promise<Buffer> {
   doc.line(col1X, yPos + 2, col1X + 35, yPos + 2)
   doc.line(col2X, yPos + 2, col2X + 15, yPos + 2)
 
-  yPos += 10
+  yPos += 8
   doc.setFontSize(10)
   doc.setTextColor(...darkGray)
   doc.setFont("helvetica", "normal")
   
+  // Save starting position for both columns
+  const contentStartY = yPos
+  
   // Left column - Bill to
-  doc.text(data.billing.name, col1X, yPos)
-  yPos += 5
-  doc.text(data.billing.email, col1X, yPos)
+  let leftY = contentStartY
+  doc.text(data.billing.name, col1X, leftY)
+  leftY += 5
+  doc.text(data.billing.email, col1X, leftY)
   if (data.billing.phone) {
-    yPos += 5
-    doc.text(data.billing.phone, col1X, yPos)
+    leftY += 5
+    doc.text(data.billing.phone, col1X, leftY)
   }
   if (data.billing.address) {
-    yPos += 5
-    doc.text(data.billing.address, col1X, yPos)
+    leftY += 5
+    doc.text(data.billing.address, col1X, leftY)
   }
 
   // Right column - From (same starting yPos as left column)
-  let rightY = yPos - 5 // Reset to same starting point as left column
-  
+  let rightY = contentStartY
   doc.text(data.organization.name, col2X, rightY)
   rightY += 5
   if (data.organization.invoiceAddress) {
@@ -212,9 +215,11 @@ export async function generateInvoicePDF(data: InvoiceData): Promise<Buffer> {
   if (data.organization.invoiceEmail) {
     doc.text(data.organization.invoiceEmail, col2X, rightY)
   }
+  
+  // Update yPos to the maximum of both columns
+  yPos = Math.max(leftY, rightY) + 15
 
   // === ITEMS TABLE ===
-  yPos = Math.max(yPos, rightY) + 20
 
   const tableData = data.items.map((item) => {
     const cleanDescription = cleanText(item.description);

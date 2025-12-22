@@ -163,12 +163,35 @@ export async function sendInvoiceEmail(
       phone: invoice.billingPhone,
       address: invoice.billingAddress,
     },
-    items: invoice.bookings.map(b => ({
-      description: `${b.title} - ${resourceName} (${format(new Date(b.startTime), "d. MMM yyyy HH:mm", { locale: nb })} - ${format(new Date(b.endTime), "HH:mm", { locale: nb })})`,
-      quantity: 1,
-      unitPrice: Number(b.totalAmount || 0) / (1 + Number(invoice.taxRate)),
-      total: Number(b.totalAmount || 0) / (1 + Number(invoice.taxRate)),
-    })),
+    items: invoice.bookings.map(b => {
+      // Clean title - remove ALL & characters
+      const cleanTitle = b.title
+        .replace(/&#(\d+);/g, (_, dec) => String.fromCharCode(parseInt(dec, 10)))
+        .replace(/&#x([0-9a-fA-F]+);/g, (_, hex) => String.fromCharCode(parseInt(hex, 16)))
+        .replace(/&amp;/g, "&")
+        .replace(/&lt;/g, "<")
+        .replace(/&gt;/g, ">")
+        .replace(/&quot;/g, '"')
+        .replace(/&#39;/g, "'")
+        .replace(/&nbsp;/g, " ")
+        .replace(/&/g, "")
+        .replace(/\s+/g, " ")
+        .trim();
+      
+      const bookingResourceName = b.resourcePart 
+        ? `${b.resource.name} - ${b.resourcePart.name}` 
+        : b.resource.name;
+      const dateTime = `${format(new Date(b.startTime), "d. MMM yyyy HH:mm", { locale: nb })} - ${format(new Date(b.endTime), "HH:mm", { locale: nb })}`;
+      
+      return {
+        description: cleanTitle,
+        resourceName: bookingResourceName,
+        dateTime: dateTime,
+        quantity: 1,
+        unitPrice: Number(b.totalAmount || 0) / (1 + Number(invoice.taxRate)),
+        total: Number(b.totalAmount || 0) / (1 + Number(invoice.taxRate)),
+      };
+    }),
     subtotal: Number(invoice.subtotal),
     taxRate: Number(invoice.taxRate),
     taxAmount: Number(invoice.taxAmount),
