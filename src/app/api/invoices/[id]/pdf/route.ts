@@ -108,7 +108,9 @@ export async function GET(
         const dateTime = `${format(new Date(b.startTime), "d. MMM yyyy HH:mm", { locale: nb })} - ${format(new Date(b.endTime), "HH:mm", { locale: nb })}`;
         
         return {
-          description: `${cleanTitle} - ${resourceName} (${dateTime})`,
+          description: cleanTitle,
+          resourceName: resourceName,
+          dateTime: dateTime,
           quantity: 1,
           unitPrice: Number(b.totalAmount || 0) / (1 + Number(invoice.taxRate)),
           total: Number(b.totalAmount || 0) / (1 + Number(invoice.taxRate)),

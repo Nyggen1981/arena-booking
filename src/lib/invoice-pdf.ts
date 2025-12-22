@@ -25,6 +25,8 @@ interface InvoiceData {
   }
   items: Array<{
     description: string
+    resourceName?: string
+    dateTime?: string
     quantity: number
     unitPrice: number
     total: number
@@ -159,22 +161,25 @@ export async function generateInvoicePDF(data: InvoiceData): Promise<Buffer> {
   const col1X = margin
   const col2X = pageWidth / 2 + 10
 
-  // Left column - Bill to
+  // Headers on same line
   doc.setFontSize(11)
   doc.setTextColor(...primaryColor)
   doc.setFont("helvetica", "bold")
   doc.text("Faktureres til", col1X, yPos)
+  doc.text("Fra", col2X, yPos)
   
-  // Underline
+  // Underlines
   doc.setDrawColor(...primaryColor)
   doc.setLineWidth(0.5)
   doc.line(col1X, yPos + 2, col1X + 35, yPos + 2)
+  doc.line(col2X, yPos + 2, col2X + 15, yPos + 2)
 
   yPos += 10
   doc.setFontSize(10)
   doc.setTextColor(...darkGray)
   doc.setFont("helvetica", "normal")
   
+  // Left column - Bill to
   doc.text(data.billing.name, col1X, yPos)
   yPos += 5
   doc.text(data.billing.email, col1X, yPos)
@@ -187,44 +192,49 @@ export async function generateInvoicePDF(data: InvoiceData): Promise<Buffer> {
     doc.text(data.billing.address, col1X, yPos)
   }
 
-  // Right column - From (reset yPos for parallel column)
-  let fromY = yPos - (data.billing.phone ? 15 : 10) - (data.billing.address ? 5 : 0)
+  // Right column - From (same starting yPos as left column)
+  let rightY = yPos - 5 // Reset to same starting point as left column
   
-  doc.setFontSize(11)
-  doc.setTextColor(...primaryColor)
-  doc.setFont("helvetica", "bold")
-  doc.text("Fra", col2X, fromY - 10)
-  doc.line(col2X, fromY - 8, col2X + 15, fromY - 8)
-
-  doc.setFontSize(10)
-  doc.setTextColor(...darkGray)
-  doc.setFont("helvetica", "normal")
-  
-  doc.text(data.organization.name, col2X, fromY)
-  fromY += 5
+  doc.text(data.organization.name, col2X, rightY)
+  rightY += 5
   if (data.organization.invoiceAddress) {
-    doc.text(data.organization.invoiceAddress, col2X, fromY)
-    fromY += 5
+    doc.text(data.organization.invoiceAddress, col2X, rightY)
+    rightY += 5
   }
   if (data.organization.invoiceOrgNumber) {
-    doc.text(`Org.nr: ${data.organization.invoiceOrgNumber}`, col2X, fromY)
-    fromY += 5
+    doc.text(`Org.nr: ${data.organization.invoiceOrgNumber}`, col2X, rightY)
+    rightY += 5
   }
   if (data.organization.invoicePhone) {
-    doc.text(`Tlf: ${data.organization.invoicePhone}`, col2X, fromY)
-    fromY += 5
+    doc.text(`Tlf: ${data.organization.invoicePhone}`, col2X, rightY)
+    rightY += 5
   }
   if (data.organization.invoiceEmail) {
-    doc.text(data.organization.invoiceEmail, col2X, fromY)
+    doc.text(data.organization.invoiceEmail, col2X, rightY)
   }
 
   // === ITEMS TABLE ===
-  yPos = Math.max(yPos, fromY) + 20
+  yPos = Math.max(yPos, rightY) + 20
 
   const tableData = data.items.map((item) => {
     const cleanDescription = cleanText(item.description);
+    const resourceName = item.resourceName ? cleanText(item.resourceName) : "";
+    const dateTime = item.dateTime || "";
+    
+    // Combine description, resource, and date on separate lines
+    const descriptionLines: string[] = [];
+    if (cleanDescription) {
+      descriptionLines.push(cleanDescription);
+    }
+    if (resourceName) {
+      descriptionLines.push(resourceName);
+    }
+    if (dateTime) {
+      descriptionLines.push(dateTime);
+    }
+    
     return [
-      cleanDescription,
+      descriptionLines.join("\n"),
       item.quantity.toString(),
       `${item.unitPrice.toFixed(2)} kr`,
       `${item.total.toFixed(2)} kr`,
@@ -245,7 +255,17 @@ export async function generateInvoicePDF(data: InvoiceData): Promise<Buffer> {
     },
     bodyStyles: {
       fontSize: 9,
-      cellPadding: 4,
+      cellPadding: 3,
+    },
+    didParseCell: function (data: any) {
+      // Enable multi-line text in description column
+      if (data.column.index === 0) {
+        data.cell.styles.cellPadding = { top: 3, right: 4, bottom: 3, left: 4 };
+        // Ensure multiline text is properly handled
+        if (typeof data.cell.text === 'string' && data.cell.text.includes('\n')) {
+          data.cell.text = data.cell.text.split('\n');
+        }
+      }
     },
     alternateRowStyles: {
       fillColor: bgGray,
@@ -335,6 +355,13 @@ export async function generateInvoicePDF(data: InvoiceData): Promise<Buffer> {
     pageWidth / 2,
     footerY,
     { align: "center" }
+  )
+
+  // Convert to buffer
+  const pdfOutput = doc.output("arraybuffer")
+  return Buffer.from(pdfOutput)
+}
+
   )
 
   // Convert to buffer
