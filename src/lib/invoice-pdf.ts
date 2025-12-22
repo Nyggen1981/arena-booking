@@ -172,15 +172,7 @@ export async function generateInvoicePDF(data: InvoiceData): Promise<Buffer> {
     })
   }
 
-  yPos += 15 else {
-    // If no logo, place org name at top right
-    doc.setFontSize(20)
-    doc.setTextColor(...primaryColor)
-    doc.setFont("helvetica", "bold")
-    doc.text(data.organization.name, pageWidth - margin, margin + 10, {
-      align: "right",
-    })
-  }
+  yPos += 15
 
   doc.setFontSize(14)
   doc.setTextColor(...lightGray)
