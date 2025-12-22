@@ -59,13 +59,20 @@ export async function generateInvoicePDF(data: InvoiceData): Promise<Buffer> {
   // Header with logo
   let yPos = margin
 
-  // Logo (if available)
+  // Logo (if available) - max width 30mm, maintain aspect ratio
   if (data.organization.logo) {
     try {
       // For base64 images
       if (data.organization.logo.startsWith("data:image")) {
         const imgData = data.organization.logo
-        doc.addImage(imgData, "PNG", margin, yPos, 40, 15)
+        // Extract image format from data URL
+        const format = imgData.includes("image/png") ? "PNG" : 
+                      imgData.includes("image/jpeg") || imgData.includes("image/jpg") ? "JPEG" : "PNG"
+        
+        // Set max width to 30mm, calculate height to maintain aspect ratio
+        const maxWidth = 30
+        const maxHeight = 15
+        doc.addImage(imgData, format, margin, yPos, maxWidth, maxHeight, undefined, "FAST")
       } else {
         // For URL images - would need to fetch and convert to base64
         // For now, skip if it's a URL
@@ -75,15 +82,17 @@ export async function generateInvoicePDF(data: InvoiceData): Promise<Buffer> {
     }
   }
 
-  // Organization name
+  // Organization name - adjust position based on whether logo is present
+  const orgNameY = data.organization.logo ? yPos + 8 : yPos + 10
   doc.setFontSize(20)
   doc.setTextColor(...primaryColor)
   doc.setFont("helvetica", "bold")
-  doc.text(data.organization.name, pageWidth - margin, yPos + 10, {
+  doc.text(data.organization.name, pageWidth - margin, orgNameY, {
     align: "right",
   })
 
-  yPos += 25
+  // Adjust yPos based on whether logo is present
+  yPos = data.organization.logo ? yPos + 20 : yPos + 25
 
   // Invoice title and number
   doc.setFontSize(24)
@@ -174,12 +183,25 @@ export async function generateInvoicePDF(data: InvoiceData): Promise<Buffer> {
   autoTable(doc, {
     startY: yPos,
     head: [["Beskrivelse", "Antall", "Pris", "Total"]],
-    body: data.items.map((item) => [
-      item.description,
-      item.quantity.toString(),
-      `${item.unitPrice.toFixed(2)} kr`,
-      `${item.total.toFixed(2)} kr`,
-    ]),
+    body: data.items.map((item) => {
+      // Clean description - remove any HTML entities and special characters that might cause issues
+      const cleanDescription = item.description
+        .replace(/&amp;/g, "&")
+        .replace(/&lt;/g, "<")
+        .replace(/&gt;/g, ">")
+        .replace(/&quot;/g, '"')
+        .replace(/&#39;/g, "'")
+        .replace(/&nbsp;/g, " ")
+        .replace(/&[#\w]+;/g, "") // Remove any remaining HTML entities
+        .replace(/&/g, "") // Remove any standalone & characters
+      
+      return [
+        cleanDescription,
+        item.quantity.toString(),
+        `${item.unitPrice.toFixed(2)} kr`,
+        `${item.total.toFixed(2)} kr`,
+      ]
+    }),
     theme: "striped",
     headStyles: {
       fillColor: primaryColor,

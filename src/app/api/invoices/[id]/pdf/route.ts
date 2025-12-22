@@ -87,12 +87,29 @@ export async function GET(
         phone: invoice.billingPhone,
         address: invoice.billingAddress,
       },
-      items: invoice.bookings.map((b) => ({
-        description: `${b.title} - ${b.resourcePart ? `${b.resource.name} → ${b.resourcePart.name}` : b.resource.name} (${format(new Date(b.startTime), "d. MMM yyyy HH:mm", { locale: nb })} - ${format(new Date(b.endTime), "HH:mm", { locale: nb })})`,
-        quantity: 1,
-        unitPrice: Number(b.totalAmount || 0) / (1 + Number(invoice.taxRate)),
-        total: Number(b.totalAmount || 0) / (1 + Number(invoice.taxRate)),
-      })),
+      items: invoice.bookings.map((b) => {
+        // Clean up title - remove HTML entities and decode if needed
+        const cleanTitle = b.title
+          .replace(/&amp;/g, "&")
+          .replace(/&lt;/g, "<")
+          .replace(/&gt;/g, ">")
+          .replace(/&quot;/g, '"')
+          .replace(/&#39;/g, "'")
+          .replace(/&nbsp;/g, " ")
+          .replace(/&[#\w]+;/g, "") // Remove any remaining HTML entities
+        
+        const resourceName = b.resourcePart 
+          ? `${b.resource.name} → ${b.resourcePart.name}` 
+          : b.resource.name
+        const dateTime = `${format(new Date(b.startTime), "d. MMM yyyy HH:mm", { locale: nb })} - ${format(new Date(b.endTime), "HH:mm", { locale: nb })}`
+        
+        return {
+          description: `${cleanTitle} - ${resourceName} (${dateTime})`,
+          quantity: 1,
+          unitPrice: Number(b.totalAmount || 0) / (1 + Number(invoice.taxRate)),
+          total: Number(b.totalAmount || 0) / (1 + Number(invoice.taxRate)),
+        }
+      }),
       subtotal: Number(invoice.subtotal),
       taxRate: Number(invoice.taxRate),
       taxAmount: Number(invoice.taxAmount),
