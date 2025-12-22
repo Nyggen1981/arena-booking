@@ -93,12 +93,9 @@ export async function POST(request: NextRequest) {
 
     // If payment is completed, update booking
     if (paymentStatus === "COMPLETED" && payment.booking) {
-      await prisma.booking.update({
-        where: { id: payment.booking.id },
-        data: {
-          totalAmount: payment.amount,
-        },
-      })
+      // Booking er allerede knyttet til payment, så vi trenger ikke oppdatere totalAmount
+      // Payment status er det viktige som vises i UI
+      console.log(`[Vipps Webhook] Payment ${payment.id} completed for booking ${payment.booking.id}`)
     }
 
     // If payment is completed and linked to invoice, update invoice

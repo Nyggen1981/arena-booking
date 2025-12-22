@@ -118,7 +118,7 @@ class VippsClient {
         body: JSON.stringify({
           merchantInfo: {
             merchantSerialNumber: this.config.clientId,
-            callbackPrefix: process.env.VIPPS_CALLBACK_URL || "",
+            callbackPrefix: process.env.VIPPS_CALLBACK_URL || `${process.env.NEXTAUTH_URL || "http://localhost:3000"}/api/payment/webhook`,
             fallBack: request.returnUrl,
             consentRemovalPrefix: request.consentRemovalPrefix,
             shippingDetailsPrefix: request.shippingDetailsPrefix,
