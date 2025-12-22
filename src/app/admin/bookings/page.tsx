@@ -504,7 +504,11 @@ export default function AdminBookingsPage() {
                   
                   // Main row
                   rows.push(
-                    <tr key={booking.id} className="hover:bg-gray-50 transition-colors">
+                    <tr 
+                      key={booking.id} 
+                      className="hover:bg-gray-50 transition-colors cursor-pointer"
+                      onClick={() => setSelectedBooking(booking)}
+                    >
                       <td className="px-4 py-4">
                         <div className="flex items-start gap-3">
                           {isGrouped && (
@@ -606,11 +610,29 @@ export default function AdminBookingsPage() {
                           </td>
                           <td className="px-4 py-4">
                             {booking.preferredPaymentMethod ? (
-                              <span className="inline-flex items-center px-2 py-1 text-xs font-medium rounded-full bg-blue-50 text-blue-700">
-                                {booking.preferredPaymentMethod === "INVOICE" && "Faktura"}
-                                {booking.preferredPaymentMethod === "VIPPS" && "Vipps"}
-                                {booking.preferredPaymentMethod === "CARD" && "Kort"}
-                              </span>
+                              <div className="flex items-center gap-2 flex-wrap">
+                                <span className="inline-flex items-center px-2 py-1 text-xs font-medium rounded-full bg-blue-50 text-blue-700">
+                                  {booking.preferredPaymentMethod === "INVOICE" && "Faktura"}
+                                  {booking.preferredPaymentMethod === "VIPPS" && "Vipps"}
+                                  {booking.preferredPaymentMethod === "CARD" && "Kort"}
+                                </span>
+                                {booking.preferredPaymentMethod === "INVOICE" && booking.invoice && (
+                                  <span className={`inline-flex items-center px-2 py-1 text-xs font-medium rounded-full ${
+                                    booking.invoice.status === "PAID" 
+                                      ? "bg-green-100 text-green-700"
+                                      : booking.invoice.status === "SENT"
+                                      ? "bg-blue-100 text-blue-700"
+                                      : booking.invoice.status === "DRAFT"
+                                      ? "bg-gray-100 text-gray-600"
+                                      : "bg-orange-100 text-orange-700"
+                                  }`}>
+                                    {booking.invoice.status === "PAID" && "Betalt"}
+                                    {booking.invoice.status === "SENT" && "Sendt"}
+                                    {booking.invoice.status === "DRAFT" && "Kladd"}
+                                    {booking.invoice.status === "OVERDUE" && "Forfalt"}
+                                  </span>
+                                )}
+                              </div>
                             ) : (
                               <p className="text-xs text-gray-400">—</p>
                             )}
@@ -665,7 +687,10 @@ export default function AdminBookingsPage() {
                               {isGrouped ? (
                                 <div className="flex flex-col gap-1">
                                   <button
-                                    onClick={() => handleApproveClick(booking.id, true)}
+                                    onClick={(e) => {
+                                      e.stopPropagation()
+                                      handleApproveClick(booking.id, true)
+                                    }}
                                     disabled={processingId === booking.id}
                                     className="px-3 py-1.5 text-xs font-medium rounded-lg bg-green-600 text-white hover:bg-green-700 disabled:opacity-50 flex items-center gap-1"
                                   >
@@ -673,7 +698,8 @@ export default function AdminBookingsPage() {
                                     Godkjenn alle
                                   </button>
                                   <button
-                                    onClick={() => {
+                                    onClick={(e) => {
+                                      e.stopPropagation()
                                       setRejectingId(booking.id)
                                       setRejectApplyToAll(true)
                                     }}
@@ -687,7 +713,10 @@ export default function AdminBookingsPage() {
                               ) : (
                                 <>
                                   <button
-                                    onClick={() => handleApproveClick(booking.id, false)}
+                                    onClick={(e) => {
+                                      e.stopPropagation()
+                                      handleApproveClick(booking.id, false)
+                                    }}
                                     disabled={processingId === booking.id}
                                     className="p-2 rounded-lg bg-green-100 text-green-700 hover:bg-green-200 disabled:opacity-50"
                                     title="Godkjenn"
@@ -695,7 +724,8 @@ export default function AdminBookingsPage() {
                                     {processingId === booking.id ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCircle2 className="w-4 h-4" />}
                                   </button>
                                   <button
-                                    onClick={() => {
+                                    onClick={(e) => {
+                                      e.stopPropagation()
                                       setRejectingId(booking.id)
                                       setRejectApplyToAll(false)
                                     }}
@@ -713,7 +743,10 @@ export default function AdminBookingsPage() {
                             <>
                               {booking.invoice.status === "DRAFT" && (
                                 <button
-                                  onClick={() => setSelectedBooking(booking)}
+                                  onClick={(e) => {
+                                    e.stopPropagation()
+                                    setSelectedBooking(booking)
+                                  }}
                                   className="px-3 py-1.5 text-xs font-medium rounded-lg bg-blue-600 text-white hover:bg-blue-700 flex items-center gap-1"
                                   title="Se faktura"
                                 >
@@ -723,7 +756,10 @@ export default function AdminBookingsPage() {
                               )}
                               {booking.invoice.status === "SENT" && (
                                 <button
-                                  onClick={() => setSelectedBooking(booking)}
+                                  onClick={(e) => {
+                                    e.stopPropagation()
+                                    setSelectedBooking(booking)
+                                  }}
                                   className="px-3 py-1.5 text-xs font-medium rounded-lg bg-green-600 text-white hover:bg-green-700 flex items-center gap-1"
                                   title="Marker som betalt"
                                 >
@@ -735,7 +771,10 @@ export default function AdminBookingsPage() {
                           )}
                           {(booking.status === "approved" || booking.status === "pending") && (
                             <button
-                              onClick={() => setCancellingId(booking.id)}
+                              onClick={(e) => {
+                                e.stopPropagation()
+                                setCancellingId(booking.id)
+                              }}
                               disabled={processingId === booking.id}
                               className="p-2 rounded-lg text-gray-400 hover:bg-gray-100 hover:text-red-600 disabled:opacity-50"
                               title="Kanseller"
@@ -813,11 +852,29 @@ export default function AdminBookingsPage() {
                               </td>
                               <td className="px-4 py-3">
                                 {childBooking.preferredPaymentMethod ? (
-                                  <span className="inline-flex items-center px-2 py-1 text-xs font-medium rounded-full bg-blue-50 text-blue-700">
-                                    {childBooking.preferredPaymentMethod === "INVOICE" && "Faktura"}
-                                    {childBooking.preferredPaymentMethod === "VIPPS" && "Vipps"}
-                                    {childBooking.preferredPaymentMethod === "CARD" && "Kort"}
-                                  </span>
+                                  <div className="flex items-center gap-2 flex-wrap">
+                                    <span className="inline-flex items-center px-2 py-1 text-xs font-medium rounded-full bg-blue-50 text-blue-700">
+                                      {childBooking.preferredPaymentMethod === "INVOICE" && "Faktura"}
+                                      {childBooking.preferredPaymentMethod === "VIPPS" && "Vipps"}
+                                      {childBooking.preferredPaymentMethod === "CARD" && "Kort"}
+                                    </span>
+                                    {childBooking.preferredPaymentMethod === "INVOICE" && childBooking.invoice && (
+                                      <span className={`inline-flex items-center px-2 py-1 text-xs font-medium rounded-full ${
+                                        childBooking.invoice.status === "PAID" 
+                                          ? "bg-green-100 text-green-700"
+                                          : childBooking.invoice.status === "SENT"
+                                          ? "bg-blue-100 text-blue-700"
+                                          : childBooking.invoice.status === "DRAFT"
+                                          ? "bg-gray-100 text-gray-600"
+                                          : "bg-orange-100 text-orange-700"
+                                      }`}>
+                                        {childBooking.invoice.status === "PAID" && "Betalt"}
+                                        {childBooking.invoice.status === "SENT" && "Sendt"}
+                                        {childBooking.invoice.status === "DRAFT" && "Kladd"}
+                                        {childBooking.invoice.status === "OVERDUE" && "Forfalt"}
+                                      </span>
+                                    )}
+                                  </div>
                                 ) : (
                                   <p className="text-xs text-gray-400">—</p>
                                 )}
@@ -867,7 +924,10 @@ export default function AdminBookingsPage() {
                               {childBooking.status === "pending" && (
                                 <>
                                   <button
-                                    onClick={() => handleApproveClick(childBooking.id, false)}
+                                    onClick={(e) => {
+                                      e.stopPropagation()
+                                      handleApproveClick(childBooking.id, false)
+                                    }}
                                     disabled={processingId === childBooking.id}
                                     className="p-1.5 rounded-lg bg-green-100 text-green-700 hover:bg-green-200 disabled:opacity-50"
                                     title="Godkjenn"
@@ -875,7 +935,8 @@ export default function AdminBookingsPage() {
                                     {processingId === childBooking.id ? <Loader2 className="w-3 h-3 animate-spin" /> : <CheckCircle2 className="w-3 h-3" />}
                                   </button>
                                   <button
-                                    onClick={() => {
+                                    onClick={(e) => {
+                                      e.stopPropagation()
                                       setRejectingId(childBooking.id)
                                       setRejectApplyToAll(false)
                                     }}
@@ -1092,6 +1153,43 @@ export default function AdminBookingsPage() {
               )}
 
               {/* Action buttons */}
+              {selectedBooking.status === "pending" && 
+               selectedBooking.preferredPaymentMethod === "INVOICE" && 
+               (!selectedBooking.payments || selectedBooking.payments.length === 0) && (
+                <div className="border-t pt-4">
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => handleApproveClick(selectedBooking.id, false)}
+                      disabled={processingId === selectedBooking.id}
+                      className="flex-1 px-4 py-2 bg-green-600 text-white rounded-lg font-medium hover:bg-green-700 disabled:opacity-50 transition-colors flex items-center justify-center gap-2"
+                    >
+                      {processingId === selectedBooking.id ? (
+                        <>
+                          <Loader2 className="w-4 h-4 animate-spin" />
+                          Behandler...
+                        </>
+                      ) : (
+                        <>
+                          <CheckCircle2 className="w-4 h-4" />
+                          Godkjenn
+                        </>
+                      )}
+                    </button>
+                    <button
+                      onClick={() => {
+                        setSelectedBooking(null)
+                        setRejectingId(selectedBooking.id)
+                        setRejectApplyToAll(false)
+                      }}
+                      disabled={processingId === selectedBooking.id}
+                      className="flex-1 px-4 py-2 bg-red-600 text-white rounded-lg font-medium hover:bg-red-700 disabled:opacity-50 transition-colors flex items-center justify-center gap-2"
+                    >
+                      <XCircle className="w-4 h-4" />
+                      Avslå
+                    </button>
+                  </div>
+                </div>
+              )}
               {selectedBooking.status === "approved" && 
                selectedBooking.invoice && 
                selectedBooking.preferredPaymentMethod === "INVOICE" && (
