@@ -1336,7 +1336,21 @@ export function BookingManagement({ initialBookings, showTabs = true }: BookingM
                     </span>
                   </div>
                   <p className="text-xs text-gray-500 mt-1">
-                    {Math.round((new Date(selectedBooking.endTime).getTime() - new Date(selectedBooking.startTime).getTime()) / (1000 * 60 * 60) * 10) / 10} timer
+                    {(() => {
+                      const start = new Date(selectedBooking.startTime)
+                      const end = new Date(selectedBooking.endTime)
+                      let durationMs = end.getTime() - start.getTime()
+                      
+                      // Håndter tilfelle hvor booking går over midnatt
+                      // Hvis varighet er negativ, betyr det at endTime er før startTime (sannsynligvis feil dato)
+                      // Legg til 24 timer for å korrigere (antagelse: booking går over midnatt og er < 24 timer)
+                      if (durationMs < 0) {
+                        durationMs += 24 * 60 * 60 * 1000
+                      }
+                      
+                      const durationHours = Math.round((durationMs / (1000 * 60 * 60)) * 10) / 10
+                      return `${durationHours} timer`
+                    })()}
                   </p>
                 </div>
               </div>
