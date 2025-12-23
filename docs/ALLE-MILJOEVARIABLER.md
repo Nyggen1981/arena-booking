@@ -46,11 +46,63 @@
 **Merk:** Hvis `LICENSE_SERVER_URL` eller `LICENSE_KEY` ikke er satt, kjører appen i "development mode" og hopper over lisensvalidering.
 
 ### Vipps (Hvis du bruker Vipps betalinger)
+
+**Viktig:** Vipps-konfigurasjonen settes i **Admin-innstillinger** i appen, ikke som miljøvariabler!
+
+#### Miljøvariabel (valgfritt)
 | Variabel | Verdi | Eksempel | Beskrivelse |
 |----------|-------|----------|-------------|
 | `VIPPS_CALLBACK_URL` | Callback URL | `https://din-app.vercel.app/api/payment/webhook` | URL for Vipps webhook (standard: `${NEXTAUTH_URL}/api/payment/webhook`) |
 
 **Merk:** Hvis ikke satt, brukes `${NEXTAUTH_URL}/api/payment/webhook` automatisk.
+
+#### Vipps-credentials (settes i Admin-innstillinger)
+Gå til **Admin → Innstillinger → Vipps-innstillinger** og fyll inn:
+
+1. **Vipps Client ID** (Merchant Serial Number)
+   - Finnes i Vipps Bedriftsportal under "API-nøkler"
+   - Format: `12345678`
+
+2. **Vipps Subscription Key**
+   - Finnes i Vipps Bedriftsportal under "API-nøkler"
+   - Format: `abc123def456...`
+
+3. **Vipps Client Secret**
+   - Finnes i Vipps Bedriftsportal under "API-nøkler"
+   - Dette er en hemmelig nøkkel - vises kun én gang når den genereres
+
+4. **Testmodus**
+   - Slå på for testing (anbefalt i utvikling)
+   - Slå av for produksjon
+
+**Hvor finner jeg Vipps-credentials?**
+
+1. **Logg inn på Vipps Bedriftsportal**
+   - Gå til [portal.vipps.no](https://portal.vipps.no/) eller [portal.vippsmobilepay.com](https://portal.vippsmobilepay.com)
+   - Logg inn med dine administratorrettigheter
+
+2. **Naviger til "For utviklere"**
+   - Klikk på **"For utviklere"** i sidemenyen
+   - Hvis du ikke ser dette alternativet, må du be din administrator om å gi deg utviklertilgang
+
+3. **Velg miljø og finn salgsenheten**
+   - Velg fanen **"API-nøkler"**
+   - Velg enten **"Produksjon"** eller **"Test"** (avhengig av hvilket miljø du konfigurerer)
+   - Finn den aktuelle salgsenheten i tabellen
+   - Klikk på **"Vis nøkler"** - et panel åpnes med alle nødvendige nøkler
+
+4. **Kopier nøklene**
+   - **Merchant Serial Number** (Client ID) - f.eks. `12345678`
+   - **Subscription Key** - f.eks. `abc123def456...`
+   - **Client Secret** - viktig: vises kun én gang når den genereres!
+
+**Viktig:** 
+- Hvis nøklene blir kompromittert, generer nye umiddelbart ved å klikke på **"Generer"** ved siden av "Vis nøkler"-knappen
+- Oppdater deretter integrasjonene dine med de nye nøklene
+
+**Mer informasjon:**
+- [Vipps hjelpesenter - Hvordan få API-nøkler](https://help.vippsmobilepay.com/en-NO/articles/how-to-get-api-keys)
+- [Vipps utviklerdokumentasjon - API-nøkler](https://developer.vippsmobilepay.com/docs/knowledge-base/api-keys/)
 
 ---
 
