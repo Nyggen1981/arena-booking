@@ -88,6 +88,11 @@ Gå til **Admin → Innstillinger → Vipps-innstillinger** og fyll inn:
 3. **Velg miljø og finn salgsenheten**
    - Velg fanen **"API-nøkler"**
    - Velg enten **"Produksjon"** eller **"Test"** (avhengig av hvilket miljø du konfigurerer)
+   - **Viktig:** Hvis du ikke ser noen API-nøkler, må du bestille en av følgende løsninger fra Vipps:
+     - **Integrert betaling** (anbefalt for booking-systemer)
+     - **Faste betalinger**
+     - **Logg inn**
+   - **Merk:** API-nøkler er **ikke** tilgjengelige for "Handlekurv" og "Valgfritt beløp"
    - Finn den aktuelle salgsenheten i tabellen
    - Klikk på **"Vis nøkler"** - et panel åpnes med alle nødvendige nøkler
 
@@ -97,8 +102,10 @@ Gå til **Admin → Innstillinger → Vipps-innstillinger** og fyll inn:
    - **Client Secret** - viktig: vises kun én gang når den genereres!
 
 **Viktig:** 
+- Hvis du nylig har bestilt Vipps, kan det ta noen dager før API-nøklene vises i portalen
 - Hvis nøklene blir kompromittert, generer nye umiddelbart ved å klikke på **"Generer"** ved siden av "Vis nøkler"-knappen
 - Oppdater deretter integrasjonene dine med de nye nøklene
+- For booking-systemer, anbefales **"Integrert betaling"**-løsningen fra Vipps
 
 **Mer informasjon:**
 - [Vipps hjelpesenter - Hvordan få API-nøkler](https://help.vippsmobilepay.com/en-NO/articles/how-to-get-api-keys)
