@@ -21,6 +21,10 @@ export async function GET(request: Request) {
           tagline: true,
           primaryColor: true,
           requireUserApproval: true,
+          invoiceOrgNumber: true,
+          invoiceAddress: true,
+          invoicePhone: true,
+          invoiceEmail: true,
         }
       })
     } else {
@@ -36,6 +40,10 @@ export async function GET(request: Request) {
             tagline: true,
             primaryColor: true,
             requireUserApproval: true,
+            invoiceOrgNumber: true,
+            invoiceAddress: true,
+            invoicePhone: true,
+            invoiceEmail: true,
           }
         })
       }
@@ -50,6 +58,10 @@ export async function GET(request: Request) {
             tagline: true,
             primaryColor: true,
             requireUserApproval: true,
+            invoiceOrgNumber: true,
+            invoiceAddress: true,
+            invoicePhone: true,
+            invoiceEmail: true,
           }
         })
       }
