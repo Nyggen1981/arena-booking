@@ -8,8 +8,10 @@ import { FileText, Building2, Phone, Mail, MapPin } from "lucide-react"
 export default async function SalgsvilkårPage() {
   const session = await getServerSession(authOptions)
   
-  // Hent organisasjonsinformasjon
+  // Hent organisasjonsinformasjon (viktig for Vipps-krav - må være synlig for alle)
   let organization = null
+  
+  // Hvis bruker er logget inn, bruk deres organisasjon
   if (session?.user?.organizationId) {
     organization = await prisma.organization.findUnique({
       where: { id: session.user.organizationId },
@@ -21,6 +23,36 @@ export default async function SalgsvilkårPage() {
         invoiceEmail: true,
       }
     })
+  }
+  
+  // Hvis ikke logget inn eller organisasjon ikke funnet, bruk standard organisasjon
+  if (!organization) {
+    const preferredSlug = process.env.PREFERRED_ORG_SLUG
+    if (preferredSlug) {
+      organization = await prisma.organization.findUnique({
+        where: { slug: preferredSlug },
+        select: {
+          name: true,
+          invoiceOrgNumber: true,
+          invoiceAddress: true,
+          invoicePhone: true,
+          invoiceEmail: true,
+        }
+      })
+    }
+    
+    // Fallback til første organisasjon
+    if (!organization) {
+      organization = await prisma.organization.findFirst({
+        select: {
+          name: true,
+          invoiceOrgNumber: true,
+          invoiceAddress: true,
+          invoicePhone: true,
+          invoiceEmail: true,
+        }
+      })
+    }
   }
 
   return (
