@@ -757,7 +757,7 @@ export default async function ResourcePage({ params }: Props) {
             )}
 
             {/* Parts - Mer informasjon */}
-            {resource.parts.length > 0 && resource.visDelinfoKort && (
+            {resource.parts.length > 0 && (resource as any).visDelinfoKort !== false && (
               <PartsList 
                 parts={partsWithImage}
                 sortedParts={sortedParts}

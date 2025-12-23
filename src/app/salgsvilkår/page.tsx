@@ -15,10 +15,10 @@ export default async function SalgsvilkårPage() {
       where: { id: session.user.organizationId },
       select: {
         name: true,
-        orgNumber: true,
-        address: true,
-        phone: true,
-        email: true,
+        invoiceOrgNumber: true,
+        invoiceAddress: true,
+        invoicePhone: true,
+        invoiceEmail: true,
       }
     })
   }
@@ -52,25 +52,25 @@ export default async function SalgsvilkårPage() {
                     {organization.name && (
                       <p><strong>Organisasjon:</strong> {organization.name}</p>
                     )}
-                    {organization.orgNumber && (
-                      <p><strong>Organisasjonsnummer:</strong> {organization.orgNumber}</p>
+                    {organization.invoiceOrgNumber && (
+                      <p><strong>Organisasjonsnummer:</strong> {organization.invoiceOrgNumber}</p>
                     )}
-                    {organization.address && (
+                    {organization.invoiceAddress && (
                       <p className="flex items-start gap-2">
                         <MapPin className="w-4 h-4 mt-0.5 flex-shrink-0" />
-                        <span><strong>Adresse:</strong> {organization.address}</span>
+                        <span><strong>Adresse:</strong> {organization.invoiceAddress}</span>
                       </p>
                     )}
-                    {organization.phone && (
+                    {organization.invoicePhone && (
                       <p className="flex items-center gap-2">
                         <Phone className="w-4 h-4 flex-shrink-0" />
-                        <span><strong>Telefon:</strong> {organization.phone}</span>
+                        <span><strong>Telefon:</strong> {organization.invoicePhone}</span>
                       </p>
                     )}
-                    {organization.email && (
+                    {organization.invoiceEmail && (
                       <p className="flex items-center gap-2">
                         <Mail className="w-4 h-4 flex-shrink-0" />
-                        <span><strong>E-post:</strong> {organization.email}</span>
+                        <span><strong>E-post:</strong> {organization.invoiceEmail}</span>
                       </p>
                     )}
                   </div>
