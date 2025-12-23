@@ -58,7 +58,7 @@ export function Footer() {
               </Link>
               {pricingEnabled && (
                 <Link 
-                  href="/salgsvilkår" 
+                  href="/salgsvilkaar" 
                   className="text-xs text-slate-400 hover:text-slate-300 transition-colors"
                 >
                   Salgsvilkår
