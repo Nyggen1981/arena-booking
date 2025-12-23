@@ -1,10 +1,23 @@
+"use client"
+
 import Link from "next/link"
 import Image from "next/image"
+import { useEffect, useState } from "react"
 import packageJson from "../../package.json"
 
 const VERSION = packageJson.version
 
 export function Footer() {
+  const [pricingEnabled, setPricingEnabled] = useState(false)
+
+  useEffect(() => {
+    // Sjekk om pricing er aktivert
+    fetch("/api/pricing/status")
+      .then(res => res.json())
+      .then(data => setPricingEnabled(data.enabled || false))
+      .catch(() => setPricingEnabled(false))
+  }, [])
+
   return (
     <footer className="bg-slate-900 text-white mt-auto">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-5">
@@ -35,13 +48,23 @@ export function Footer() {
           </div>
 
           {/* Links and Copyright - Right */}
-          <div className="text-center sm:text-right flex flex-col items-end">
-            <Link 
-              href="/personvern" 
-              className="text-xs text-slate-400 hover:text-slate-300 transition-colors"
-            >
-              Personvernpolicy
-            </Link>
+          <div className="text-center sm:text-right flex flex-col items-end gap-1">
+            <div className="flex flex-col sm:flex-row items-end gap-2 sm:gap-4">
+              <Link 
+                href="/personvern" 
+                className="text-xs text-slate-400 hover:text-slate-300 transition-colors"
+              >
+                Personvernpolicy
+              </Link>
+              {pricingEnabled && (
+                <Link 
+                  href="/salgsvilkår" 
+                  className="text-xs text-slate-400 hover:text-slate-300 transition-colors"
+                >
+                  Salgsvilkår
+                </Link>
+              )}
+            </div>
             <p className="text-xs text-slate-500 mt-1">
               &copy; {new Date().getFullYear()} SportFlow. Alle rettigheter reservert.
             </p>
