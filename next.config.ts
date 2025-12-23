@@ -9,6 +9,16 @@ const nextConfig: NextConfig = {
   turbopack: {
     root: ".",
   },
+  async redirects() {
+    return [
+      {
+        // Redirect from old URL with Norwegian characters to new URL
+        source: "/salgsvilkår",
+        destination: "/salgsvilkaar",
+        permanent: true,
+      },
+    ];
+  },
   async headers() {
     return [
       {
