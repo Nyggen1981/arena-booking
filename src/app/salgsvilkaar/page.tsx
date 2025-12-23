@@ -41,37 +41,52 @@ export default async function SalgsvilkårPage() {
             </div>
 
             <div className="prose prose-sm max-w-none">
-              {/* Firma- og kontaktinformasjon */}
-              {organization && (
-                <section className="mb-8 p-4 bg-gray-50 rounded-lg">
+              {/* Firma- og kontaktinformasjon - Viktig for Vipps-krav */}
+              {organization && (organization.invoiceOrgNumber || organization.invoiceAddress) && (
+                <section className="mb-8 p-5 bg-blue-50 border border-blue-200 rounded-lg">
                   <h2 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
-                    <Building2 className="w-5 h-5" />
+                    <Building2 className="w-5 h-5 text-blue-600" />
                     Firma- og kontaktinformasjon
                   </h2>
-                  <div className="space-y-2 text-sm text-gray-700">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm text-gray-700">
                     {organization.name && (
-                      <p><strong>Organisasjon:</strong> {organization.name}</p>
+                      <div>
+                        <p className="font-medium text-gray-900">Organisasjon</p>
+                        <p className="text-gray-600">{organization.name}</p>
+                      </div>
                     )}
                     {organization.invoiceOrgNumber && (
-                      <p><strong>Organisasjonsnummer:</strong> {organization.invoiceOrgNumber}</p>
+                      <div>
+                        <p className="font-medium text-gray-900">Organisasjonsnummer</p>
+                        <p className="text-gray-600">{organization.invoiceOrgNumber}</p>
+                      </div>
                     )}
                     {organization.invoiceAddress && (
-                      <p className="flex items-start gap-2">
-                        <MapPin className="w-4 h-4 mt-0.5 flex-shrink-0" />
-                        <span><strong>Adresse:</strong> {organization.invoiceAddress}</span>
-                      </p>
+                      <div className="flex items-start gap-2">
+                        <MapPin className="w-4 h-4 mt-0.5 flex-shrink-0 text-blue-600" />
+                        <div>
+                          <p className="font-medium text-gray-900">Adresse</p>
+                          <p className="text-gray-600">{organization.invoiceAddress}</p>
+                        </div>
+                      </div>
                     )}
                     {organization.invoicePhone && (
-                      <p className="flex items-center gap-2">
-                        <Phone className="w-4 h-4 flex-shrink-0" />
-                        <span><strong>Telefon:</strong> {organization.invoicePhone}</span>
-                      </p>
+                      <div className="flex items-center gap-2">
+                        <Phone className="w-4 h-4 flex-shrink-0 text-blue-600" />
+                        <div>
+                          <p className="font-medium text-gray-900">Telefon</p>
+                          <p className="text-gray-600">{organization.invoicePhone}</p>
+                        </div>
+                      </div>
                     )}
                     {organization.invoiceEmail && (
-                      <p className="flex items-center gap-2">
-                        <Mail className="w-4 h-4 flex-shrink-0" />
-                        <span><strong>E-post:</strong> {organization.invoiceEmail}</span>
-                      </p>
+                      <div className="flex items-center gap-2">
+                        <Mail className="w-4 h-4 flex-shrink-0 text-blue-600" />
+                        <div>
+                          <p className="font-medium text-gray-900">E-post</p>
+                          <p className="text-gray-600">{organization.invoiceEmail}</p>
+                        </div>
+                      </div>
                     )}
                   </div>
                 </section>
