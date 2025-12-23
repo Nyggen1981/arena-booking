@@ -49,6 +49,40 @@
 
 **Viktig:** Vipps-konfigurasjonen settes i **Admin-innstillinger** i appen, ikke som miljøvariabler!
 
+#### Krav til nettside før oppsett
+
+Før du kan opprette Vipps på nett, må nettsiden din oppfylle følgende krav:
+
+**1. Salgsvilkår**
+Nettsiden må ha salgsvilkår som omhandler:
+- Parter
+- Betaling
+- Levering
+- Angrerett
+- Retur
+- Reklamasjonshåndtering
+- Konfliktløsning
+
+**2. Spesielle krav for booking-systemer (utleie):**
+Hvis dere tilbyr utleie av fasiliteter, må det være informasjon om:
+- Leieforhold
+- Frist for ombooking, endring eller avbestilling
+- Informasjon om oppsigelse/avslutning av leieforhold
+
+**3. Firma- og kontaktinformasjon**
+Følgende må være godt synlig på nettsiden (f.eks. nederst på siden eller under "Kontakt oss"):
+- Navn på organisasjon/bedrift
+- Organisasjonsnummer
+- Adresse
+- Telefonnummer
+- E-postadresse
+
+**4. Informasjon om produkter/tjenester**
+- Beskrivelse av hva slags produkter/tjenester dere tilbyr
+- Priser må fremkomme tydelig
+
+**Merk:** Dette er minimumskrav fra Vipps. Det er bedriftens ansvar å sørge for at nettsiden følger gjeldende regler i markedet de opererer i.
+
 #### Miljøvariabel (valgfritt)
 | Variabel | Verdi | Eksempel | Beskrivelse |
 |----------|-------|----------|-------------|
