@@ -3,10 +3,55 @@ import { authOptions } from "@/lib/auth"
 import { prisma } from "@/lib/prisma"
 import { Navbar } from "@/components/Navbar"
 import { Footer } from "@/components/Footer"
-import { FileText, Building2, Phone, Mail, MapPin } from "lucide-react"
+import { isPricingEnabled } from "@/lib/pricing"
+import { FileText, Building2, Phone, Mail, MapPin, AlertCircle } from "lucide-react"
+import Link from "next/link"
 
 export default async function SalgsvilkårPage() {
   const session = await getServerSession(authOptions)
+  
+  // Sjekk om "pris og betaling" modulen er aktivert
+  const pricingEnabled = await isPricingEnabled()
+  
+  // Hvis modulen ikke er aktivert, vis melding
+  if (!pricingEnabled) {
+    return (
+      <div className="min-h-screen bg-slate-50 flex flex-col">
+        <Navbar />
+        
+        <main className="flex-grow">
+          <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+            <div className="card p-6 md:p-8">
+              <div className="flex items-center gap-3 mb-6">
+                <div className="w-12 h-12 rounded-xl bg-yellow-100 flex items-center justify-center">
+                  <AlertCircle className="w-6 h-6 text-yellow-600" />
+                </div>
+                <div>
+                  <h1 className="text-2xl font-bold text-gray-900">Siden ikke tilgjengelig</h1>
+                  <p className="text-gray-500 text-sm">Salgsvilkår-siden er kun tilgjengelig når "pris og betaling" modulen er aktivert</p>
+                </div>
+              </div>
+              
+              <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-6">
+                <p className="text-sm text-yellow-800">
+                  Denne siden er kun synlig når "pris og betaling" modulen er aktivert i systemet.
+                </p>
+              </div>
+              
+              <Link 
+                href="/"
+                className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+              >
+                Tilbake til forsiden
+              </Link>
+            </div>
+          </div>
+        </main>
+        
+        <Footer />
+      </div>
+    )
+  }
   
   // Hent organisasjonsinformasjon (viktig for Vipps-krav - må være synlig for alle)
   let organization = null
